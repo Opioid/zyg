@@ -15,9 +15,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Texture = struct {
-    pub const UvSet = enum {
+    pub const TexCoordMode = enum {
         UV0,
         Triplanar,
+        ObjectPos,
     };
 
     pub const Type = enum {
@@ -56,10 +57,10 @@ pub const Texture = struct {
     };
 
     type: Type = .Uniform,
-    uv_set: UvSet = undefined,
+    uv_set: TexCoordMode = undefined,
     data: Data = undefined,
 
-    pub fn initImage(class: Type, image_id: u32, uv_set: UvSet, scale: Vec2f) Texture {
+    pub fn initImage(class: Type, image_id: u32, uv_set: TexCoordMode, scale: Vec2f) Texture {
         return .{ .type = class, .uv_set = uv_set, .data = .{ .image = .{ .id = image_id, .scale = scale } } };
     }
 
@@ -75,7 +76,7 @@ pub const Texture = struct {
         return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init3(v[0], v[1], v[2]) } };
     }
 
-    pub fn initProcedural(id: u32, data: u32, uv_set: UvSet) Texture {
+    pub fn initProcedural(id: u32, data: u32, uv_set: TexCoordMode) Texture {
         return .{ .type = .Procedural, .uv_set = uv_set, .data = .{ .procedural = .{ .id = id, .data = data } } };
     }
 

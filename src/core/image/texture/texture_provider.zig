@@ -30,7 +30,7 @@ pub const Provider = struct {
         alloc: Allocator,
         name: []const u8,
         options: Variants,
-        sampler: Texture.UvSet,
+        sampler: Texture.TexCoordMode,
         scale: Vec2f,
         resources: *Resources,
     ) !Texture {
@@ -66,7 +66,7 @@ pub const Provider = struct {
         return try createTexture(image_id, usage, sampler, scale, resources);
     }
 
-    pub fn createTexture(image_id: u32, usage: Usage, sampler: Texture.UvSet, scale: Vec2f, resources: *Resources) !Texture {
+    pub fn createTexture(image_id: u32, usage: Usage, sampler: Texture.TexCoordMode, scale: Vec2f, resources: *Resources) !Texture {
         const image = resources.get(Image, image_id) orelse return Error.InvalidImageId;
 
         return switch (image.*) {

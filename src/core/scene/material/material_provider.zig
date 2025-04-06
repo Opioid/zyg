@@ -476,7 +476,7 @@ const TextureDescriptor = struct {
 
     swizzle: ?img.Swizzle = null,
 
-    sampler: Texture.UvSet = .UV0,
+    sampler: Texture.TexCoordMode = .UV0,
     scale: Vec2f = .{ 1.0, 1.0 },
 
     invert: bool = false,
@@ -669,20 +669,22 @@ fn readAddress(value: std.json.Value) ts.AddressMode {
     return .Repeat;
 }
 
-fn readTextureSampler(value: std.json.Value) Texture.UvSet {
-    var sampler: Texture.UvSet = .UV0;
+fn readTextureSampler(value: std.json.Value) Texture.TexCoordMode {
+    var sampler: Texture.TexCoordMode = .UV0;
 
     switch (value) {
         .object => |o| {
             var iter = o.iterator();
             while (iter.next()) |entry| {
-                if (std.mem.eql(u8, "uv", entry.key_ptr.*)) {
+                if (std.mem.eql(u8, "texcoord", entry.key_ptr.*)) {
                     const set = json.readString(entry.value_ptr.*);
 
                     if (std.mem.eql(u8, "UV0", set)) {
                         sampler = .UV0;
                     } else if (std.mem.eql(u8, "Triplanar", set)) {
                         sampler = .Triplanar;
+                    } else if (std.mem.eql(u8, "ObjectPos", set)) {
+                        sampler = .ObjectPos;
                     }
                 }
             }
