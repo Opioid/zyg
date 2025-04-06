@@ -23,7 +23,8 @@ pub const Noise = struct {
     levels: u32,
 
     attenuation: f32,
-    contrast: f32,
+    ratio: f32,
+    transition: f32,
 
     scale: Vec4f,
 
@@ -67,7 +68,11 @@ pub const Noise = struct {
 
         const unsigned = if (self.absolute) @abs(value) else (value + 1.0) * 0.5;
 
-        return math.saturate((unsigned - 0.5) * self.contrast + 0.5);
+        const a = self.ratio - self.transition;
+        const b = self.ratio + self.transition;
+
+        return math.saturate((unsigned - a) / (b - a));
+        //  return math.smoothstep(remapped_noise);
     }
 
     pub fn evaluate3(self: Noise, rs: Renderstate, uv_set: TexCoordMode) Vec4f {

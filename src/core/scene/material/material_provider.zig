@@ -574,7 +574,8 @@ const TextureDescriptor = struct {
                         noise.absolute = json.readBoolMember(entry.value_ptr.*, "absolute", false);
                         noise.levels = json.readUIntMember(entry.value_ptr.*, "levels", 1);
                         noise.attenuation = json.readFloatMember(entry.value_ptr.*, "attenuation", 0.0);
-                        noise.contrast = json.readFloatMember(entry.value_ptr.*, "contrast", 1.0);
+                        noise.ratio = json.readFloatMember(entry.value_ptr.*, "ratio", 0.5);
+                        noise.transition = json.readFloatMember(entry.value_ptr.*, "transition", 0.5);
                         noise.scale = json.readVec4f3Member(entry.value_ptr.*, "scale", @splat(1.0));
 
                         desc.procedural = @intFromEnum(Procedural.Type.Noise);
