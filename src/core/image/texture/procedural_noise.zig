@@ -6,6 +6,8 @@ const hlp = @import("../../scene/material/material_helper.zig");
 const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
+const Vec2i = math.Vec2i;
+const Vec2u = math.Vec2u;
 const Vec4f = math.Vec4f;
 const Vec4i = math.Vec4i;
 const Vec4u = math.Vec4u;
@@ -90,7 +92,7 @@ pub const Noise = struct {
         return @splat(noise);
     }
 
-    fn perlin2D_1(p: Vec2f) f32 {
+    fn scalarPerlin2D_1(p: Vec2f) f32 {
         const fx, const X = floorfrac(p[0]);
         const fy, const Y = floorfrac(p[1]);
 
@@ -105,6 +107,24 @@ pub const Noise = struct {
         };
 
         return gradient_scale2D(math.bilinear(f32, c, u, v));
+    }
+
+    fn perlin2D_1(p: Vec2f) f32 {
+        const fp, const P = floorfrac2(p);
+
+        const uv = fade(Vec2f, fp);
+
+        const P0: Vec4u = .{ P[0], P[0] + 1, P[0], P[0] + 1 };
+        const P1: Vec4u = .{ P[1], P[1], P[1] + 1, P[1] + 1 };
+
+        const fp0: Vec4f = .{ fp[0], fp[0] - 1.0, fp[0], fp[0] - 1.0 };
+        const fp1: Vec4f = .{ fp[1], fp[1], fp[1] - 1.0, fp[1] - 1.0 };
+
+        const hash = hash2v(P0, P1);
+
+        const c = gradient2v(hash, fp0, fp1);
+
+        return gradient_scale2D(math.bilinear(f32, c, uv[0], uv[1]));
     }
 
     fn scalarPerlin3D_1(p: Vec4f) f32 {
@@ -138,7 +158,7 @@ pub const Noise = struct {
     }
 
     fn perlin3D_1(p: Vec4f) f32 {
-        const fp, const P = floorfracv(p);
+        const fp, const P = floorfrac3(p);
 
         const uvw = fade(Vec4f, fp);
 
@@ -148,8 +168,10 @@ pub const Noise = struct {
         const fp0: Vec4f = .{ fp[0], fp[0] - 1.0, fp[0], fp[0] - 1.0 };
         const fp1: Vec4f = .{ fp[1], fp[1], fp[1] - 1.0, fp[1] - 1.0 };
 
-        const c0 = gradient3v(hash3v(P0, P1, @splat(P[2])), fp0, fp1, @splat(fp[2]));
-        const c1 = gradient3v(hash3v(P0, P1, @splat(P[2] + 1)), fp0, fp1, @splat(fp[2] - 1.0));
+        const hash = hash3v(P0, P1, @splat(P[2]));
+
+        const c0 = gradient3v(hash[0], fp0, fp1, @splat(fp[2]));
+        const c1 = gradient3v(hash[1], fp0, fp1, @splat(fp[2] - 1.0));
 
         const cc = [_]Vec2f{ .{ c0[0], c1[0] }, .{ c0[1], c1[1] }, .{ c0[2], c1[2] }, .{ c0[3], c1[3] } };
 
@@ -163,7 +185,12 @@ pub const Noise = struct {
         return .{ x - flx, @bitCast(@as(i32, @intFromFloat(flx))) };
     }
 
-    fn floorfracv(v: Vec4f) struct { Vec4f, Vec4u } {
+    fn floorfrac2(v: Vec2f) struct { Vec2f, Vec2u } {
+        const flv = @floor(v);
+        return .{ v - flv, @bitCast(@as(Vec2i, @intFromFloat(flv))) };
+    }
+
+    fn floorfrac3(v: Vec4f) struct { Vec4f, Vec4u } {
         const flv = @floor(v);
         return .{ v - flv, @bitCast(@as(Vec4i, @intFromFloat(flv))) };
     }
@@ -188,6 +215,15 @@ pub const Noise = struct {
         const v = 2.0 * if (h < 4) y else x;
         // compute the dot product with (x,y).
         return negate_if(u, 0 != (h & 1)) + negate_if(v, 0 != (h & 2));
+    }
+
+    fn gradient2v(hash: Vec4u, x: Vec4f, y: Vec4f) Vec4f {
+        // 8 possible directions (+-1,+-2) and (+-2,+-1)
+        const h = hash & @as(Vec4u, @splat(7));
+        const u = @select(f32, h < @as(Vec4u, @splat(4)), x, y);
+        const v = @as(Vec4f, @splat(2.0)) * @select(f32, h < @as(Vec4u, @splat(4)), y, x);
+        // compute the dot product with (x,y).
+        return @select(f32, @as(Vec4u, @splat(0)) != (h & @as(Vec4u, @splat(1))), -u, u) + @select(f32, @as(Vec4u, @splat(0)) != (h & @as(Vec4u, @splat(2))), -v, v);
     }
 
     fn gradient3(hash: u32, x: f32, y: f32, z: f32) f32 {
@@ -225,6 +261,14 @@ pub const Noise = struct {
         return bjfinal(a, b, start_val);
     }
 
+    fn hash2v(x: Vec4u, y: Vec4u) Vec4u {
+        const start_val: Vec4u = @splat(0xdeadbeef + (2 << 2) + 13);
+        const a = start_val + x;
+        const b = start_val + y;
+
+        return bjfinal(a, b, start_val);
+    }
+
     fn hash3(x: u32, y: u32, z: u32) u32 {
         const start_val: u32 = 0xdeadbeef + (3 << 2) + 13;
         const a = start_val + x;
@@ -234,13 +278,13 @@ pub const Noise = struct {
         return bjfinal(a, b, c);
     }
 
-    fn hash3v(x: Vec4u, y: Vec4u, z: Vec4u) Vec4u {
+    fn hash3v(x: Vec4u, y: Vec4u, z: Vec4u) [2]Vec4u {
         const start_val: Vec4u = @splat(0xdeadbeef + (3 << 2) + 13);
         const a = start_val + x;
         const b = start_val + y;
         const c = start_val + z;
 
-        return bjfinal(a, b, c);
+        return .{ bjfinal(a, b, c), bjfinal(a, b, c + @as(Vec4u, @splat(1))) };
     }
 
     // Mix up and combine the bits of a, b, and c (doesn't change them, but
