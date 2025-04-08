@@ -16,9 +16,14 @@ pub const Noise = struct {
         Cell,
     };
 
+    pub const Flags = packed struct {
+        absolute: bool,
+        invert: bool,
+    };
+
     class: Class,
 
-    absolute: bool,
+    flags: Flags,
 
     levels: u32,
 
@@ -66,13 +71,15 @@ pub const Noise = struct {
 
         value /= weight;
 
-        const unsigned = if (self.absolute) @abs(value) else (value + 1.0) * 0.5;
+        const unsigned = (if (self.flags.absolute) @abs(value) else (value + 1.0) * 0.5);
 
         const a = self.ratio - self.transition;
         const b = self.ratio + self.transition;
 
-        return math.saturate((unsigned - a) / (b - a));
-        //  return math.smoothstep(remapped_noise);
+        const result = math.saturate((unsigned - a) / (b - a));
+        //  const result = math.smoothstep(remapped_noise);
+
+        return if (self.flags.invert) (1.0 - result) else result;
     }
 
     pub fn evaluate3(self: Noise, rs: Renderstate, uv_set: TexCoordMode) Vec4f {

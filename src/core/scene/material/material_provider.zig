@@ -571,7 +571,8 @@ const TextureDescriptor = struct {
                         var noise: prcd.Noise = undefined;
 
                         noise.class = .Perlin;
-                        noise.absolute = json.readBoolMember(entry.value_ptr.*, "absolute", false);
+                        noise.flags.absolute = json.readBoolMember(entry.value_ptr.*, "absolute", false);
+                        noise.flags.invert = json.readBoolMember(entry.value_ptr.*, "invert", false);
                         noise.levels = json.readUIntMember(entry.value_ptr.*, "levels", 1);
                         noise.attenuation = json.readFloatMember(entry.value_ptr.*, "attenuation", 0.0);
                         noise.ratio = json.readFloatMember(entry.value_ptr.*, "ratio", 0.5);
