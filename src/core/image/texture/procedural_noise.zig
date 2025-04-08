@@ -7,6 +7,8 @@ const base = @import("base");
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
+const Vec4i = math.Vec4i;
+const Vec4u = math.Vec4u;
 
 const std = @import("std");
 
@@ -92,8 +94,8 @@ pub const Noise = struct {
         const fx, const X = floorfrac(p[0]);
         const fy, const Y = floorfrac(p[1]);
 
-        const u = fade(fx);
-        const v = fade(fy);
+        const u = fade(f32, fx);
+        const v = fade(f32, fy);
 
         const c = [_]f32{
             gradient2(hash2(X, Y), fx, fy),
@@ -105,7 +107,7 @@ pub const Noise = struct {
         return gradient_scale2D(math.bilinear(f32, c, u, v));
     }
 
-    fn perlin3D_1(p: Vec4f) f32 {
+    fn scalarPerlin3D_1(p: Vec4f) f32 {
         const fx, const X = floorfrac(p[0]);
         const fy, const Y = floorfrac(p[1]);
         const fz, const Z = floorfrac(p[2]);
@@ -135,14 +137,44 @@ pub const Noise = struct {
         return gradient_scale3D(math.lerp(result0, result1, w));
     }
 
+    fn perlin3D_1(p: Vec4f) f32 {
+        const fp, const P = floorfracv(p);
+
+        const uvw = fade(Vec4f, fp);
+
+        const P0: Vec4u = .{ P[0], P[0] + 1, P[0], P[0] + 1 };
+        const P1: Vec4u = .{ P[1], P[1], P[1] + 1, P[1] + 1 };
+
+        const fp0: Vec4f = .{ fp[0], fp[0] - 1.0, fp[0], fp[0] - 1.0 };
+        const fp1: Vec4f = .{ fp[1], fp[1], fp[1] - 1.0, fp[1] - 1.0 };
+
+        const c0 = gradient3v(hash3v(P0, P1, @splat(P[2])), fp0, fp1, @splat(fp[2]));
+        const c1 = gradient3v(hash3v(P0, P1, @splat(P[2] + 1)), fp0, fp1, @splat(fp[2] - 1.0));
+
+        const cc = [_]Vec2f{ .{ c0[0], c1[0] }, .{ c0[1], c1[1] }, .{ c0[2], c1[2] }, .{ c0[3], c1[3] } };
+
+        const result = math.bilinear(Vec2f, cc, uvw[0], uvw[1]);
+
+        return gradient_scale3D(math.lerp(result[0], result[1], uvw[2]));
+    }
+
     fn floorfrac(x: f32) struct { f32, u32 } {
         const flx = @floor(x);
         return .{ x - flx, @bitCast(@as(i32, @intFromFloat(flx))) };
     }
 
+    fn floorfracv(v: Vec4f) struct { Vec4f, Vec4u } {
+        const flv = @floor(v);
+        return .{ v - flv, @bitCast(@as(Vec4i, @intFromFloat(flv))) };
+    }
+
     // Perlin 'fade' function.
-    fn fade(t: f32) f32 {
-        return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+    fn fade(comptime T: type, t: T) T {
+        return switch (@typeInfo(T)) {
+            .float => t * t * t * (t * (t * 6.0 - 15.0) + 10.0),
+            .vector => t * t * t * (t * (t * @as(T, @splat(6.0)) - @as(T, @splat(15.0))) + @as(T, @splat(10.0))),
+            else => comptime unreachable,
+        };
     }
 
     // 2 and 3 dimensional gradient functions - perform a dot product against a
@@ -167,6 +199,20 @@ pub const Noise = struct {
         return negate_if(u, 0 != (h & 1)) + negate_if(v, 0 != (h & 2));
     }
 
+    fn gradient3v(hash: Vec4u, x: Vec4f, y: Vec4f, z: Vec4f) Vec4f {
+        // use vectors pointing to the edges of the cube
+        const h = hash & @as(Vec4u, @splat(15));
+        const u = @select(f32, h < @as(Vec4u, @splat(8)), x, y);
+
+        const a: Vec4u = @intFromBool(h == @as(Vec4u, @splat(12)));
+        const b: Vec4u = @intFromBool(h == @as(Vec4u, @splat(14)));
+
+        const t = @select(f32, @as(Vec4u, @splat(0)) != (a | b), x, z);
+        const v = @select(f32, h < @as(Vec4u, @splat(4)), y, t);
+
+        return @select(f32, @as(Vec4u, @splat(0)) != (h & @as(Vec4u, @splat(1))), -u, u) + @select(f32, @as(Vec4u, @splat(0)) != (h & @as(Vec4u, @splat(2))), -v, v);
+    }
+
     fn negate_if(val: f32, b: bool) f32 {
         return if (b) -val else val;
     }
@@ -188,27 +234,36 @@ pub const Noise = struct {
         return bjfinal(a, b, c);
     }
 
+    fn hash3v(x: Vec4u, y: Vec4u, z: Vec4u) Vec4u {
+        const start_val: Vec4u = @splat(0xdeadbeef + (3 << 2) + 13);
+        const a = start_val + x;
+        const b = start_val + y;
+        const c = start_val + z;
+
+        return bjfinal(a, b, c);
+    }
+
     // Mix up and combine the bits of a, b, and c (doesn't change them, but
     // returns a hash of those three original values).
-    fn bjfinal(a_in: u32, b_in: u32, c_in: u32) u32 {
+    fn bjfinal(a_in: anytype, b_in: anytype, c_in: anytype) @TypeOf(a_in, b_in, c_in) {
         var a = a_in;
         var b = b_in;
         var c = c_in;
 
         c ^= b;
-        c -%= std.math.rotl(u32, b, 14);
+        c -%= std.math.rotl(@TypeOf(a_in), b, 14);
         a ^= c;
-        a -%= std.math.rotl(u32, c, 11);
+        a -%= std.math.rotl(@TypeOf(a_in), c, 11);
         b ^= a;
-        b -%= std.math.rotl(u32, a, 25);
+        b -%= std.math.rotl(@TypeOf(a_in), a, 25);
         c ^= b;
-        c -%= std.math.rotl(u32, b, 16);
+        c -%= std.math.rotl(@TypeOf(a_in), b, 16);
         a ^= c;
-        a -%= std.math.rotl(u32, c, 4);
+        a -%= std.math.rotl(@TypeOf(a_in), c, 4);
         b ^= a;
-        b -%= std.math.rotl(u32, a, 14);
+        b -%= std.math.rotl(@TypeOf(a_in), a, 14);
         c ^= b;
-        c -%= std.math.rotl(u32, b, 24);
+        c -%= std.math.rotl(@TypeOf(a_in), b, 24);
         return c;
     }
 
