@@ -41,7 +41,7 @@ pub const Noise = struct {
         const att = self.attenuation;
 
         var weight: f32 = 0.0;
-        var freq: f32 = 1.0;
+        var amplitude: f32 = 1.0;
 
         var value: f32 = 0.0;
 
@@ -51,11 +51,11 @@ pub const Noise = struct {
             const uvw = rs.trafo.worldToObjectPoint(rs.p);
 
             for (0..self.levels) |_| {
-                const local_weight = std.math.pow(f32, freq, att);
+                const local_weight = std.math.pow(f32, amplitude, att);
                 value += perlin3D_1(uvw * scale) * local_weight;
 
                 weight += local_weight;
-                freq *= 0.5;
+                amplitude *= 0.5;
                 scale *= @splat(2.0);
             }
         } else {
@@ -64,18 +64,18 @@ pub const Noise = struct {
             const uv = if (.Triplanar == uv_set) rs.triplanarUv() else rs.uv();
 
             for (0..self.levels) |_| {
-                const local_weight = std.math.pow(f32, freq, att);
-                value += perlin2D_1((uv) * scale) * local_weight;
+                const local_weight = std.math.pow(f32, amplitude, att);
+                value += perlin2D_1(uv * scale) * local_weight;
 
                 weight += local_weight;
-                freq *= 0.5;
+                amplitude *= 0.5;
                 scale *= @splat(2.0);
             }
         }
 
         value /= weight;
 
-        const unsigned = (if (self.flags.absolute) @abs(value) else (value + 1.0) * 0.5);
+        const unsigned = if (self.flags.absolute) @abs(value) else (value + 1.0) * 0.5;
 
         const a = self.ratio - self.transition;
         const b = self.ratio + self.transition;
