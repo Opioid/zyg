@@ -57,7 +57,7 @@ pub const Sample = struct {
         const cos_theta_o = @sqrt(1.0 - sin_theta_o * sin_theta_o);
         const phi_o = std.math.atan2(wo_l[2], wo_l[1]);
 
-        const h = math.clamp(2.0 * (rs.uv[1] - 0.5), -1.0, 1.0);
+        const h = math.clamp(2.0 * (rs.uvw[1] - 0.5), -1.0, 1.0);
 
         const eta = ior;
         const etap = @sqrt(eta * eta - (sin_theta_o * sin_theta_o)) / cos_theta_o;

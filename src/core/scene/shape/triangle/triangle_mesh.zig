@@ -1,6 +1,7 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Vertex = @import("../../vertex.zig").Vertex;
 const Scene = @import("../../scene.zig").Scene;
+const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
@@ -59,7 +60,7 @@ pub const Part = struct {
             }
 
             const lm = scene.material(self.material);
-            if (!lm.emissionMapped() and !emission_map) {
+            if (!lm.emissionImageMapped() and !emission_map) {
                 return self.two_sided == two_sided;
             }
 
@@ -92,7 +93,6 @@ pub const Part = struct {
     pub fn configure(
         self: *Part,
         alloc: Allocator,
-        prop: u32,
         part: u32,
         material: u32,
         tree: *const Tree,
@@ -122,7 +122,7 @@ pub const Part = struct {
 
         const m = scene.material(material);
 
-        const emission_map = m.emissionMapped();
+        const emission_map = m.emissionImageMapped();
         const two_sided = m.twoSided();
 
         for (self.variants.items, 0..) |v, i| {
@@ -139,8 +139,6 @@ pub const Part = struct {
             .m = m,
             .tree = tree,
             .scene = scene,
-            .prop_id = prop,
-            .part_id = part,
             .estimate_area = @as(f32, @floatFromInt(dimensions[0] * dimensions[1])) / 4.0,
         };
         defer {
@@ -268,21 +266,11 @@ pub const Part = struct {
         tree: *const Tree,
         scene: *const Scene,
         estimate_area: f32,
-        prop_id: u32,
-        part_id: u32,
-
-        const Pos = Vec4f{ 0.0, 0.0, 0.0, 0.0 };
-        const Dir = Vec4f{ 0.0, 0.0, 1.0, 0.0 };
-
-        const IdTrafo = Trafo{
-            .rotation = Mat3x3.init9(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
-            .position = @splat(0.0),
-        };
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
             const self: *Context = @ptrCast(context);
 
-            const emission_map = self.m.emissionMapped();
+            const emission_map = self.m.emissionImageMapped();
 
             var temp: Temp = .{};
 
@@ -308,17 +296,8 @@ pub const Part = struct {
                         const xi = math.hammersley(j, num_samples, 0);
                         const s2 = math.smpl.triangleUniform(xi);
                         const uv = self.tree.data.interpolateUv(itri, s2[0], s2[1]);
-                        radiance += self.m.evaluateRadiance(
-                            Pos,
-                            Dir,
-                            Dir,
-                            .{ uv[0], uv[1], 0.0, 0.0 },
-                            IdTrafo,
-                            self.prop_id,
-                            self.part_id,
-                            &sampler,
-                            self.scene,
-                        );
+
+                        radiance += self.m.imageRadiance(uv, &sampler, self.scene);
                     }
 
                     pow = if (math.hmax3(radiance) > 0.0) area else 0.0;
@@ -414,11 +393,11 @@ pub const Mesh = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn numParts(self: Mesh) u32 {
+    pub fn numParts(self: *const Mesh) u32 {
         return self.num_parts;
     }
 
-    pub fn numMaterials(self: Mesh) u32 {
+    pub fn numMaterials(self: *const Mesh) u32 {
         var id: u32 = 0;
 
         for (self.parts[0..self.num_parts]) |p| {
@@ -497,11 +476,11 @@ pub const Mesh = struct {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         const tray = trafo.worldToObjectRay(ray);
-        return self.tree.visibility(tray, entity, sampler, scene, tr);
+        return self.tree.visibility(tray, entity, sampler, worker, tr);
     }
 
     pub fn transmittance(
@@ -524,10 +503,10 @@ pub const Mesh = struct {
         frag: *Fragment,
         split_threshold: f32,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
         const tray = frag.trafo.worldToObjectRay(vertex.probe.ray);
-        return self.tree.emission(tray, vertex, frag, split_threshold, sampler, scene);
+        return self.tree.emission(tray, vertex, frag, split_threshold, sampler, worker);
     }
 
     pub fn scatter(
@@ -884,7 +863,6 @@ pub const Mesh = struct {
     pub fn prepareSampling(
         self: *Mesh,
         alloc: Allocator,
-        prop: u32,
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
@@ -910,7 +888,7 @@ pub const Mesh = struct {
             self.primitive_mapping = primitive_mapping;
         }
 
-        return try self.parts[part].configure(alloc, prop, part, material, &self.tree, builder, scene, threads);
+        return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
     }
 
     pub fn differentialSurface(self: *const Mesh, primitive: u32) DifferentialSurface {

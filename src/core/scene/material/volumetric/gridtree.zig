@@ -1,9 +1,17 @@
 const CM = @import("../collision_coefficients.zig").CM;
 
+const tracking = @import("../../../rendering/integrator/volume/tracking.zig");
+const Worker = @import("../../../rendering/worker.zig").Worker;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+const Material = @import("../../../scene/material/material.zig").Material;
+const Volume = @import("../../../scene/shape/intersection.zig").Volume;
+const ro = @import("../../../scene/ray_offset.zig");
+
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
 const Ray = math.Ray;
+const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4u = math.Vec4u;
 const Vec4f = math.Vec4f;
@@ -50,10 +58,9 @@ pub const Node = packed struct {
 pub const Gridtree = struct {
     dimensions: Vec4f = undefined,
     num_cells: Vec4u = undefined,
-    inv_dimensions: Vec4f = undefined,
 
     nodes: [*]Node = undefined,
-    data: [*]CM = undefined,
+    data: [*]Vec2f = undefined,
 
     num_nodes: u32 = 0,
     num_data: u32 = 0,
@@ -74,9 +81,6 @@ pub const Gridtree = struct {
 
         const nc: Vec4u = @bitCast(num_cells);
         self.num_cells = .{ nc[0], nc[1], nc[2], std.math.maxInt(u32) };
-
-        const id = @as(Vec4f, @splat(1.0)) / df;
-        self.inv_dimensions = .{ id[0], id[1], id[2], 0.0 };
     }
 
     pub fn allocateNodes(self: *Gridtree, alloc: Allocator, num_nodes: u32) ![*]Node {
@@ -89,25 +93,132 @@ pub const Gridtree = struct {
         return self.nodes;
     }
 
-    pub fn allocateData(self: *Gridtree, alloc: Allocator, num_data: u32) ![*]CM {
+    pub fn allocateData(self: *Gridtree, alloc: Allocator, num_data: u32) ![*]Vec2f {
         if (num_data != self.num_data) {
             alloc.free(self.data[0..self.num_data]);
         }
 
         self.num_data = num_data;
-        self.data = (try alloc.alloc(CM, num_data)).ptr;
+        self.data = (try alloc.alloc(Vec2f, num_data)).ptr;
 
         return self.data;
     }
 
-    pub fn intersect(self: Gridtree, ray: *Ray) ?CM {
+    pub fn transmittance(
+        self: *const Gridtree,
+        ray: Ray,
+        material: *const Material,
+        prop: u32,
+        depth: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+        tr: *Vec4f,
+    ) bool {
+        const d = ray.max_t;
+
+        var local_ray = tracking.objectToTextureRay(ray, prop, worker);
+
+        const srs = material.similarityRelationScale(depth);
+
+        var cc = material.collisionCoefficients();
+        cc.s *= @splat(srs);
+
+        const cm = cc.minorantMajorantT();
+
+        while (local_ray.min_t < d) {
+            const dr = self.intersect(&local_ray);
+            if (!tracking.trackingTransmitted(tr, local_ray, cm * dr, cc, material, sampler, worker)) {
+                return false;
+            }
+
+            local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
+        }
+
+        return true;
+    }
+
+    pub fn scatter(
+        self: *const Gridtree,
+        ray: Ray,
+        throughput: Vec4f,
+        material: *const Material,
+        prop: u32,
+        depth: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Volume {
+        const d = ray.max_t;
+
+        var local_ray = tracking.objectToTextureRay(ray, prop, worker);
+
+        const srs = material.similarityRelationScale(depth);
+
+        var cc = material.collisionCoefficients();
+        cc.s *= @splat(srs);
+
+        const cm = cc.minorantMajorantT();
+
+        var result = Volume.initPass(@splat(1.0));
+
+        if (material.emissive()) {
+            while (local_ray.min_t < d) {
+                const dr = self.intersect(&local_ray);
+                result = tracking.trackingHeteroEmission(
+                    local_ray,
+                    cm * dr,
+                    cc,
+                    material,
+                    result.tr,
+                    throughput,
+                    sampler,
+                    worker,
+                );
+
+                if (.Scatter == result.event) {
+                    break;
+                }
+
+                if (.Absorb == result.event) {
+                    result.uvw = local_ray.point(result.t);
+                    return result;
+                }
+
+                local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
+            }
+        } else {
+            while (local_ray.min_t < d) {
+                const dr = self.intersect(&local_ray);
+                result = tracking.trackingHetero(
+                    local_ray,
+                    cm * dr,
+                    cc,
+                    material,
+                    result.tr,
+                    throughput,
+                    sampler,
+                    worker,
+                );
+
+                if (.Scatter == result.event) {
+                    break;
+                }
+
+                local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
+            }
+        }
+
+        return result;
+    }
+
+    fn intersect(self: Gridtree, ray: *Ray) Vec2f {
+        const dim = self.dimensions;
         const p = ray.point(ray.min_t);
-        const c: Vec4i = @intFromFloat(self.dimensions * p);
+        const c: Vec4i = @intFromFloat(dim * p);
         const v = c >> Log2_cell_dim4;
         const uv: Vec4u = @bitCast(v);
 
         if (math.anyGreaterEqual4u(uv, self.num_cells)) {
-            return null;
+            return @splat(0.0);
         }
 
         const b0 = v << Log2_cell_dim4;
@@ -130,20 +241,23 @@ pub const Gridtree = struct {
             node = self.nodes[node.index() + o];
         }
 
+        const idim = @as(Vec4f, @splat(1.0)) / dim;
+
         const boxf = AABB.init(
-            @as(Vec4f, @floatFromInt(box.bounds[0])) * self.inv_dimensions,
-            @as(Vec4f, @floatFromInt(box.bounds[1])) * self.inv_dimensions,
+            @as(Vec4f, @floatFromInt(box.bounds[0])) * idim,
+            @as(Vec4f, @floatFromInt(box.bounds[1])) * idim,
         );
 
-        if (boxf.intersectP(ray.*)) |hit_t| {
-            ray.clipMaxT(hit_t);
+        const hit_t = boxf.intersectInterval(ray.*);
+        if (std.math.floatMax(f32) != hit_t[0]) {
+            ray.setMinMaxT(hit_t[0], hit_t[1]);
         } else {
             ray.max_t = ray.min_t;
-            return null;
+            return @splat(0.0);
         }
 
         if (node.isEmpty()) {
-            return null;
+            return @splat(0.0);
         }
 
         return self.data[node.index()];

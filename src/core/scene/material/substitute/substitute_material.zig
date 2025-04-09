@@ -15,6 +15,7 @@ const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const ccoef = @import("../collision_coefficients.zig");
+const CC = ccoef.CC;
 
 const base = @import("base");
 const math = base.math;
@@ -32,96 +33,83 @@ pub const Material = struct {
 
     emittance: Emittance = .{},
 
-    color_map: Texture = Texture.initUniform3(@splat(0.5)),
+    color: Texture = Texture.initUniform3(@splat(0.5)),
     normal_map: Texture = .{},
-    roughness_map: Texture = Texture.initUniform1(0.8),
-    metallic_map: Texture = Texture.initUniform1(0.0),
-    rotation_map: Texture = Texture.initUniform1(0.0),
+    roughness: Texture = Texture.initUniform1(0.8),
+    metallic: Texture = Texture.initUniform1(0.0),
+    rotation: Texture = Texture.initUniform1(0.0),
     coating_normal_map: Texture = .{},
-    coating_thickness_map: Texture = .{},
-    coating_roughness_map: Texture = Texture.initUniform1(0.2),
+    coating_scale: Texture = Texture.initUniform1(1.0),
+    coating_roughness: Texture = Texture.initUniform1(0.2),
+    flakes_coverage: Texture = Texture.initUniform1(0.0),
 
-    checkers: Vec4f = @splat(0.0),
     coating_absorption_coef: Vec4f = @splat(0.0),
     flakes_color: Vec4f = @splat(0.8),
 
+    cc: CC = undefined,
+    attenuation_distance: f32 = 0.0,
+    ior: f32 = 1.46,
     anisotropy: f32 = 0.0,
     thickness: f32 = 0.0,
     transparency: f32 = 0.0,
     coating_thickness: f32 = 0.0,
     coating_ior: f32 = 1.5,
-    flakes_coverage: f32 = 0.0,
     flakes_alpha: f32 = 0.01,
     flakes_res: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
         const properties = &self.super.properties;
 
-        properties.evaluate_visibility = self.super.mask.valid();
+        properties.evaluate_visibility = !self.super.mask.isUniform();
         properties.emissive = math.anyGreaterZero3(self.emittance.value);
-        properties.color_map = self.color_map.valid() or self.checkers[3] > 0.0;
-        properties.emission_map = self.emittance.emission_map.valid();
-        properties.caustic = !self.roughness_map.valid() and self.roughness_map.uniform1() <= ggx.MinRoughness;
+        properties.color_map = !self.color.isUniform();
+        properties.emission_image_map = self.emittance.emission_map.isImage();
+        properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= ggx.MinRoughness;
 
         const thickness = self.thickness;
         const transparent = thickness > 0.0;
-        const attenuation_distance = self.super.attenuation_distance;
+        const attenuation_distance = self.attenuation_distance;
         properties.two_sided = properties.two_sided or transparent;
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
 
         properties.dense_sss_optimization = attenuation_distance <= 0.1 and properties.scattering_volume;
 
         // This doesn't make a difference for shading, but is intended for the Albedo AOV...
-        if (properties.dense_sss_optimization and !self.color_map.valid()) {
-            const cc = self.super.cc;
+        if (properties.dense_sss_optimization and self.color.isUniform()) {
+            const cc = self.cc;
 
             const mu_t = cc.a + cc.s;
             const albedo = cc.s / mu_t;
-            self.color_map = Texture.initUniform3(albedo);
+            self.color = Texture.initUniform3(albedo);
         }
+    }
+
+    pub fn setVolumetric(
+        self: *Material,
+        attenuation_color: Vec4f,
+        subsurface_color: Vec4f,
+        distance: f32,
+        anisotropy: f32,
+    ) void {
+        const aniso = math.clamp(anisotropy, -0.999, 0.999);
+        const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, aniso);
+
+        self.cc = cc;
+        self.attenuation_distance = distance;
+        self.super.properties.scattering_volume = math.anyGreaterZero3(cc.s);
     }
 
     pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {
         const rad = self.emittance.averageRadiance(area);
-        if (self.emittance.emission_map.valid()) {
+        if (!self.emittance.emission_map.isUniform()) {
             return rad * self.emittance.emission_map.average_3(scene);
         }
 
         return rad;
     }
 
-    pub fn setColor(self: *Material, color: Base.MappedValue(Vec4f)) void {
-        self.color_map = color.flatten();
-    }
-
-    pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
-        self.roughness_map = roughness.flatten();
-    }
-
-    pub fn setMetallic(self: *Material, metallic: Base.MappedValue(f32)) void {
-        self.metallic_map = metallic.flatten();
-    }
-
-    pub fn setRotation(self: *Material, rotation: Base.MappedValue(f32)) void {
-        self.rotation_map = rotation.flatten();
-    }
-
-    pub fn setCheckers(self: *Material, color_a: Vec4f, color_b: Vec4f, scale: f32) void {
-        self.color_map = Texture.initUniform3(color_a);
-        self.checkers = Vec4f{ color_b[0], color_b[1], color_b[2], scale };
-    }
-
     pub fn setCoatingAttenuation(self: *Material, color: Vec4f, distance: f32) void {
         self.coating_absorption_coef = ccoef.attenuationCoefficient(color, distance);
-    }
-
-    pub fn setCoatingThickness(self: *Material, thickness: Base.MappedValue(f32)) void {
-        self.coating_thickness_map = thickness.texture;
-        self.coating_thickness = thickness.value;
-    }
-
-    pub fn setCoatingRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
-        self.coating_roughness_map = roughness.flatten();
     }
 
     pub fn setFlakesRoughness(self: *Material, roughness: f32) void {
@@ -138,40 +126,27 @@ pub const Material = struct {
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
         if (rs.volumeScatter()) {
-            const g = self.super.cc.anisotropy();
+            const g = self.cc.anisotropy();
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
         }
 
         const key = self.super.sampler_key;
 
-        const color = if (self.checkers[3] > 0.0) self.analyticCheckers(
-            rs,
-            key,
-            worker,
-        ) else ts.sample2D_3(key, self.color_map, rs.uv, sampler, worker.scene);
+        const color = ts.sample2D_3(key, self.color, rs, sampler, worker);
 
-        const roughness = ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, worker.scene));
-        const metallic = ts.sample2D_1(key, self.metallic_map, rs.uv, sampler, worker.scene);
+        const roughness = ggx.clampRoughness(ts.sample2D_1(key, self.roughness, rs, sampler, worker));
+        const metallic = ts.sample2D_1(key, self.metallic, rs, sampler, worker);
 
         const alpha = anisotropicAlpha(roughness, self.anisotropy);
 
-        var coating_thickness: f32 = undefined;
-        var coating_weight: f32 = undefined;
-        var coating_ior: f32 = undefined;
-        if (self.coating_thickness_map.valid()) {
-            const relative_thickness = ts.sample2D_1(key, self.coating_thickness_map, rs.uv, sampler, worker.scene);
-            coating_thickness = self.coating_thickness * relative_thickness;
-            coating_weight = if (relative_thickness > 0.1) 1.0 else relative_thickness;
-            coating_ior = math.lerp(rs.ior, self.coating_ior, coating_weight);
-        } else {
-            coating_thickness = self.coating_thickness;
-            coating_weight = 1.0;
-            coating_ior = self.coating_ior;
-        }
+        const coating_scale = ts.sample2D_1(key, self.coating_scale, rs, sampler, worker);
+        const coating_thickness = coating_scale * self.coating_thickness;
+        const coating_weight = if (coating_scale > 0.1) 1.0 else coating_scale;
+        const coating_ior = math.lerp(rs.ior, self.coating_ior, coating_weight);
 
-        const ior = self.super.ior;
+        const ior = self.ior;
         const ior_outer = if (coating_thickness > 0.0) coating_ior else rs.ior;
-        const attenuation_distance = self.super.attenuation_distance;
+        const attenuation_distance = self.attenuation_distance;
 
         var result = Surface.init(
             rs,
@@ -186,8 +161,8 @@ pub const Material = struct {
             self.super.priority,
         );
 
-        if (self.normal_map.valid()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, worker.scene);
+        if (!self.normal_map.isUniform()) {
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, worker);
             result.super.frame = Frame.init(n);
         } else {
             result.super.frame = .{ .x = rs.t, .y = rs.b, .z = rs.n };
@@ -201,14 +176,14 @@ pub const Material = struct {
         if (coating_thickness > 0.0) {
             if (self.normal_map.equal(self.coating_normal_map)) {
                 result.coating.n = result.super.frame.z;
-            } else if (self.coating_normal_map.valid()) {
-                const n = hlp.sampleNormal(wo, rs, self.coating_normal_map, key, sampler, worker.scene);
+            } else if (!self.coating_normal_map.isUniform()) {
+                const n = hlp.sampleNormal(wo, rs, self.coating_normal_map, key, sampler, worker);
                 result.coating.n = n;
             } else {
                 result.coating.n = rs.n;
             }
 
-            const r = ggx.clampRoughness(ts.sample2D_1(key, self.coating_roughness_map, rs.uv, sampler, worker.scene));
+            const r = ggx.clampRoughness(ts.sample2D_1(key, self.coating_roughness, rs, sampler, worker));
 
             result.coating.absorption_coef = self.coating_absorption_coef;
             result.coating.thickness = coating_thickness;
@@ -218,18 +193,18 @@ pub const Material = struct {
         }
 
         // Apply rotation to base frame after coating is calculated, so that coating is not affected
-        const rotation = ts.sample2D_1(key, self.rotation_map, rs.uv, sampler, worker.scene) * (2.0 * std.math.pi);
+        const rotation = ts.sample2D_1(key, self.rotation, rs, sampler, worker) * (2.0 * std.math.pi);
 
         if (rotation > 0.0) {
             result.super.frame.rotateTangenFrame(rotation);
         }
 
-        const flakes_coverage = self.flakes_coverage;
+        const flakes_coverage = ts.sample2D_1(key, self.flakes_coverage, rs, sampler, worker);
         if (flakes_coverage > 0.0) {
             const op = rs.trafo.worldToObjectNormal(rs.p - rs.trafo.position);
             const on = rs.trafo.worldToObjectNormal(result.super.frame.z);
 
-            const uv = hlp.triplanarMapping(op, on);
+            const uv = math.frac(hlp.triplanarMapping(op, on));
 
             const flake = sampleFlake(uv, self.flakes_res, flakes_coverage);
 
@@ -309,37 +284,17 @@ pub const Material = struct {
         return (@as(u64, @as(u32, @bitCast(a))) << 32) | @as(u64, @as(u32, @bitCast(b)));
     }
 
-    pub fn evaluateRadiance(
-        self: *const Material,
-        p: Vec4f,
-        wi: Vec4f,
-        n: Vec4f,
-        uv: Vec2f,
-        trafo: Trafo,
-        prop: u32,
-        part: u32,
-        sampler: *Sampler,
-        scene: *const Scene,
-    ) Vec4f {
+    pub fn evaluateRadiance(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Vec4f {
         const key = self.super.sampler_key;
 
-        const rad = self.emittance.radiance(p, wi, uv, trafo, prop, part, key, sampler, scene);
+        const rad = self.emittance.radiance(wi, rs, key, sampler, worker);
 
-        var coating_thickness: f32 = undefined;
-        if (self.coating_thickness_map.valid()) {
-            const relative_thickness = ts.sample2D_1(key, self.color_map, uv, sampler, scene);
-            coating_thickness = self.coating_thickness * relative_thickness;
-        } else {
-            coating_thickness = self.coating_thickness;
-        }
+        const coating_scale = ts.sample2D_1(key, self.coating_scale, rs, sampler, worker);
+        const coating_thickness = coating_scale * self.coating_thickness;
 
         if (coating_thickness > 0.0) {
-            const n_dot_wi = math.safe.clampAbsDot(wi, n);
-            const att = SampleCoating.singleAttenuationStatic(
-                self.coating_absorption_coef,
-                coating_thickness,
-                n_dot_wi,
-            );
+            const n_dot_wi = math.safe.clampAbsDot(wi, rs.geo_n);
+            const att = SampleCoating.singleAttenuationStatic(self.coating_absorption_coef, coating_thickness, n_dot_wi);
 
             return att * rad;
         }
@@ -354,39 +309,5 @@ pub const Material = struct {
         }
 
         return @splat(r * r);
-    }
-
-    // https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
-
-    fn analyticCheckers(self: *const Material, rs: Renderstate, sampler_key: ts.Key, worker: *const Worker) Vec4f {
-        const checkers_scale = self.checkers[3];
-
-        const dd = @as(Vec4f, @splat(checkers_scale)) * worker.screenspaceDifferential(rs);
-
-        const t = checkersGrad(
-            @as(Vec2f, @splat(checkers_scale)) * sampler_key.address.address2(rs.uv),
-            .{ dd[0], dd[1] },
-            .{ dd[2], dd[3] },
-        );
-
-        return math.lerp(self.color_map.uniform3(), self.checkers, @as(Vec4f, @splat(t)));
-    }
-
-    fn checkersGrad(uv: Vec2f, ddx: Vec2f, ddy: Vec2f) f32 {
-        // filter kernel
-        const w = math.max2(@abs(ddx), @abs(ddy)) + @as(Vec2f, @splat(0.0001));
-
-        // analytical integral (box filter)
-        const i = (tri(uv + @as(Vec2f, @splat(0.5)) * w) - tri(uv - @as(Vec2f, @splat(0.5)) * w)) / w;
-
-        // xor pattern
-        return 0.5 - 0.5 * i[0] * i[1];
-    }
-
-    // triangular signal
-    fn tri(x: Vec2f) Vec2f {
-        const hx = math.frac(x[0] * 0.5) - 0.5;
-        const hy = math.frac(x[1] * 0.5) - 0.5;
-        return .{ 1.0 - 2.0 * @abs(hx), 1.0 - 2.0 * @abs(hy) };
     }
 };

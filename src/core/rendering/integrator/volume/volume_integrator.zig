@@ -40,8 +40,8 @@ pub const Integrator = struct {
             return true;
         }
 
-        if (material.heterogeneousVolume()) {
-            return tracking.transmittanceHetero(ray, material, prop, depth, sampler, worker, tr);
+        if (material.volumetricTree()) |tree| {
+            return tree.transmittance(ray, material, prop, depth, sampler, worker, tr);
         }
 
         tr.* *= ccoef.attenuation3(cc.a + cc.s, d - ray.min_t);
@@ -70,66 +70,11 @@ pub const Integrator = struct {
         }
 
         if (material.volumetricTree()) |tree| {
-            var local_ray = tracking.objectToTextureRay(ray, prop, worker);
-
-            const srs = material.super().similarityRelationScale(depth);
-
-            var result = Volume.initPass(@splat(1.0));
-
-            if (material.emissive()) {
-                while (local_ray.min_t < d) {
-                    if (tree.intersect(&local_ray)) |cm| {
-                        result = tracking.trackingHeteroEmission(
-                            local_ray,
-                            cm,
-                            material,
-                            srs,
-                            result.tr,
-                            throughput,
-                            sampler,
-                            worker,
-                        );
-
-                        if (.Scatter == result.event) {
-                            break;
-                        }
-
-                        if (.Absorb == result.event) {
-                            result.uvw = local_ray.point(result.t);
-                            return result;
-                        }
-                    }
-
-                    local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
-                }
-            } else {
-                while (local_ray.min_t < d) {
-                    if (tree.intersect(&local_ray)) |cm| {
-                        result = tracking.trackingHetero(
-                            local_ray,
-                            cm,
-                            material,
-                            srs,
-                            result.tr,
-                            throughput,
-                            sampler,
-                            worker,
-                        );
-
-                        if (.Scatter == result.event) {
-                            break;
-                        }
-                    }
-
-                    local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
-                }
-            }
-
-            return result;
+            return tree.scatter(ray, throughput, material, prop, depth, sampler, worker);
         }
 
         if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(0.0), sampler, worker.scene);
+            const cce = material.collisionCoefficientsEmission(@splat(0.0), cc, sampler, worker);
             return tracking.trackingEmission(ray, cce, throughput, &worker.rng);
         }
 

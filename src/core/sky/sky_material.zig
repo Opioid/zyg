@@ -3,9 +3,10 @@ const Base = @import("../scene/material/material_base.zig").Base;
 const Sample = @import("../scene/material/light/light_sample.zig").Sample;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Scene = @import("../scene/scene.zig").Scene;
-const Resources = @import("../resource/manager.zig").Manager;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
+const Resources = @import("../resource/manager.zig").Manager;
+const Worker = @import("../rendering/worker.zig").Worker;
 const ts = @import("../image/texture/texture_sampler.zig");
 const Texture = @import("../image/texture/texture.zig").Texture;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
@@ -57,7 +58,7 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.emissive = true;
-        self.super.properties.emission_map = self.emission_map.valid();
+        self.super.properties.emission_image_map = self.emission_map.isImage();
     }
 
     pub fn setSunRadiance(self: *Material, rotation: Mat3x3, image: img.Float3) void {
@@ -152,16 +153,15 @@ pub const Material = struct {
     pub fn evaluateRadiance(
         self: *const Material,
         wi: Vec4f,
-        uv: Vec2f,
-        trafo: Trafo,
+        rs: Renderstate,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
-        if (self.emission_map.valid()) {
-            return ts.sample2D_3(self.super.sampler_key, self.emission_map, uv, sampler, scene);
+        if (!self.emission_map.isUniform()) {
+            return ts.sample2D_3(self.super.sampler_key, self.emission_map, rs, sampler, worker);
         }
 
-        return self.sun_radiance.eval(sunV(trafo.rotation, wi));
+        return self.sun_radiance.eval(sunV(rs.trafo.rotation, wi));
     }
 
     fn sunV(rotation: Mat3x3, wi: Vec4f) f32 {
@@ -177,7 +177,7 @@ pub const Material = struct {
     }
 
     pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
-        if (self.emission_map.valid()) {
+        if (!self.emission_map.isUniform()) {
             return self.distribution.pdf(self.super.sampler_key.address.address2(uv)) * self.total_weight;
         }
 

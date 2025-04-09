@@ -1,9 +1,11 @@
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Vertex = @import("../vertex.zig").Vertex;
+const Renderstate = @import("../renderstate.zig").Renderstate;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const Worker = @import("../../rendering/worker.zig").Worker;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
@@ -90,7 +92,7 @@ pub const Disk = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -114,14 +116,18 @@ pub const Disk = struct {
                     0.5 * (1.0 - math.dot3(b, sk)),
                 };
 
-                return scene.propMaterial(entity, 0).visibility(ray.direction, normal, uv, sampler, scene, tr);
+                var rs: Renderstate = undefined;
+                rs.geo_n = normal;
+                rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
+
+                return worker.scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, worker, tr);
             }
         }
 
         return true;
     }
 
-    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, worker: *const Worker) Vec4f {
         const hit = intersect(vertex.probe.ray, frag.trafo);
         if (Intersection.Null == hit.primitive) {
             return @splat(0.0);
@@ -134,9 +140,9 @@ pub const Disk = struct {
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
 
-        const energy = frag.evaluateRadiance(p, wo, sampler, scene) orelse return @splat(0.0);
+        const energy = frag.evaluateRadiance(p, wo, sampler, worker) orelse return @splat(0.0);
 
-        const weight: Vec4f = @splat(scene.lightPdf(vertex, frag, split_threshold));
+        const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, frag, split_threshold));
 
         return energy * weight;
     }
@@ -274,7 +280,8 @@ pub const Disk = struct {
                 continue;
             }
 
-            buffer[current_sample] = SampleTo.init(ws, wn, dir, @splat(0.0), (nsf * pdf_ * sl) / c);
+            const v = (xy[1] + 1.0) * 0.5;
+            buffer[current_sample] = SampleTo.init(ws, wn, dir, .{ u, v, 0.0, 0.0 }, (nsf * pdf_ * sl) / c);
             current_sample += 1;
         }
 

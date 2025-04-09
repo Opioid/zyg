@@ -122,7 +122,7 @@ pub const Pathtracer = struct {
         const wo = -vertex.probe.ray.direction;
 
         if (frag.hit()) {
-            return frag.evaluateRadiance(p, wo, sampler, worker.scene) orelse @splat(0.0);
+            return frag.evaluateRadiance(p, wo, sampler, worker) orelse @splat(0.0);
         }
 
         var energy: Vec4f = @splat(0.0);
@@ -137,7 +137,7 @@ pub const Pathtracer = struct {
 
             worker.propInterpolateFragment(prop, &vertex.probe, &inf_frag);
 
-            energy += inf_frag.evaluateRadiance(p, wo, sampler, worker.scene) orelse continue;
+            energy += inf_frag.evaluateRadiance(p, wo, sampler, worker) orelse continue;
         }
 
         return energy;

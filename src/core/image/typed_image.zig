@@ -9,7 +9,7 @@ pub const Description = struct {
     dimensions: Vec4i = @splat(0),
 
     pub fn init2D(dim: Vec2i) Description {
-        return .{ .dimensions = .{ dim[0], dim[1], 1, 0 } };
+        return .{ .dimensions = .{ dim[0], dim[1], 1, 1 } };
     }
 
     pub fn init3D(dim: Vec4i) Description {

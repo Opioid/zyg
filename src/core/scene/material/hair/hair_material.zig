@@ -22,6 +22,7 @@ pub const Material = struct {
 
     s: f32 = undefined,
     alpha: f32 = math.degreesToRadians(2.0),
+    ior: f32 = 1.55,
 
     sin2k_alpha: [3]f32 = undefined,
     cos2k_alpha: [3]f32 = undefined,
@@ -64,7 +65,7 @@ pub const Material = struct {
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler) Sample {
         _ = sampler;
 
-        return Sample.init(rs, wo, self.mu_a, self.super.ior, self.v, self.s, self.sin2k_alpha, self.cos2k_alpha);
+        return Sample.init(rs, wo, self.mu_a, self.ior, self.v, self.s, self.sin2k_alpha, self.cos2k_alpha);
     }
 
     fn absorptionFromMelanin(ce: f32, cp: f32) Vec4f {

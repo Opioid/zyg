@@ -200,16 +200,16 @@ pub const Shape = union(enum) {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         return switch (self.*) {
-            .Cube => Cube.visibility(ray, trafo, entity, sampler, scene, tr),
+            .Cube => Cube.visibility(ray, trafo, entity, sampler, worker, tr),
             .CurveMesh => |m| m.visibility(ray, trafo, tr),
-            .Disk => Disk.visibility(ray, trafo, entity, sampler, scene, tr),
-            .Rectangle => Rectangle.visibility(ray, trafo, entity, sampler, scene, tr),
-            .Sphere => Sphere.visibility(ray, trafo, entity, sampler, scene, tr),
-            .TriangleMesh => |m| m.visibility(ray, trafo, entity, sampler, scene, tr),
+            .Disk => Disk.visibility(ray, trafo, entity, sampler, worker, tr),
+            .Rectangle => Rectangle.visibility(ray, trafo, entity, sampler, worker, tr),
+            .Sphere => Sphere.visibility(ray, trafo, entity, sampler, worker, tr),
+            .TriangleMesh => |m| m.visibility(ray, trafo, entity, sampler, worker, tr),
             else => true,
         };
     }
@@ -256,13 +256,13 @@ pub const Shape = union(enum) {
         frag: *Fragment,
         split_threshold: f32,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
         return switch (self.*) {
-            .Disk => Disk.emission(vertex, frag, split_threshold, sampler, scene),
-            .Rectangle => Rectangle.emission(vertex, frag, split_threshold, sampler, scene),
-            .Sphere => Sphere.emission(vertex, frag, split_threshold, sampler, scene),
-            .TriangleMesh => |m| m.emission(vertex, frag, split_threshold, sampler, scene),
+            .Disk => Disk.emission(vertex, frag, split_threshold, sampler, worker),
+            .Rectangle => Rectangle.emission(vertex, frag, split_threshold, sampler, worker),
+            .Sphere => Sphere.emission(vertex, frag, split_threshold, sampler, worker),
+            .TriangleMesh => |m| m.emission(vertex, frag, split_threshold, sampler, worker),
             else => @splat(0.0),
         };
     }
@@ -467,7 +467,6 @@ pub const Shape = union(enum) {
     pub fn prepareSampling(
         self: *Shape,
         alloc: Allocator,
-        prop: u32,
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
@@ -475,7 +474,7 @@ pub const Shape = union(enum) {
         threads: *Threads,
     ) !u32 {
         return switch (self.*) {
-            .TriangleMesh => |*m| try m.prepareSampling(alloc, prop, part, material, builder, scene, threads),
+            .TriangleMesh => |*m| try m.prepareSampling(alloc, part, material, builder, scene, threads),
             else => 0,
         };
     }

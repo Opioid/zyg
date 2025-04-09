@@ -129,7 +129,7 @@ pub const Vertex = struct {
         } else {
             const material = frag.material(scene);
             const cc = material.collisionCoefficients2D(mat_sample);
-            self.mediums.push(frag, cc, material.super().ior, material.super().priority);
+            self.mediums.push(frag, cc, material.ior(), material.super().priority);
         }
     }
 
@@ -153,7 +153,7 @@ pub const Vertex = struct {
 
         const material = frag.material(scene);
         const cc = material.collisionCoefficients2D(mat_sample);
-        self.mediums.push(frag, cc, material.super().ior, material.super().priority);
+        self.mediums.push(frag, cc, material.ior(), material.super().priority);
 
         return ior;
     }
@@ -184,7 +184,7 @@ pub const Vertex = struct {
         }
 
         rs.origin = self.origin;
-        rs.uv = frag.uv();
+        rs.uvw = frag.uvw;
         rs.ior = self.iorOutside(frag, wo);
         rs.wavelength = self.probe.wavelength;
         rs.min_alpha = self.min_alpha;

@@ -25,10 +25,6 @@ pub const Ray = struct {
         self.max_t = max_t;
     }
 
-    pub fn clipMaxT(self: *Ray, t: f32) void {
-        self.max_t = mima.min(self.max_t, t);
-    }
-
     pub fn point(self: Ray, t: f32) Vec4f {
         return self.origin + @as(Vec4f, @splat(t)) * self.direction;
     }

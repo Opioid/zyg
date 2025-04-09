@@ -8,6 +8,7 @@ const Trafo = @import("../../composed_transformation.zig").ComposedTransformatio
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+const Worker = @import("../../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -38,7 +39,7 @@ pub const Material = struct {
 
     pub fn commit(self: *Material) void {
         self.super.properties.emissive = math.anyGreaterZero3(self.emittance.value);
-        self.super.properties.emission_map = self.emittance.emission_map.valid();
+        self.super.properties.emission_image_map = self.emittance.emission_map.isImage();
     }
 
     pub fn prepareSampling(
@@ -56,7 +57,7 @@ pub const Material = struct {
         }
 
         const rad = self.emittance.averageRadiance(area);
-        if (!self.emittance.emission_map.valid()) {
+        if (!self.emittance.emission_map.isImage()) {
             self.average_emission = rad;
             return self.average_emission;
         }
@@ -115,16 +116,12 @@ pub const Material = struct {
 
     pub fn evaluateRadiance(
         self: *const Material,
-        shading_p: Vec4f,
         wi: Vec4f,
-        uv: Vec2f,
-        trafo: Trafo,
-        prop: u32,
-        part: u32,
+        rs: Renderstate,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
-        return self.emittance.radiance(shading_p, wi, uv, trafo, prop, part, self.super.sampler_key, sampler, scene);
+        return self.emittance.radiance(wi, rs, self.super.sampler_key, sampler, worker);
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
@@ -134,7 +131,7 @@ pub const Material = struct {
     }
 
     pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
-        if (self.emittance.emission_map.valid()) {
+        if (!self.emittance.emission_map.isUniform()) {
             return self.distribution.pdf(self.super.sampler_key.address.address2(uv)) * self.total_weight;
         }
 

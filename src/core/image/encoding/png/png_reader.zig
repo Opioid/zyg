@@ -91,6 +91,8 @@ pub const Reader = struct {
         }
 
         pub fn deinit(self: *Info, alloc: Allocator) void {
+            alloc.free(self.filters);
+
             alloc.free(self.buffer_data);
 
             for (self.data_chunks.items) |*c| {

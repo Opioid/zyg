@@ -135,6 +135,8 @@ pub const Sensor = struct {
         for (self.layers) |*l| {
             l.deinit(alloc);
         }
+
+        alloc.free(self.layers);
     }
 
     pub fn resize(self: *Self, alloc: Allocator, dimensions: Vec2i, num_layers: u32, factory: AovFactory) !void {

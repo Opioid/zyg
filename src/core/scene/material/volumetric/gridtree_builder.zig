@@ -10,6 +10,7 @@ const Scene = @import("../../scene.zig").Scene;
 
 const base = @import("base");
 const math = base.math;
+const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Threads = base.thread.Pool;
 
@@ -17,8 +18,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const BuildNode = struct {
-    children: []BuildNode, // = &.{},
-    data: CM,
+    children: []BuildNode,
+    data: Vec2f,
 
     pub fn deinit(self: *BuildNode, alloc: Allocator) void {
         for (self.children) |*c| {
@@ -90,7 +91,7 @@ pub const Builder = struct {
         }
     }
 
-    fn serialize(node: BuildNode, current: usize, next: *u32, data_id: *u32, nodes: [*]Node, data: [*]CM) void {
+    fn serialize(node: BuildNode, current: usize, next: *u32, data_id: *u32, nodes: [*]Node, data: [*]Vec2f) void {
         var n = &nodes[current];
 
         if (node.children.len > 0) {
@@ -102,7 +103,7 @@ pub const Builder = struct {
             for (node.children, 0..) |c, i| {
                 serialize(c, cn + i, next, data_id, nodes, data);
             }
-        } else if (!node.data.isEmpty()) {
+        } else if (node.data[1] > 0.0) {
             n.setData(data_id.*);
             data[data_id.*] = node.data;
             data_id.* += 1;
@@ -116,7 +117,8 @@ const Splitter = struct {
     num_nodes: u32,
     num_data: u32,
 
-    const W: i32 = (Gridtree.Cell_dim >> (Gridtree.Log2_cell_dim - 3)) + 1;
+    // Plus 2 bececause of the filtering border mentioned below
+    const W = 8 + 2;
 
     fn split(
         self: *Splitter,
@@ -134,7 +136,7 @@ const Splitter = struct {
         const minb = @max(box.bounds[0] - @as(Vec4i, @splat(1)), @as(Vec4i, @splat(0)));
         const maxb = @min(box.bounds[1] + @as(Vec4i, @splat(1)), d);
 
-        var min_density: f32 = 1.0;
+        var min_density: f32 = std.math.floatMax(f32);
         var max_density: f32 = 0.0;
 
         var z = minb[2];
@@ -151,38 +153,21 @@ const Splitter = struct {
             }
         }
 
+        min_density = math.max(min_density, 0.0);
+        max_density = math.max(max_density, 0.0);
+
         if (min_density > max_density) {
             min_density = 0.0;
             max_density = 0.0;
         }
 
-        const cm = CM.initCC(cc);
-
-        const minorant_mu_a = min_density * cm.minorant_mu_a;
-        const minorant_mu_s = min_density * cm.minorant_mu_s;
-        const majorant_mu_a = max_density * cm.majorant_mu_a;
-        const majorant_mu_s = max_density * cm.majorant_mu_s;
-
         const diff = max_density - min_density;
 
-        if (Gridtree.Log2_cell_dim - 3 == depth or diff < 0.1 or math.anyLess4i((maxb - minb), .{ W, W, W, std.math.minInt(i32) })) {
+        if (math.allLessEqual4i((maxb - minb), .{ W, W, W, std.math.maxInt(i32) }) or diff < 0.1) {
             node.children = &.{};
+            node.data = .{ min_density, max_density };
 
-            var data = &node.data;
-
-            if (0.0 == diff) {
-                data.minorant_mu_a = minorant_mu_a;
-                data.minorant_mu_s = minorant_mu_s;
-                data.majorant_mu_a = majorant_mu_a;
-                data.majorant_mu_s = majorant_mu_s;
-            } else {
-                data.minorant_mu_a = math.max(minorant_mu_a, 0.0);
-                data.minorant_mu_s = math.max(minorant_mu_s, 0.0);
-                data.majorant_mu_a = majorant_mu_a;
-                data.majorant_mu_s = majorant_mu_s;
-            }
-
-            if (!data.isEmpty()) {
+            if (max_density > 0.0) {
                 self.num_data += 1;
             }
 

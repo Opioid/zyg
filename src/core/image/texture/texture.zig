@@ -12,10 +12,18 @@ const Vec4f = math.Vec4f;
 const Vec4i = math.Vec4i;
 
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 pub const Texture = struct {
+    pub const TexCoordMode = enum {
+        UV0,
+        Triplanar,
+        ObjectPos,
+    };
+
     pub const Type = enum {
         Uniform,
+        Procedural,
         Byte1_unorm,
         Byte2_unorm,
         Byte2_snorm,
@@ -37,24 +45,39 @@ pub const Texture = struct {
         scale: [2]f32,
     };
 
+    const Procedural = extern struct {
+        id: u32,
+        data: u32,
+    };
+
     const Data = extern union {
-        image: Image,
         uniform: Pack3f,
+        procedural: Procedural,
+        image: Image,
     };
 
     type: Type = .Uniform,
+    uv_set: TexCoordMode = undefined,
     data: Data = undefined,
 
-    pub fn initImage(class: Type, image_id: u32, scale: Vec2f) Texture {
-        return .{ .type = class, .data = .{ .image = .{ .id = image_id, .scale = scale } } };
+    pub fn initImage(class: Type, image_id: u32, uv_set: TexCoordMode, scale: Vec2f) Texture {
+        return .{ .type = class, .uv_set = uv_set, .data = .{ .image = .{ .id = image_id, .scale = scale } } };
     }
 
     pub fn initUniform1(v: f32) Texture {
         return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init1(v) } };
     }
 
+    pub fn initUniform2(v: Vec2f) Texture {
+        return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init3(v[0], v[1], 0.0) } };
+    }
+
     pub fn initUniform3(v: Vec4f) Texture {
         return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init3(v[0], v[1], v[2]) } };
+    }
+
+    pub fn initProcedural(id: u32, data: u32, uv_set: TexCoordMode) Texture {
+        return .{ .type = .Procedural, .uv_set = uv_set, .data = .{ .procedural = .{ .id = id, .data = data } } };
     }
 
     pub fn equal(self: Texture, other: Texture) bool {
@@ -70,7 +93,7 @@ pub const Texture = struct {
             return Error.IncompatibleCast;
         }
 
-        const other = Texture.initImage(target, self.data.image.id, self.data.image.scale);
+        const other = Texture.initImage(target, self.data.image.id, self.uv_set, self.data.image.scale);
 
         if (self.numChannels() != other.numChannels() or self.bytesPerChannel() != other.bytesPerChannel()) {
             return Error.IncompatibleCast;
@@ -79,13 +102,24 @@ pub const Texture = struct {
         return other;
     }
 
-    pub fn valid(self: Texture) bool {
-        return self.type != .Uniform;
+    pub fn isUniform(self: Texture) bool {
+        return .Uniform == self.type;
+    }
+
+    pub fn isProcedural(self: Texture) bool {
+        return .Procedural == self.type;
+    }
+
+    pub fn isImage(self: Texture) bool {
+        return switch (self.type) {
+            .Uniform, .Procedural => false,
+            else => true,
+        };
     }
 
     pub fn numChannels(self: Texture) u32 {
         return switch (self.type) {
-            .Uniform => 0,
+            .Uniform, .Procedural => 0,
             .Byte1_unorm, .Half1, .Float1, .Float1Sparse => 1,
             .Byte2_unorm, .Byte2_snorm, .Float2 => 2,
             .Byte3_sRGB, .Byte3_snorm, .Half3, .Float3 => 3,
@@ -95,7 +129,7 @@ pub const Texture = struct {
 
     pub fn bytesPerChannel(self: Texture) u32 {
         return switch (self.type) {
-            .Uniform => 0,
+            .Uniform, .Procedural => 0,
             .Byte1_unorm, .Byte2_unorm, .Byte2_snorm, .Byte3_sRGB, .Byte3_snorm, .Byte4_sRGB => 1,
             .Half1, .Half3, .Half4 => 2,
             else => 4,
@@ -105,6 +139,11 @@ pub const Texture = struct {
     pub fn uniform1(self: Texture) f32 {
         const v = self.data.uniform;
         return v.v[0];
+    }
+
+    pub fn uniform2(self: Texture) Vec2f {
+        const v = self.data.uniform;
+        return .{ v.v[0], v.v[1] };
     }
 
     pub fn uniform3(self: Texture) Vec4f {

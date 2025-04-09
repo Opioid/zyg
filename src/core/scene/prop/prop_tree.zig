@@ -171,7 +171,7 @@ pub const Tree = struct {
         frag: *Fragment,
         split_threshold: f32,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
         var stack = NodeStack{};
 
@@ -191,7 +191,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (finite_props[start..end]) |p| {
-                    energy += props[p].emission(p, vertex, frag, split_threshold, sampler, scene);
+                    energy += props[p].emission(p, vertex, frag, split_threshold, sampler, worker);
                 }
 
                 n = stack.pop();

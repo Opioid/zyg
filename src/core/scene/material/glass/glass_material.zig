@@ -1,7 +1,7 @@
 const Base = @import("../material_base.zig").Base;
 const Sample = @import("glass_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
-const Scene = @import("../../scene.zig").Scene;
+const Worker = @import("../../../rendering/worker.zig").Worker;
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -15,42 +15,46 @@ const Frame = math.Frame;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
-const std = @import("std");
-
 pub const Material = struct {
     super: Base = .{},
 
     normal_map: Texture = .{},
-    roughness_map: Texture = Texture.initUniform1(0.0),
+    roughness: Texture = Texture.initUniform1(0.0),
 
+    absorption: Vec4f = undefined,
+    attenuation_distance: f32 = 1.0,
+    ior: f32 = 1.46,
     thickness: f32 = 0.0,
     abbe: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
+        const properties = &self.super.properties;
+
         const thin = self.thickness > 0.0;
-        self.super.properties.two_sided = thin;
-        self.super.properties.evaluate_visibility = thin or self.super.mask.valid();
-        self.super.properties.caustic = !self.roughness_map.valid() and self.roughness_map.uniform1() <= ggx.MinRoughness;
+        properties.two_sided = thin;
+        properties.evaluate_visibility = thin or !self.super.mask.isUniform();
+        properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= ggx.MinRoughness;
     }
 
-    pub fn setRoughness(self: *Material, roughness: Base.MappedValue(f32)) void {
-        self.roughness_map = roughness.flatten();
+    pub fn setVolumetric(self: *Material, attenuation_color: Vec4f, distance: f32) void {
+        self.absorption = ccoef.attenuationCoefficient(attenuation_color, distance);
+        self.attenuation_distance = distance;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, scene: *const Scene) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
         const key = self.super.sampler_key;
 
         const use_roughness = !self.super.properties.caustic and (0.0 == self.thickness or rs.primary);
         const r = if (use_roughness)
-            ggx.clampRoughness(ts.sample2D_1(key, self.roughness_map, rs.uv, sampler, scene))
+            ggx.clampRoughness(ts.sample2D_1(key, self.roughness, rs, sampler, worker))
         else
             0.0;
 
         var result = Sample.init(
             rs,
             wo,
-            self.super.cc.a,
-            self.super.ior,
+            self.absorption,
+            self.ior,
             rs.ior,
             r * r,
             self.thickness,
@@ -59,8 +63,8 @@ pub const Material = struct {
             self.super.priority,
         );
 
-        if (self.normal_map.valid()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, scene);
+        if (!self.normal_map.isUniform()) {
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, worker);
             result.super.frame = Frame.init(n);
         } else {
             result.super.frame = .{ .x = rs.t, .y = rs.b, .z = rs.n };
@@ -69,14 +73,14 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn visibility(self: *const Material, wi: Vec4f, n: Vec4f, uv: Vec2f, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
-        const o = self.super.opacity(uv, sampler, scene);
+    pub fn visibility(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
+        const o = self.super.opacity(rs, sampler, worker);
 
         if (self.thickness > 0.0) {
             const eta_i: f32 = 1.0;
-            const eta_t = self.super.ior;
+            const eta_t = self.ior;
 
-            const n_dot_wo = math.min(@abs(math.dot3(n, wi)), 1.0);
+            const n_dot_wo = math.min(@abs(math.dot3(rs.geo_n, wi)), 1.0);
             const eta = eta_i / eta_t;
             const sint2 = (eta * eta) * (1.0 - n_dot_wo * n_dot_wo);
 
@@ -95,7 +99,7 @@ pub const Material = struct {
             const n_dot_wi = math.safe.clamp(n_dot_wo);
             const approx_dist = self.thickness / n_dot_wi;
 
-            const attenuation = ccoef.attenuation3(self.super.cc.a, approx_dist);
+            const attenuation = ccoef.attenuation3(self.absorption, approx_dist);
 
             const ta = math.min4(@as(Vec4f, @splat(1.0 - o)) + attenuation, @splat(1.0));
 

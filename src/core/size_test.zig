@@ -33,7 +33,7 @@ pub fn testSize() void {
     testType(math.Distribution1D, "Distribution1D", 32);
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
-    testType(Renderstate, "Renderstate", 208);
+    testType(Renderstate, "Renderstate", 224);
     testType(Fragment, "Fragment", 208);
     testType(Vertex, "Vertex", 416);
     testType(smpl.To, "SampleTo", 64);
@@ -44,7 +44,7 @@ pub fn testSize() void {
     testType(mdm.Stack, "MediumStack", 208);
     testType(mt.Material, "Material", 352);
     testType(mt.Substitute, "SubstituteMaterial", 336);
-    testType(mt.Hair, "HairMaterial", 160);
+    testType(mt.Hair, "HairMaterial", 112);
     testType(mt.Sample, "MaterialSample", 288);
     testType(mtsmpl.Substitute, "SubstituteSample", 240);
     testType(mtsmpl.Hair, "HairSample", 272);

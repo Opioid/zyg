@@ -1,5 +1,6 @@
 const Trafo = @import("composed_transformation.zig").ComposedTransformation;
 const ggx = @import("material/ggx.zig");
+const hlp = @import("material/material_helper.zig");
 const Event = @import("shape/intersection.zig").Volume.Event;
 
 const math = @import("base").math;
@@ -21,8 +22,7 @@ pub const Renderstate = struct {
     b: Vec4f,
     n: Vec4f,
     origin: Vec4f,
-
-    uv: Vec2f,
+    uvw: Vec4f,
 
     ior: f32,
     wavelength: f32,
@@ -39,6 +39,18 @@ pub const Renderstate = struct {
     highest_priority: i8,
     event: Event,
     caustics: CausticsResolve,
+
+    pub fn uv(self: Renderstate) Vec2f {
+        const uvw = self.uvw;
+        return .{ uvw[0], uvw[1] };
+    }
+
+    pub fn triplanarUv(self: Renderstate) Vec2f {
+        const op = self.trafo.worldToObjectPoint(self.p);
+        const on = self.trafo.worldToObjectNormal(self.geo_n);
+
+        return hlp.triplanarMapping(op, on);
+    }
 
     pub fn tangentToWorld(self: Renderstate, v: Vec4f) Vec4f {
         return .{

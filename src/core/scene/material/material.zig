@@ -42,9 +42,7 @@ pub const Material = union(enum) {
 
     pub fn deinit(self: *Material, alloc: Allocator) void {
         switch (self.*) {
-            .Light => |*m| m.deinit(alloc),
-            .Sky => |*m| m.deinit(alloc),
-            .Volumetric => |*m| m.deinit(alloc),
+            inline .Light, .Sky, .Volumetric => |*m| m.deinit(alloc),
             else => {},
         }
     }
@@ -101,8 +99,8 @@ pub const Material = union(enum) {
         return self.super().properties.emissive;
     }
 
-    pub fn emissionMapped(self: *const Material) bool {
-        return self.super().properties.emission_map;
+    pub fn emissionImageMapped(self: *const Material) bool {
+        return self.super().properties.emission_image_map;
     }
 
     pub fn scatteringVolume(self: *const Material) bool {
@@ -118,7 +116,7 @@ pub const Material = union(enum) {
 
     pub fn heterogeneousVolume(self: *const Material) bool {
         return switch (self.*) {
-            .Volumetric => |*m| m.density_map.valid(),
+            .Volumetric => |*m| !m.density_map.isUniform(),
             else => false,
         };
     }
@@ -129,13 +127,17 @@ pub const Material = union(enum) {
 
     pub fn volumetricTree(self: *const Material) ?Gridtree {
         return switch (self.*) {
-            .Volumetric => |*m| if (m.density_map.valid()) m.tree else null,
+            .Volumetric => |*m| if (!m.density_map.isUniform()) m.tree else null,
             else => null,
         };
     }
 
     pub fn ior(self: *const Material) f32 {
-        return self.super().ior;
+        return switch (self.*) {
+            inline .Glass, .Hair, .Substitute => |*m| m.ior,
+            .Volumetric => 0.0,
+            else => 1.0,
+        };
     }
 
     pub fn numSamples(self: *const Material, split_threshold: f32) u32 {
@@ -156,9 +158,17 @@ pub const Material = union(enum) {
         };
     }
 
+    pub fn collisionCoefficients(self: *const Material) CC {
+        return switch (self.*) {
+            .Glass => |*m| .{ .a = m.absorption, .s = @splat(0.0) },
+            inline .Substitute, .Volumetric => |*m| m.cc,
+            else => undefined,
+        };
+    }
+
     pub fn collisionCoefficients2D(self: *const Material, mat_sample: *const Sample) CC {
         const sup = self.super();
-        const cc = sup.cc;
+        const cc = self.collisionCoefficients();
 
         if (sup.properties.color_map) {
             const color = mat_sample.super().albedo;
@@ -168,62 +178,59 @@ pub const Material = union(enum) {
         return cc;
     }
 
-    pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CC {
-        const sup = self.super();
-        const cc = sup.cc;
-
+    pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, worker: *const Worker) CC {
         return switch (self.*) {
-            .Volumetric => |*m| cc.scaled(@splat(m.density(uvw, sampler, scene))),
+            .Volumetric => |*m| cc.scaled(@splat(m.density(uvw, sampler, worker))),
             else => cc,
         };
     }
 
-    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, sampler: *Sampler, scene: *const Scene) CCE {
+    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, worker: *const Worker) CCE {
         return switch (self.*) {
-            .Volumetric => |*m| m.collisionCoefficientsEmission(uvw, sampler, scene),
+            .Volumetric => |*m| m.collisionCoefficientsEmission(uvw, cc, sampler, worker),
+            else => undefined,
+        };
+    }
 
-            else => .{ .cc = self.super().cc, .e = @splat(0.0) },
+    pub fn similarityRelationScale(self: *const Material, depth: u32) f32 {
+        return switch (self.*) {
+            .Volumetric => |*m| m.similarityRelationScale(depth),
+            else => 1.0,
         };
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
         return switch (self.*) {
             .Debug => .{ .Debug = Debug.sample(wo, rs) },
-            .Glass => |*g| .{ .Glass = g.sample(wo, rs, sampler, worker.scene) },
-            .Hair => |*h| .{ .Hair = h.sample(wo, rs, sampler) },
+            .Glass => |*m| .{ .Glass = m.sample(wo, rs, sampler, worker) },
+            .Hair => |*m| .{ .Hair = m.sample(wo, rs, sampler) },
             .Light => .{ .Light = Light.sample(wo, rs) },
             .Sky => .{ .Light = Sky.sample(wo, rs) },
-            .Substitute => |*s| s.sample(wo, rs, sampler, worker),
-            .Volumetric => |*v| .{ .Volumetric = v.sample(wo, rs) },
+            .Substitute => |*m| m.sample(wo, rs, sampler, worker),
+            .Volumetric => |*m| .{ .Volumetric = m.sample(wo, rs) },
         };
     }
 
-    pub fn evaluateRadiance(
-        self: *const Material,
-        shading_p: Vec4f,
-        wi: Vec4f,
-        n: Vec4f,
-        uvw: Vec4f,
-        trafo: Trafo,
-        prop: u32,
-        part: u32,
-        sampler: *Sampler,
-        scene: *const Scene,
-    ) Vec4f {
+    pub fn evaluateRadiance(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Vec4f {
         return switch (self.*) {
-            .Light => |*m| m.evaluateRadiance(shading_p, wi, .{ uvw[0], uvw[1] }, trafo, prop, part, sampler, scene),
-            .Sky => |*m| m.evaluateRadiance(wi, .{ uvw[0], uvw[1] }, trafo, sampler, scene),
-            .Substitute => |*m| m.evaluateRadiance(shading_p, wi, n, .{ uvw[0], uvw[1] }, trafo, prop, part, sampler, scene),
-            .Volumetric => |*m| m.evaluateRadiance(uvw, sampler, scene),
+            .Light => |*m| m.evaluateRadiance(wi, rs, sampler, worker),
+            .Sky => |*m| m.evaluateRadiance(wi, rs, sampler, worker),
+            .Substitute => |*m| m.evaluateRadiance(wi, rs, sampler, worker),
+            .Volumetric => |*m| m.evaluateRadiance(rs, sampler, worker),
+            else => @splat(0.0),
+        };
+    }
+
+    pub fn imageRadiance(self: *const Material, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
+        return switch (self.*) {
+            inline .Light, .Substitute => |*m| m.emittance.imageRadiance(uv, m.super.sampler_key, sampler, scene),
             else => @splat(0.0),
         };
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
         return switch (self.*) {
-            .Light => |*m| m.radianceSample(r3),
-            .Sky => |*m| m.radianceSample(r3),
-            .Volumetric => |*m| m.radianceSample(r3),
+            inline .Light, .Sky, .Volumetric => |*m| m.radianceSample(r3),
             else => Base.RadianceSample.init3(r3, 1.0),
         };
     }
@@ -237,25 +244,20 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn opacity(self: *const Material, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
-        return self.super().opacity(uv, sampler, scene);
-    }
-
     pub fn visibility(
         self: *const Material,
         wi: Vec4f,
-        n: Vec4f,
-        uv: Vec2f,
+        rs: Renderstate,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         switch (self.*) {
             .Glass => |*m| {
-                return m.visibility(wi, n, uv, sampler, scene, tr);
+                return m.visibility(wi, rs, sampler, worker, tr);
             },
             else => {
-                const o = self.opacity(uv, sampler, scene);
+                const o = self.super().opacity(rs, sampler, worker);
                 if (o < 1.0) {
                     tr.* *= @splat(1.0 - o);
                     return true;
@@ -274,6 +276,6 @@ pub const Material = union(enum) {
             inline else => |*m| m.super.mask,
         };
 
-        return if (texture.valid()) texture else null;
+        return if (!texture.isUniform()) texture else null;
     }
 };

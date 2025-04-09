@@ -12,7 +12,6 @@ const LightTree = @import("../scene/light/light_tree.zig");
 const SamplerFactory = @import("../sampler/sampler.zig").Factory;
 const cam = @import("../camera/perspective.zig");
 const Sink = @import("../exporting/sink.zig").Sink;
-const MaterialBase = @import("../scene/material/material_base.zig").Base;
 const PngWriter = @import("../image/encoding/png/png_writer.zig").Writer;
 const FFMPEG = @import("../exporting/ffmpeg.zig").FFMPEG;
 
@@ -231,16 +230,6 @@ pub const View = struct {
                         .photons_not_only_through_specular = !lighttracer,
                     },
                 } };
-            }
-        }
-    }
-
-    fn loadVolumeIntegrator(value: std.json.Value) void {
-        var iter = value.object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "Tracking", entry.key_ptr.*)) {
-                const sr_range = json.readVec2iMember(entry.value_ptr.*, "similarity_relation_range", .{ 16, 64 });
-                MaterialBase.setSimilarityRelationRange(@intCast(sr_range[0]), @intCast(sr_range[1]));
             }
         }
     }

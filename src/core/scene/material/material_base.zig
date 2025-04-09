@@ -1,8 +1,7 @@
 const Rainbow = @import("rainbow_integral.zig");
-const ccoef = @import("collision_coefficients.zig");
-const CC = ccoef.CC;
 const fresnel = @import("fresnel.zig");
-const Scene = @import("../scene.zig").Scene;
+const Renderstate = @import("../renderstate.zig").Renderstate;
+const Worker = @import("../../rendering/worker.zig").Worker;
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -12,35 +11,7 @@ const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
-const std = @import("std");
-
 pub const Base = struct {
-    pub fn MappedValue(comptime Value: type) type {
-        return struct {
-            texture: Texture = .{},
-
-            value: Value,
-
-            const Self = @This();
-
-            pub fn init(value: Value) Self {
-                return .{ .value = value };
-            }
-
-            pub fn flatten(self: Self) Texture {
-                if (self.texture.valid()) {
-                    return self.texture;
-                }
-
-                if (Vec4f == Value) {
-                    return Texture.initUniform3(self.value);
-                }
-
-                return Texture.initUniform1(self.value);
-            }
-        };
-    }
-
     pub const RadianceResult = struct {
         emission: Vec4f,
         num_samples: u32,
@@ -68,7 +39,7 @@ pub const Base = struct {
         caustic: bool = false,
         emissive: bool = false,
         color_map: bool = false,
-        emission_map: bool = false,
+        emission_image_map: bool = false,
         scattering_volume: bool = false,
         dense_sss_optimization: bool = false,
     };
@@ -79,57 +50,14 @@ pub const Base = struct {
 
     mask: Texture = Texture.initUniform1(1.0),
 
-    cc: CC = undefined,
-
     priority: i8 = 0,
-    ior: f32 = 1.5,
-    attenuation_distance: f32 = 0.0,
 
     pub fn setTwoSided(self: *Base, two_sided: bool) void {
         self.properties.two_sided = two_sided;
     }
 
-    pub fn setVolumetric(
-        self: *Base,
-        attenuation_color: Vec4f,
-        subsurface_color: Vec4f,
-        distance: f32,
-        anisotropy: f32,
-    ) void {
-        const aniso = math.clamp(anisotropy, -0.999, 0.999);
-        const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, aniso);
-
-        self.cc = cc;
-        self.attenuation_distance = distance;
-        self.properties.scattering_volume = math.anyGreaterZero3(cc.s);
-    }
-
-    pub fn opacity(self: *const Base, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
-        return ts.sample2D_1(self.sampler_key, self.mask, uv, sampler, scene);
-    }
-
-    pub fn similarityRelationScale(self: *const Base, depth: u32) f32 {
-        const gs = self.vanDeHulstAnisotropy(depth);
-        return vanDeHulst(self.cc.anisotropy(), gs);
-    }
-
-    pub fn vanDeHulstAnisotropy(self: *const Base, depth: u32) f32 {
-        const aniso = self.cc.anisotropy();
-
-        if (depth < SR_low) {
-            return aniso;
-        }
-
-        if (depth < SR_high) {
-            const towards_zero = SR_inv_range * @as(f32, @floatFromInt(depth - SR_low));
-            return math.lerp(aniso, 0.0, towards_zero);
-        }
-
-        return 0.0;
-    }
-
-    fn vanDeHulst(g: f32, gs: f32) f32 {
-        return (1.0 - g) / (1.0 - gs);
+    pub fn opacity(self: *const Base, rs: Renderstate, sampler: *Sampler, worker: *const Worker) f32 {
+        return ts.sample2D_1(self.sampler_key, self.mask, rs, sampler, worker);
     }
 
     pub const Start_wavelength = Rainbow.Wavelength_start;
@@ -149,15 +77,5 @@ pub const Base = struct {
         }
 
         return @as(Vec4f, @splat(value)) * math.lerp(Rainbow.Rainbow[id], Rainbow.Rainbow[id + 1], @as(Vec4f, @splat(frac)));
-    }
-
-    var SR_low: u32 = 16;
-    var SR_high: u32 = 64;
-    var SR_inv_range: f32 = 1.0 / @as(f32, @floatFromInt(64 - 16));
-
-    pub fn setSimilarityRelationRange(low: u32, high: u32) void {
-        SR_low = low;
-        SR_high = high;
-        SR_inv_range = 1.0 / @as(f32, @floatFromInt(high - low));
     }
 };

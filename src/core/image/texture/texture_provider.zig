@@ -30,6 +30,7 @@ pub const Provider = struct {
         alloc: Allocator,
         name: []const u8,
         options: Variants,
+        sampler: Texture.TexCoordMode,
         scale: Vec2f,
         resources: *Resources,
     ) !Texture {
@@ -62,25 +63,25 @@ pub const Provider = struct {
 
         const image_id = try resources.loadFile(Image, alloc, name, image_options);
 
-        return try createTexture(image_id, usage, scale, resources);
+        return try createTexture(image_id, usage, sampler, scale, resources);
     }
 
-    pub fn createTexture(image_id: u32, usage: Usage, scale: Vec2f, resources: *Resources) !Texture {
+    pub fn createTexture(image_id: u32, usage: Usage, sampler: Texture.TexCoordMode, scale: Vec2f, resources: *Resources) !Texture {
         const image = resources.get(Image, image_id) orelse return Error.InvalidImageId;
 
         return switch (image.*) {
-            .Byte1 => Texture.initImage(.Byte1_unorm, image_id, scale),
-            .Byte2 => Texture.initImage(if (.Normal == usage) .Byte2_snorm else .Byte2_unorm, image_id, scale),
-            .Byte4 => Texture.initImage(.Byte4_sRGB, image_id, scale),
-            .Byte3 => Texture.initImage(.Byte3_sRGB, image_id, scale),
-            .Half1 => Texture.initImage(.Half1, image_id, scale),
-            .Half3 => Texture.initImage(.Half3, image_id, scale),
-            .Half4 => Texture.initImage(.Half4, image_id, scale),
-            .Float1 => Texture.initImage(.Float1, image_id, scale),
-            .Float1Sparse => Texture.initImage(.Float1Sparse, image_id, scale),
-            .Float2 => Texture.initImage(.Float2, image_id, scale),
-            .Float3 => Texture.initImage(.Float3, image_id, scale),
-            .Float4 => Texture.initImage(.Float4, image_id, scale),
+            .Byte1 => Texture.initImage(.Byte1_unorm, image_id, sampler, scale),
+            .Byte2 => Texture.initImage(if (.Normal == usage) .Byte2_snorm else .Byte2_unorm, image_id, sampler, scale),
+            .Byte4 => Texture.initImage(.Byte4_sRGB, image_id, sampler, scale),
+            .Byte3 => Texture.initImage(.Byte3_sRGB, image_id, sampler, scale),
+            .Half1 => Texture.initImage(.Half1, image_id, sampler, scale),
+            .Half3 => Texture.initImage(.Half3, image_id, sampler, scale),
+            .Half4 => Texture.initImage(.Half4, image_id, sampler, scale),
+            .Float1 => Texture.initImage(.Float1, image_id, sampler, scale),
+            .Float1Sparse => Texture.initImage(.Float1Sparse, image_id, sampler, scale),
+            .Float2 => Texture.initImage(.Float2, image_id, sampler, scale),
+            .Float3 => Texture.initImage(.Float3, image_id, sampler, scale),
+            .Float4 => Texture.initImage(.Float4, image_id, sampler, scale),
         };
     }
 };

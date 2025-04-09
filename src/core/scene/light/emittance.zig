@@ -1,8 +1,10 @@
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const ts = @import("../../image/texture/texture_sampler.zig");
+const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
+const Worker = @import("../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -70,38 +72,34 @@ pub const Emittance = struct {
 
     pub fn radiance(
         self: Emittance,
-        shading_p: Vec4f,
         wi: Vec4f,
-        uv: Vec2f,
-        trafo: Trafo,
-        prop: u32,
-        part: u32,
+        rs: Renderstate,
         key: ts.Key,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
         var pf: f32 = 1.0;
-        if (self.profile.valid()) {
+        if (self.profile.isImage()) {
             const profile_key = ts.Key{
                 .filter = ts.DefaultFilter,
                 .address = .{ .u = .Clamp, .v = .Clamp },
             };
 
-            const lwi = -math.normalize3(trafo.worldToObjectPoint(shading_p));
+            const lwi = -math.normalize3(rs.trafo.worldToObjectPoint(rs.origin));
             const o = math.smpl.octEncode(lwi);
             const ouv = (o + @as(Vec2f, @splat(1.0))) * @as(Vec2f, @splat(0.5));
 
-            pf = ts.sample2D_1(profile_key, self.profile, ouv, sampler, scene);
+            pf = ts.sampleImage2D_1(profile_key, self.profile, ouv, sampler, worker.scene);
         }
 
-        if (-math.dot3(wi, trafo.rotation.r[2]) < self.cos_a) {
+        if (-math.dot3(wi, rs.trafo.rotation.r[2]) < self.cos_a) {
             return @splat(0.0);
         }
 
-        const intensity = self.value * ts.sample2D_3(key, self.emission_map, uv, sampler, scene);
+        const intensity = self.value * ts.sample2D_3(key, self.emission_map, rs, sampler, worker);
 
         if (self.quantity == .Intensity) {
-            const area = scene.propShape(prop).area(part, trafo.scale());
+            const area = worker.scene.propShape(rs.prop).area(rs.part, rs.trafo.scale());
             return @as(Vec4f, @splat(pf / area)) * intensity;
         }
 
@@ -116,8 +114,12 @@ pub const Emittance = struct {
         return self.value;
     }
 
+    pub fn imageRadiance(self: Emittance, uv: Vec2f, key: ts.Key, sampler: *Sampler, scene: *const Scene) Vec4f {
+        return self.value * ts.sampleImage2D_3(key, self.emission_map, uv, sampler, scene);
+    }
+
     pub fn angleFromProfile(self: Emittance, scene: *const Scene) f32 {
-        if (!self.profile.valid()) {
+        if (!self.profile.isImage()) {
             return std.math.pi;
         }
 

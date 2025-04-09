@@ -12,9 +12,11 @@ const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
 const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
+const Renderstate = @import("renderstate.zig").Renderstate;
 const Vertex = @import("vertex.zig").Vertex;
 const Probe = Vertex.Probe;
 const Image = @import("../image/image.zig").Image;
+const Procedural = @import("../image/texture/procedural.zig").Procedural;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
@@ -25,6 +27,7 @@ const hlp = @import("../rendering/integrator/helper.zig");
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Mat4x4 = math.Mat4x4;
 const Distribution1D = math.Distribution1D;
@@ -105,6 +108,8 @@ pub const Scene = struct {
 
     sky: Sky = .{},
 
+    procedural: Procedural = .{},
+
     pub fn init(alloc: Allocator) !Scene {
         var shapes = try List(Shape).initCapacity(alloc, 16);
         try shapes.append(alloc, .{ .Canopy = .{} });
@@ -172,6 +177,8 @@ pub const Scene = struct {
         self.prop_parts.deinit(alloc);
         self.prop_world_transformations.deinit(alloc);
         self.props.deinit(alloc);
+
+        self.procedural.deinit(alloc);
 
         deinitResources(Shape, alloc, &self.shapes);
         deinitResources(Material, alloc, &self.materials);
@@ -282,10 +289,6 @@ pub const Scene = struct {
         self.volume_bvh.scatter(probe, frag, throughput, sampler, worker);
     }
 
-    pub fn emission(self: *const Scene, vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler) Vec4f {
-        return self.unoccluding_bvh.emission(vertex, frag, split_threshold, sampler, self);
-    }
-
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {
         for (self.materials.items) |*m| {
             try m.commit(alloc, self, threads);
@@ -369,7 +372,7 @@ pub const Scene = struct {
             }
 
             if (mat.scatteringVolume()) {
-                if (shape_inst.analytical() and mat.emissionMapped()) {
+                if (shape_inst.analytical() and mat.emissionImageMapped()) {
                     try self.allocateLight(alloc, .VolumeImage, false, shadow_catcher_light, entity, i);
                 } else {
                     try self.allocateLight(alloc, .Volume, false, shadow_catcher_light, entity, i);
@@ -377,7 +380,7 @@ pub const Scene = struct {
             } else {
                 const two_sided = mat.twoSided();
 
-                if (shape_inst.analytical() and mat.emissionMapped()) {
+                if (shape_inst.analytical() and mat.emissionImageMapped()) {
                     try self.allocateLight(alloc, .PropImage, two_sided, shadow_catcher_light, entity, i);
                 } else {
                     try self.allocateLight(alloc, .Prop, two_sided, shadow_catcher_light, entity, i);
@@ -496,7 +499,7 @@ pub const Scene = struct {
         const m = self.material_ids.items[p];
         const mat = &self.materials.items[m];
 
-        const variant = shape_inst.prepareSampling(alloc, entity, part, m, &self.light_tree_builder, self, threads) catch 0;
+        const variant = shape_inst.prepareSampling(alloc, part, m, &self.light_tree_builder, self, threads) catch 0;
         l.variant = variant;
 
         const trafo = self.propTransformationAt(entity, time);

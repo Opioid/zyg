@@ -73,7 +73,6 @@ pub fn build(b: *std.Build) void {
     cli.root_module.addImport("core", core);
 
     cli.linkLibC();
-    // cli.sanitize_thread = true;
     cli.root_module.strip = true;
     b.installArtifact(cli);
 
@@ -88,7 +87,6 @@ pub fn build(b: *std.Build) void {
     it.root_module.addImport("core", core);
 
     it.linkLibC();
-    // it.sanitize_thread = true;
     it.root_module.strip = true;
     b.installArtifact(it);
 
@@ -107,11 +105,11 @@ pub fn build(b: *std.Build) void {
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            "takes/cornell.take",
+            //"takes/cornell.take",
             //"takes/cornell_nd.take",
             //"takes/curve_test.take",
             //"takes/imrod.take",
-            //"takes/model_test.take",
+            "takes/model_test.take",
             //"takes/furnace_test.take",
             //"takes/animation_test.take",
             //"takes/material_test.take",

@@ -13,6 +13,7 @@ const CM = ccoef.CM;
 const base = @import("base");
 const math = base.math;
 const Ray = math.Ray;
+const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const RNG = base.rnd.Generator;
 
@@ -22,52 +23,20 @@ const Min_mt = 1.0e-10;
 const Abort_epsilon = 7.5e-4;
 pub const Abort_epsilon4 = Vec4f{ Abort_epsilon, Abort_epsilon, Abort_epsilon, std.math.floatMax(f32) };
 
-pub fn transmittanceHetero(
-    ray: Ray,
-    material: *const Material,
-    prop: u32,
-    depth: u32,
-    sampler: *Sampler,
-    worker: *Worker,
-    tr: *Vec4f,
-) bool {
-    if (material.volumetricTree()) |tree| {
-        const d = ray.max_t;
-
-        var local_ray = objectToTextureRay(ray, prop, worker);
-
-        const srs = material.super().similarityRelationScale(depth);
-
-        while (local_ray.min_t < d) {
-            if (tree.intersect(&local_ray)) |cm| {
-                if (!trackingTransmitted(tr, local_ray, cm, material, srs, sampler, worker)) {
-                    return false;
-                }
-            }
-
-            local_ray.setMinMaxT(ro.offsetF(local_ray.max_t), d);
-        }
-
-        return true;
-    }
-
-    return false;
-}
-
 // Code for (residual ratio) hetereogeneous transmittance inspired by:
 // https://github.com/DaWelter/ToyTrace/blob/master/src/atmosphere.cxx
 
-fn trackingTransmitted(
+pub fn trackingTransmitted(
     transmitted: *Vec4f,
     ray: Ray,
-    cm: CM,
+    cm: Vec2f,
+    cc: CC,
     material: *const Material,
-    srs: f32,
     sampler: *Sampler,
     worker: *Worker,
 ) bool {
-    const minorant_mu_t = cm.minorant_mu_t(srs);
-    const majorant_mu_t = cm.majorant_mu_t(srs);
+    const minorant_mu_t = cm[0];
+    const majorant_mu_t = cm[1];
 
     if (minorant_mu_t > 0.0) {
         // Transmittance of the control medium
@@ -97,8 +66,7 @@ fn trackingTransmitted(
         }
 
         const uvw = ray.point(t);
-        var mu = material.collisionCoefficients3D(uvw, sampler, worker.scene);
-        mu.s *= @splat(srs);
+        const mu = material.collisionCoefficients3D(uvw, cc, sampler, worker);
 
         const mu_t = (mu.a + mu.s) - @as(Vec4f, @splat(minorant_mu_t));
         const mu_n = @as(Vec4f, @splat(mt)) - mu_t;
@@ -213,15 +181,15 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Volume
 
 pub fn trackingHetero(
     ray: Ray,
-    cm: CM,
+    cm: Vec2f,
+    cc: CC,
     material: *const Material,
-    srs: f32,
     w: Vec4f,
     throughput: Vec4f,
     sampler: *Sampler,
     worker: *Worker,
 ) Volume {
-    const mt = cm.majorant_mu_t(srs);
+    const mt = cm[1];
     if (mt < Min_mt) {
         return Volume.initPass(w);
     }
@@ -240,8 +208,7 @@ pub fn trackingHetero(
         }
 
         const uvw = ray.point(t);
-        var mu = material.collisionCoefficients3D(uvw, sampler, worker.scene);
-        mu.s *= @splat(srs);
+        const mu = material.collisionCoefficients3D(uvw, cc, sampler, worker);
 
         const mu_t = mu.a + mu.s;
         const mu_n = @as(Vec4f, @splat(mt)) - mu_t;
@@ -272,15 +239,15 @@ pub fn trackingHetero(
 
 pub fn trackingHeteroEmission(
     ray: Ray,
-    cm: CM,
+    cm: Vec2f,
+    cc: CC,
     material: *const Material,
-    srs: f32,
     w: Vec4f,
     throughput: Vec4f,
     sampler: *Sampler,
     worker: *Worker,
 ) Volume {
-    const mt = cm.majorant_mu_t(srs);
+    const mt = cm[1];
     if (mt < Min_mt) {
         return Volume.initPass(w);
     }
@@ -299,9 +266,8 @@ pub fn trackingHeteroEmission(
         }
 
         const uvw = ray.point(t);
-        const cce = material.collisionCoefficientsEmission(uvw, sampler, worker.scene);
-        var mu = cce.cc;
-        mu.s *= @splat(srs);
+        const cce = material.collisionCoefficientsEmission(uvw, cc, sampler, worker);
+        const mu = cce.cc;
 
         const mu_t = mu.a + mu.s;
         const mu_n = @as(Vec4f, @splat(mt)) - mu_t;

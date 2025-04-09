@@ -6,6 +6,7 @@ const ro = @import("../../ray_offset.zig");
 const Worker = @import("../../../rendering/worker.zig").Worker;
 const Node = @import("../../bvh/node.zig").Node;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
+const Renderstate = @import("../../renderstate.zig").Renderstate;
 const int = @import("../../shape/intersection.zig");
 const Fragment = int.Fragment;
 const Intersection = int.Intersection;
@@ -144,13 +145,15 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, entity: u32, sampler: *Sampler, scene: *const Scene, tr: *Vec4f) bool {
+    pub fn visibility(self: Tree, ray: Ray, entity: u32, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
         var stack = NodeStack{};
         var n: u32 = 0;
 
         const ray_dir = ray.direction;
 
         const nodes = self.nodes;
+
+        var rs: Renderstate = undefined;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -162,13 +165,14 @@ pub const Tree = struct {
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
                         const itri = self.data.indexTriangle(i);
-                        const material = scene.propMaterial(entity, itri.part);
+                        const material = worker.scene.propMaterial(entity, itri.part);
 
                         if (material.evaluateVisibility()) {
-                            const normal = self.data.normal(itri);
+                            rs.geo_n = self.data.normal(itri);
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
+                            rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                            if (!material.visibility(ray_dir, normal, uv, sampler, scene, tr)) {
+                            if (!material.visibility(ray_dir, rs, sampler, worker, tr)) {
                                 return false;
                             }
                         } else {
@@ -255,7 +259,7 @@ pub const Tree = struct {
         frag: *Fragment,
         split_threshold: f32,
         sampler: *Sampler,
-        scene: *const Scene,
+        worker: *const Worker,
     ) Vec4f {
         var stack = NodeStack{};
         var n: u32 = 0;
@@ -295,8 +299,8 @@ pub const Tree = struct {
 
                         frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                        if (frag.evaluateRadiance(shading_p, wo, sampler, scene)) |local_energy| {
-                            const weight: Vec4f = @splat(scene.lightPdf(vertex, frag, split_threshold));
+                        if (frag.evaluateRadiance(shading_p, wo, sampler, worker)) |local_energy| {
+                            const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, frag, split_threshold));
                             energy += weight * local_energy;
                         }
                     }

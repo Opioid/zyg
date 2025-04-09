@@ -114,7 +114,7 @@ pub const Mapper = struct {
 
                 if (0 == vertex.probe.depth.surface) {
                     const pdf: Vec4f = @splat(light_sample.pdf());
-                    const energy = light.evaluateFrom(frag.p, light_sample, sampler, worker.scene) / pdf;
+                    const energy = light.evaluateFrom(frag.p, light_sample, sampler, worker) / pdf;
                     vertex.throughput *= energy;
                 }
 
