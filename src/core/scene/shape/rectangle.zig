@@ -36,14 +36,14 @@ pub const Rectangle = struct {
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
 
-            const u = math.dot3(t, k) / trafo.scaleX();
+            const u = math.dot3(t, k) / (0.5 * trafo.scaleX());
             if (u > 1.0 or u < -1.0) {
                 return hpoint;
             }
 
             const b = -trafo.rotation.r[1];
 
-            const v = math.dot3(b, k) / trafo.scaleY();
+            const v = math.dot3(b, k) / (0.5 * trafo.scaleY());
             if (v > 1.0 or v < -1.0) {
                 return hpoint;
             }
@@ -70,8 +70,8 @@ pub const Rectangle = struct {
         frag.geo_n = n;
         if (frag.trafo.scaleZ() < 0.0) {
             const k = p - frag.trafo.position;
-            const u = math.dot3(t, k);
-            const v = math.dot3(b, k);
+            const u = math.dot3(t, k) * 2.0;
+            const v = math.dot3(b, k) * 2.0;
             frag.uvw = .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0), 0.0, 0.0 };
         } else {
             const u = frag.isec.u;
@@ -91,14 +91,14 @@ pub const Rectangle = struct {
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
 
-            const u = math.dot3(t, k) / trafo.scaleX();
+            const u = math.dot3(t, k) / (0.5 * trafo.scaleX());
             if (u > 1.0 or u < -1.0) {
                 return false;
             }
 
             const b = -trafo.rotation.r[1];
 
-            const v = math.dot3(b, k) / trafo.scaleY();
+            const v = math.dot3(b, k) / (0.5 * trafo.scaleY());
             if (v > 1.0 or v < -1.0) {
                 return false;
             }
@@ -119,14 +119,14 @@ pub const Rectangle = struct {
             const k = p - trafo.position;
             const t = -trafo.rotation.r[0];
 
-            const u = math.dot3(t, k) / trafo.scaleX();
+            const u = math.dot3(t, k) / (0.5 * trafo.scaleX());
             if (u > 1.0 or u < -1.0) {
                 return true;
             }
 
             const b = -trafo.rotation.r[1];
 
-            const v = math.dot3(b, k) / trafo.scaleY();
+            const v = math.dot3(b, k) / (0.5 * trafo.scaleY());
             if (v > 1.0 or v < -1.0) {
                 return true;
             }
@@ -180,9 +180,9 @@ pub const Rectangle = struct {
         S: f32,
 
         pub fn init(scale: Vec4f, o: Vec4f) SphQuad {
-            const s = Vec4f{ -scale[0], -scale[1], 0.0, 0.0 };
-            const ex = Vec4f{ 2.0 * scale[0], 0.0, 0.0, 0.0 };
-            const ey = Vec4f{ 0.0, 2.0 * scale[1], 0.0, 0.0 };
+            const s = Vec4f{ -0.5 * scale[0], -0.5 * scale[1], 0.0, 0.0 };
+            const ex = Vec4f{ scale[0], 0.0, 0.0, 0.0 };
+            const ey = Vec4f{ 0.0, scale[1], 0.0, 0.0 };
 
             var squad: SphQuad = undefined;
 
@@ -259,7 +259,7 @@ pub const Rectangle = struct {
         pub fn pdf(squad: SphQuad, scale: Vec4f) f32 {
             const lp = squad.o;
             const sqr_dist = math.squaredLength3(lp);
-            const area = 4.0 * scale[0] * scale[1];
+            const area = scale[0] * scale[1];
             const diff_solid_angle_numer = area * @abs(lp[2]);
             const diff_solid_angle_denom = sqr_dist * @sqrt(sqr_dist);
 
@@ -338,7 +338,7 @@ pub const Rectangle = struct {
         const nsf: f32 = @floatFromInt(num_samples);
 
         const scale = trafo.scale();
-        const area = 4.0 * scale[0] * scale[1];
+        const area = scale[0] * scale[1];
 
         var current_sample: u32 = 0;
         for (0..num_samples) |_| {
@@ -349,7 +349,7 @@ pub const Rectangle = struct {
             }
 
             const uv = Vec2f{ rs.uvw[0], rs.uvw[1] };
-            const uv2 = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
+            const uv2 = @as(Vec2f, @splat(-1.0)) * uv + @as(Vec2f, @splat(0.5));
             const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
             const ws = trafo.objectToWorldPoint(ls);
             const axis = ws - p;
@@ -383,7 +383,7 @@ pub const Rectangle = struct {
     }
 
     pub fn sampleFrom(trafo: Trafo, two_sided: bool, sampler: *Sampler, uv: Vec2f, importance_uv: Vec2f) SampleFrom {
-        const uv2 = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
+        const uv2 = @as(Vec2f, @splat(-1.0)) * uv + @as(Vec2f, @splat(0.5));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
         const ws = trafo.objectToWorldPoint(ls);
 
@@ -399,7 +399,7 @@ pub const Rectangle = struct {
         }
 
         const scale = trafo.scale();
-        const area = @as(f32, if (two_sided) 8.0 else 4.0) * (scale[0] * scale[1]);
+        const area = @as(f32, if (two_sided) 4.0 else 1.0) * (scale[0] * scale[1]);
 
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
@@ -426,7 +426,7 @@ pub const Rectangle = struct {
         const c = @abs(math.dot3(frag.trafo.rotation.r[2], dir));
 
         const scale = frag.trafo.scale();
-        const area = 4.0 * (scale[0] * scale[1]);
+        const area = scale[0] * scale[1];
 
         const sl = math.squaredDistance3(p, frag.p);
 
@@ -438,9 +438,9 @@ pub const Rectangle = struct {
 
     pub fn surfaceDifferential(trafo: Trafo) DifferentialSurface {
         if (trafo.scaleZ() < 0.0) {
-            return .{ .dpdu = .{ -2.0 / trafo.scaleX(), 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -2.0 / trafo.scaleY(), 0.0, 0.0 } };
+            return .{ .dpdu = .{ -1.0 / trafo.scaleX(), 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -1.0 / trafo.scaleY(), 0.0, 0.0 } };
         } else {
-            return .{ .dpdu = .{ -2.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -2.0, 0.0, 0.0 } };
+            return .{ .dpdu = .{ -1.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -1.0, 0.0, 0.0 } };
         }
     }
 };

@@ -101,8 +101,7 @@ pub const Shape = union(enum) {
     pub fn aabb(self: *const Shape) AABB {
         return switch (self.*) {
             .Canopy, .DistantSphere, .InfiniteSphere => math.aabb.Empty,
-            .Disk => AABB.init(.{ -0.5, -0.5, 0.0, 0.0 }, .{ 0.5, 0.5, 0.0, 0.0 }),
-            .Rectangle => AABB.init(.{ -1.0, -1.0, 0.0, 0.0 }, .{ 1.0, 1.0, 0.0, 0.0 }),
+            .Disk, .Rectangle => AABB.init(.{ -0.5, -0.5, 0.0, 0.0 }, .{ 0.5, 0.5, 0.0, 0.0 }),
             .Cube => AABB.init(@splat(-1.0), @splat(1.0)),
             .Sphere => AABB.init(@splat(-0.5), @splat(0.5)),
             inline .CurveMesh, .TriangleMesh => |*m| m.tree.aabb(),
@@ -132,21 +131,15 @@ pub const Shape = union(enum) {
                 return 2.0 * (d[0] * d[1] + d[0] * d[2] + d[1] * d[2]);
             },
             .CurveMesh => 0.0,
-            .Disk => {
-                const r = 0.5 * scale[0];
-                return std.math.pi * (r * r);
-            },
+            .Disk => std.math.pi * math.pow2(0.5 * scale[0]),
 
             // This calculates the solid angle, not the area!
             // I think it is what we actually need for the PDF, but results are extremely close
             .DistantSphere => DistantSphere.solidAngle(scale[0]),
 
             .InfiniteSphere => 4.0 * std.math.pi,
-            .Rectangle => 4.0 * scale[0] * scale[1],
-            .Sphere => {
-                const r = 0.5 * scale[0];
-                return (4.0 * std.math.pi) * (r * r);
-            },
+            .Rectangle => scale[0] * scale[1],
+            .Sphere => (4.0 * std.math.pi) * math.pow2(0.5 * scale[0]),
             .TriangleMesh => |m| m.area(part, scale),
         };
     }
@@ -490,7 +483,7 @@ pub const Shape = union(enum) {
         return switch (self.*) {
             .Rectangle => Rectangle.surfaceDifferential(trafo),
             .TriangleMesh => |*m| m.surfaceDifferential(primitive),
-            else => .{ .dpdu = .{ -2.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -2.0, 0.0, 0.0 } },
+            else => .{ .dpdu = .{ -1.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -1.0, 0.0, 0.0 } },
         };
     }
 };
