@@ -15,10 +15,10 @@ const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Volume = int.Volume;
+const DifferentialSurface = int.DifferentialSurface;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const DifferentialSurface = smpl.DifferentialSurface;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Vertex = @import("../vertex.zig").Vertex;
 const LightTreeBuilder = @import("../light/light_tree_builder.zig").Builder;
@@ -479,10 +479,10 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn differentialSurface(self: *const Shape, primitive: u32, trafo: Trafo) DifferentialSurface {
+    pub fn surfaceDifferential(self: *const Shape, primitive: u32, trafo: Trafo) DifferentialSurface {
         return switch (self.*) {
-            .Rectangle => Rectangle.differentialSurface(trafo),
-            .TriangleMesh => |*m| m.differentialSurface(primitive),
+            .Rectangle => Rectangle.surfaceDifferential(trafo),
+            .TriangleMesh => |*m| m.surfaceDifferential(primitive),
             else => .{ .dpdu = .{ -2.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -2.0, 0.0, 0.0 } },
         };
     }

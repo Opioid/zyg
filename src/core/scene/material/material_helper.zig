@@ -3,6 +3,7 @@ const ts = @import("../../image/texture/texture_sampler.zig");
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Worker = @import("../../rendering/worker.zig").Worker;
+const DifferentialSurface = @import("../shape/intersection.zig").DifferentialSurface;
 
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
@@ -65,5 +66,22 @@ pub fn triplanarMapping(p: Vec4f, n: Vec4f) Vec2f {
     } else {
         const sign = std.math.copysign(@as(f32, 1.0), n[2]);
         return .{ -sign * p[0] + 0.5, -p[1] + 0.5 };
+    }
+}
+
+pub fn triplanarDifferential(n: Vec4f) DifferentialSurface {
+    const an = @abs(n);
+    if (an[0] > an[1] and an[0] > an[2]) {
+        const sign = std.math.copysign(@as(f32, 1.0), n[0]);
+        // return .{ sign * p[2] + 0.5, -p[1] + 0.5 };
+        return .{ .dpdu = .{ 0.0, 0.0, sign, 0.0 }, .dpdv = .{ 0.0, -1.0, 0.0, 0.0 } };
+    } else if (an[1] > an[0] and an[1] > an[2]) {
+        const sign = std.math.copysign(@as(f32, 1.0), n[1]);
+        // return .{ sign * p[0] + 0.5, -p[2] + 0.5 };
+        return .{ .dpdu = .{ sign, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, 0.0, -1.0, 0.0 } };
+    } else {
+        const sign = std.math.copysign(@as(f32, 1.0), n[2]);
+        // return .{ -sign * p[0] + 0.5, -p[1] + 0.5 };
+        return .{ .dpdu = .{ -sign, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -1.0, 0.0, 0.0 } };
     }
 }

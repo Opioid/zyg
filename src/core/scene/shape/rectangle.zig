@@ -4,12 +4,12 @@ const Renderstate = @import("../renderstate.zig").Renderstate;
 const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
+const DifferentialSurface = int.DifferentialSurface;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Worker = @import("../../rendering/worker.zig").Worker;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const DifferentialSurface = smpl.DifferentialSurface;
 const Material = @import("../material/material.zig").Material;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
@@ -436,7 +436,7 @@ pub const Rectangle = struct {
         return (material_pdf * sl) / (c * area);
     }
 
-    pub fn differentialSurface(trafo: Trafo) DifferentialSurface {
+    pub fn surfaceDifferential(trafo: Trafo) DifferentialSurface {
         if (trafo.scaleZ() < 0.0) {
             return .{ .dpdu = .{ -2.0 / trafo.scaleX(), 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -2.0 / trafo.scaleY(), 0.0, 0.0 } };
         } else {

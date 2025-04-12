@@ -12,13 +12,16 @@ const Trafo = @import("../scene/composed_transformation.zig").ComposedTransforma
 const MediumStack = @import("../scene/prop/medium.zig").Stack;
 const Material = @import("../scene/material/material.zig").Material;
 const MaterialSample = @import("../scene/material/material_sample.zig").Sample;
+const hlp = @import("../scene/material/material_helper.zig");
 const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
-const shp = @import("../scene/shape/intersection.zig");
+const int = @import("../scene/shape/intersection.zig");
+const Fragment = int.Fragment;
+const Volume = int.Volume;
+const DifferentialSurface = int.DifferentialSurface;
+const Shape = @import("../scene/shape/shape.zig").Shape;
 const Texture = @import("../image/texture/texture.zig").Texture;
 const ts = @import("../image/texture/texture_sampler.zig");
-const Fragment = shp.Fragment;
-const Volume = shp.Volume;
 const LightTree = @import("../scene/light/light_tree.zig").Tree;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
@@ -337,10 +340,16 @@ pub const Worker = struct {
         return self.camera.super().absoluteTime(frame, frame_delta);
     }
 
-    pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate) Vec4f {
+    pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate, texcoord: Texture.TexCoordMode) Vec4f {
         const rd = self.camera.calculateRayDifferential(self.layer, rs.p, rs.time, self.scene);
 
-        const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive, rs.trafo);
+        var ds: DifferentialSurface = undefined;
+        if (.UV0 == texcoord) {
+            ds = self.scene.propShape(rs.prop).surfaceDifferential(rs.primitive, rs.trafo);
+        } else {
+            const on = rs.trafo.worldToObjectNormal(rs.geo_n);
+            ds = hlp.triplanarDifferential(on);
+        }
 
         const dpdu_w = rs.trafo.objectToWorldVector(ds.dpdu);
         const dpdv_w = rs.trafo.objectToWorldVector(ds.dpdv);

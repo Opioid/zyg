@@ -147,3 +147,8 @@ pub const Fragment = struct {
         return m.evaluateRadiance(wo, rs, sampler, worker);
     }
 };
+
+pub const DifferentialSurface = struct {
+    dpdu: Vec4f,
+    dpdv: Vec4f,
+};

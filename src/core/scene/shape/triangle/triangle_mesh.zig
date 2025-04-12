@@ -9,10 +9,10 @@ const int = @import("../intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Volume = int.Volume;
+const DifferentialSurface = int.DifferentialSurface;
 const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const DifferentialSurface = smpl.DifferentialSurface;
 const Tree = @import("triangle_tree.zig").Tree;
 const tri = @import("triangle.zig");
 const LightTree = @import("../../light/light_tree.zig").PrimitiveTree;
@@ -891,7 +891,7 @@ pub const Mesh = struct {
         return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
     }
 
-    pub fn differentialSurface(self: *const Mesh, primitive: u32) DifferentialSurface {
+    pub fn surfaceDifferential(self: *const Mesh, primitive: u32) DifferentialSurface {
         const puv = self.tree.data.trianglePuv(self.tree.data.indexTriangle(primitive));
 
         const duv02 = puv.uv[0] - puv.uv[2];

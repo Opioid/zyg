@@ -55,8 +55,3 @@ pub const From = struct {
         self.p[3] *= s;
     }
 };
-
-pub const DifferentialSurface = struct {
-    dpdu: Vec4f,
-    dpdv: Vec4f,
-};

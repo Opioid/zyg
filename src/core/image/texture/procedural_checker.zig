@@ -1,4 +1,5 @@
 const ts = @import("texture_sampler.zig");
+const TexCoordMode = @import("texture.zig").Texture.TexCoordMode;
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
 const Worker = @import("../../rendering/worker.zig").Worker;
 
@@ -38,15 +39,17 @@ pub const Checker = struct {
 
     // https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
 
-    pub fn evaluate(self: Checker, rs: Renderstate, key: ts.Key, worker: *const Worker) Vec4f {
-        const dd = worker.screenspaceDifferential(rs);
+    pub fn evaluate(self: Checker, rs: Renderstate, key: ts.Key, uv_set: TexCoordMode, worker: *const Worker) Vec4f {
+        const dd = worker.screenspaceDifferential(rs, uv_set);
         const ddx: Vec2f = .{ dd[0], dd[1] };
         const ddy: Vec2f = .{ dd[2], dd[3] };
+
+        const uv = if (.Triplanar == uv_set) rs.triplanarUv() else rs.uv();
 
         const scale: Vec2f = @splat(self.scale);
 
         const t = checkersGrad(
-            scale * key.address.address2(rs.uv()),
+            scale * key.address.address2(uv),
             scale * ddx,
             scale * ddy,
         );
