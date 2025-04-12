@@ -29,7 +29,7 @@ pub const Sphere = struct {
         const b = math.dot3(ray.direction, v);
 
         const remedy_term = v - @as(Vec4f, @splat(b)) * ray.direction;
-        const radius = trafo.scaleX();
+        const radius = 0.5 * trafo.scaleX();
         const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
 
         var hpoint = Intersection{};
@@ -90,7 +90,7 @@ pub const Sphere = struct {
         const b = math.dot3(ray.direction, v);
 
         const remedy_term = v - @as(Vec4f, @splat(b)) * ray.direction;
-        const radius = trafo.scaleX();
+        const radius = 0.5 * trafo.scaleX();
         const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
 
         if (discriminant > 0.0) {
@@ -116,7 +116,7 @@ pub const Sphere = struct {
         const b = math.dot3(ray.direction, v);
 
         const remedy_term = v - @as(Vec4f, @splat(b)) * ray.direction;
-        const radius = trafo.scaleX();
+        const radius = 0.5 * trafo.scaleX();
         const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
 
         if (discriminant > 0.0) {
@@ -175,7 +175,7 @@ pub const Sphere = struct {
         const b = math.dot3(ray.direction, v);
 
         const remedy_term = v - @as(Vec4f, @splat(b)) * ray.direction;
-        const radius = trafo.scaleX();
+        const radius = 0.5 * trafo.scaleX();
         const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
 
         if (discriminant > 0.0) {
@@ -232,7 +232,7 @@ pub const Sphere = struct {
         const b = math.dot3(ray.direction, v);
 
         const remedy_term = v - @as(Vec4f, @splat(b)) * ray.direction;
-        const radius = trafo.scaleX();
+        const radius = 0.5 * trafo.scaleX();
         const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
 
         if (discriminant > 0.0) {
@@ -269,7 +269,7 @@ pub const Sphere = struct {
     ) []SampleTo {
         const v = trafo.position - p;
         const l = math.length3(v);
-        const r = trafo.scaleX();
+        const r = 0.5 * trafo.scaleX();
 
         if (l <= (r + 0.0000001)) {
             return buffer[0..0];
@@ -353,7 +353,9 @@ pub const Sphere = struct {
         const sin_phi = @sin(phi);
         const cos_phi = @cos(phi);
 
-        const ls = Vec4f{ sin_theta * cos_phi, cos_theta, sin_theta * sin_phi, 0.0 };
+        const r = 0.5 * trafo.scaleX();
+
+        const ls = @as(Vec4f, @splat(r)) * Vec4f{ sin_theta * cos_phi, cos_theta, sin_theta * sin_phi, 0.0 };
         const ws = trafo.objectToWorldPoint(ls);
 
         const axis = ws - p;
@@ -367,7 +369,6 @@ pub const Sphere = struct {
             return buffer[0..0];
         }
 
-        const r = trafo.scaleX();
         const area = (4.0 * std.math.pi) * (r * r);
 
         buffer[0] = SampleTo.init(
@@ -389,7 +390,7 @@ pub const Sphere = struct {
         const frame = Frame.init(wn);
         const dir = frame.frameToWorld(dir_l);
 
-        const r = trafo.scaleX();
+        const r = 0.5 * trafo.scaleX();
         const area = (4.0 * std.math.pi) * (r * r);
 
         return SampleFrom.init(
@@ -406,9 +407,8 @@ pub const Sphere = struct {
     pub fn pdf(p: Vec4f, trafo: Trafo, split_threshold: f32, material: *const Material) f32 {
         const v = trafo.position - p;
         const l2 = math.squaredLength3(v);
-        const r = trafo.scaleX();
-        const r2 = r * r;
-        const sin2_theta_max = r2 / l2;
+        const r = 0.5 * trafo.scaleX();
+        const sin2_theta_max = (r * r) / l2;
 
         const one_minus_cos_theta_max = if (sin2_theta_max < 0.00068523)
             0.5 * sin2_theta_max
@@ -428,7 +428,7 @@ pub const Sphere = struct {
         const sl = math.squaredDistance3(p, frag.p);
         const c = -math.dot3(frag.geo_n, dir);
 
-        const r = frag.trafo.scaleX();
+        const r = 0.5 * frag.trafo.scaleX();
         const area = (4.0 * std.math.pi) * (r * r);
 
         const material_pdf = material.emissionPdf(frag.uvw);

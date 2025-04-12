@@ -102,7 +102,8 @@ pub const Shape = union(enum) {
         return switch (self.*) {
             .Canopy, .DistantSphere, .InfiniteSphere => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, 0.0, 0.0 }, .{ 1.0, 1.0, 0.0, 0.0 }),
-            .Cube, .Sphere => AABB.init(@splat(-1.0), @splat(1.0)),
+            .Cube => AABB.init(@splat(-1.0), @splat(1.0)),
+            .Sphere => AABB.init(@splat(-0.5), @splat(0.5)),
             inline .CurveMesh, .TriangleMesh => |*m| m.tree.aabb(),
         };
     }
@@ -138,8 +139,10 @@ pub const Shape = union(enum) {
 
             .InfiniteSphere => 4.0 * std.math.pi,
             .Rectangle => 4.0 * scale[0] * scale[1],
-            .Sphere => (4.0 * std.math.pi) * (scale[0] * scale[0]),
-
+            .Sphere => {
+                const r = 0.5 * scale[0];
+                return (4.0 * std.math.pi) * (r * r);
+            },
             .TriangleMesh => |m| m.area(part, scale),
         };
     }
