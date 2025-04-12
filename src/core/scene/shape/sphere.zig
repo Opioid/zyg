@@ -64,7 +64,7 @@ pub const Sphere = struct {
         frag.n = n;
         frag.part = 0;
 
-        const xyz = math.normalize3(frag.trafo.rotation.transformVectorTransposed(n));
+        const xyz = math.normalize3(frag.trafo.worldToObjectNormal(n));
         const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
         const theta = std.math.acos(xyz[1]);
 
@@ -73,7 +73,7 @@ pub const Sphere = struct {
         // avoid singularity at poles
         const sin_theta = math.max(@sin(theta), 0.00001);
 
-        const t = math.normalize3(frag.trafo.rotation.transformVector(.{
+        const t = math.normalize3(frag.trafo.objectToWorldNormal(.{
             sin_theta * cos_phi,
             0.0,
             sin_theta * sin_phi,
@@ -128,7 +128,7 @@ pub const Sphere = struct {
             if (t0 >= ray.min_t and ray.max_t >= t0) {
                 const p = ray.point(t0);
                 const n = math.normalize3(p - trafo.position);
-                const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
+                const xyz = math.normalize3(trafo.worldToObjectNormal(n));
                 const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
@@ -145,7 +145,7 @@ pub const Sphere = struct {
             if (t1 >= ray.min_t and ray.max_t >= t1) {
                 const p = ray.point(t1);
                 const n = math.normalize3(p - trafo.position);
-                const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(n));
+                const xyz = math.normalize3(trafo.worldToObjectNormal(n));
                 const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
                 const theta = std.math.acos(xyz[1]);
                 const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };

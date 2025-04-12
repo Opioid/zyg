@@ -263,7 +263,7 @@ pub const Disk = struct {
             pdf_ *= eas1.sample(sampler.sample1D(), &x_coord);
 
             const l_direction = @as(Vec4f, @splat(x_coord)) * dsd.xd + @as(Vec4f, @splat(y_coord)) * dsd.yd - lp;
-            const axis = trafo.frameToWorldVector(l_direction);
+            const axis = trafo.objectToWorldNormal(l_direction);
             const ws = p + axis;
 
             var wn = trafo.rotation.r[2];
@@ -319,7 +319,7 @@ pub const Disk = struct {
             const uv2 = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
             const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
 
-            const k = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
+            const k = @as(Vec4f, @splat(radius)) * trafo.objectToWorldNormal(ls);
             const l = math.dot3(k, k);
             if (l > radius * radius) {
                 continue;
@@ -378,7 +378,7 @@ pub const Disk = struct {
         const xy = math.smpl.diskConcentric(uv);
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
 
-        const ws = trafo.position + @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
+        const ws = trafo.position + @as(Vec4f, @splat(radius)) * trafo.objectToWorldNormal(ls);
         const uvw = Vec4f{ uv[0], uv[1], 0.0, 0.0 };
 
         const area = @as(f32, if (two_sided) 2.0 * std.math.pi else std.math.pi) * (radius * radius);
@@ -418,7 +418,7 @@ pub const Disk = struct {
 
         const eas0 = EquiAngularSampling.init(lp, @splat(0.0), dsd.yd, -radius, radius);
 
-        const l_direction = frag.trafo.worldToFrameVector(dir);
+        const l_direction = frag.trafo.worldToObjectNormal(dir);
         const l_point = lp + @as(Vec4f, @splat(max_t)) * l_direction;
 
         const y_coord = math.dot3(l_point, dsd.yd);
