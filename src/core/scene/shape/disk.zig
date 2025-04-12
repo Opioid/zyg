@@ -36,7 +36,7 @@ pub const Disk = struct {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
-            const radius = trafo.scaleX();
+            const radius = 0.5 * trafo.scaleX();
 
             if (l <= radius * radius) {
                 const t = trafo.rotation.r[0];
@@ -82,7 +82,7 @@ pub const Disk = struct {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
-            const radius = trafo.scaleX();
+            const radius = 0.5 * trafo.scaleX();
 
             if (l <= radius * radius) {
                 return true;
@@ -103,7 +103,7 @@ pub const Disk = struct {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
-            const radius = trafo.scaleX();
+            const radius = 0.5 * trafo.scaleX();
 
             if (l <= radius * radius) {
                 const t = trafo.rotation.r[0];
@@ -236,7 +236,7 @@ pub const Disk = struct {
 
         const dsd = DiskSamplerData.init(lp);
 
-        const radius = trafo.scaleX();
+        const radius = 0.5 * trafo.scaleX();
 
         const eas0 = EquiAngularSampling.init(lp, @splat(0.0), dsd.yd, -radius, radius);
 
@@ -302,7 +302,7 @@ pub const Disk = struct {
         const num_samples = material.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
-        const radius = trafo.scaleX();
+        const radius = 0.5 * trafo.scaleX();
         const area = std.math.pi * (radius * radius);
 
         var current_sample: u32 = 0;
@@ -373,12 +373,14 @@ pub const Disk = struct {
         uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
+        const radius = 0.5 * trafo.scaleX();
+
         const xy = math.smpl.diskConcentric(uv);
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
-        const ws = trafo.position + @as(Vec4f, @splat(trafo.scaleX())) * trafo.rotation.transformVector(ls);
+
+        const ws = trafo.position + @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
         const uvw = Vec4f{ uv[0], uv[1], 0.0, 0.0 };
 
-        const radius = trafo.scaleX();
         const area = @as(f32, if (two_sided) 2.0 * std.math.pi else std.math.pi) * (radius * radius);
 
         var wn = trafo.rotation.r[2];
@@ -410,7 +412,7 @@ pub const Disk = struct {
 
         const dsd = DiskSamplerData.init(lp);
 
-        const radius = frag.trafo.scaleX();
+        const radius = 0.5 * frag.trafo.scaleX();
 
         const max_t = frag.isec.t;
 
@@ -450,7 +452,7 @@ pub const Disk = struct {
     ) f32 {
         const c = @abs(math.dot3(frag.trafo.rotation.r[2], dir));
 
-        const radius = frag.trafo.scaleX();
+        const radius = 0.5 * frag.trafo.scaleX();
         const area = std.math.pi * (radius * radius);
 
         const sl = math.squaredDistance3(p, frag.p);
