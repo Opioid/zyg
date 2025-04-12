@@ -120,17 +120,17 @@ pub const Driver = struct {
 
         const camera = &self.view.cameras.items[camera_id];
 
-        if (Scene.Null == camera.entity) {
+        if (Scene.Null == camera.super().entity) {
             return Error.NoCameraProp;
         }
 
-        const dim = camera.resolution;
+        const dim = camera.super().resolution;
 
         const view = self.view;
 
         try view.sensor.resize(alloc, dim, camera.numLayers(), view.aovs);
 
-        self.tiles.configure(camera.crop, 32, view.sensor.filter_radius_int);
+        self.tiles.configure(camera.super().crop, 32, view.sensor.filter_radius_int);
 
         try self.target.resize(alloc, img.Description.init2D(dim));
 
@@ -158,12 +158,12 @@ pub const Driver = struct {
 
         var camera = &self.view.cameras.items[camera_id];
 
-        if (Scene.Null == camera.entity) {
+        if (Scene.Null == camera.super().entity) {
             return Error.NoCameraProp;
         }
 
-        const camera_pos = self.scene.propWorldPosition(camera.entity);
-        const start = @as(u64, frame) * camera.frame_step;
+        const camera_pos = self.scene.propWorldPosition(camera.super().entity);
+        const start = @as(u64, frame) * camera.super().frame_step;
 
         try self.scene.compile(alloc, camera_pos, start, self.threads, self.fs);
 
@@ -188,7 +188,7 @@ pub const Driver = struct {
     }
 
     pub fn resolveToBuffer(self: *Driver, camera_id: u32, layer_id: u32, target: [*]Pack4f, num_pixels: u32) void {
-        const camera = &self.view.cameras.items[camera_id];
+        const camera = self.view.cameras.items[camera_id].super();
         const resolution = camera.resolution;
         const total_crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
         if (@reduce(.Or, total_crop != camera.crop)) {
@@ -227,7 +227,7 @@ pub const Driver = struct {
 
         const camera = &self.view.cameras.items[camera_id];
 
-        const crop = camera.crop;
+        const crop = camera.super().crop;
 
         for (0..camera.numLayers()) |l| {
             const layer_id: u32 = @truncate(l);

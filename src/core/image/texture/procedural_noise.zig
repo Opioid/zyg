@@ -114,8 +114,8 @@ pub const Noise = struct {
 
         const uv = fade(Vec2f, fp);
 
-        const P0: Vec4u = .{ P[0], P[0] + 1, P[0], P[0] + 1 };
-        const P1: Vec4u = .{ P[1], P[1], P[1] + 1, P[1] + 1 };
+        const P0: Vec4u = .{ P[0], P[0] +% 1, P[0], P[0] +% 1 };
+        const P1: Vec4u = .{ P[1], P[1], P[1] +% 1, P[1] +% 1 };
 
         const fp0: Vec4f = .{ fp[0], fp[0] - 1.0, fp[0], fp[0] - 1.0 };
         const fp1: Vec4f = .{ fp[1], fp[1], fp[1] - 1.0, fp[1] - 1.0 };
@@ -263,8 +263,8 @@ pub const Noise = struct {
 
     fn hash2v(x: Vec4u, y: Vec4u) Vec4u {
         const start_val: Vec4u = @splat(0xdeadbeef + (2 << 2) + 13);
-        const a = start_val + x;
-        const b = start_val + y;
+        const a = start_val +% x;
+        const b = start_val +% y;
 
         return bjfinal(a, b, start_val);
     }

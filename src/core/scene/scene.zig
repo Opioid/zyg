@@ -41,13 +41,13 @@ pub const Scene = struct {
     pub const Lights = LightTree.Lights;
     pub const LightPick = Distribution1D.Discrete;
     pub const SamplesTo = Shape.SamplesTo;
-    pub const Units_per_second: u64 = 705600000;
-    pub const Tick_duration = Units_per_second / 60;
+    pub const UnitsPerSecond: u64 = 705600000;
+    pub const TickDuration = UnitsPerSecond / 60;
     const Num_steps = 4;
     const Interval = 1.0 / @as(f32, @floatFromInt(Num_steps));
 
     pub fn absoluteTime(dtime: f64) u64 {
-        return @intFromFloat(@round(@as(f64, @floatFromInt(Units_per_second)) * dtime));
+        return @intFromFloat(@round(@as(f64, @floatFromInt(UnitsPerSecond)) * dtime));
     }
 
     pub const Num_reserved_props = 32;
@@ -220,7 +220,7 @@ pub const Scene = struct {
     pub fn compile(self: *Scene, alloc: Allocator, camera_pos: Vec4f, time: u64, threads: *Threads, fs: *Filesystem) !void {
         self.camera_pos = camera_pos;
 
-        const frames_start = time - (time % Tick_duration);
+        const frames_start = time - (time % TickDuration);
         self.current_time_start = frames_start;
 
         self.calculateWorldBounds(camera_pos);
@@ -395,11 +395,11 @@ pub const Scene = struct {
     };
 
     fn frameAt(self: *const Scene, time: u64) Frame {
-        const i = (time - self.current_time_start) / Tick_duration;
-        const a_time = self.current_time_start + i * Tick_duration;
+        const i = (time - self.current_time_start) / TickDuration;
+        const a_time = self.current_time_start + i * TickDuration;
         const delta = time - a_time;
 
-        const t: f32 = @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(Tick_duration)));
+        const t: f32 = @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(TickDuration)));
 
         return .{ .f = @intCast(i), .w = t };
     }
@@ -820,9 +820,9 @@ pub const Scene = struct {
     }
 
     fn countFrames(frame_step: u64, frame_duration: u64) u32 {
-        const a: u32 = @max(@as(u32, @intCast(frame_duration / Tick_duration)), 1);
-        const b: u32 = if (matching(frame_step, Tick_duration)) 0 else 1;
-        const c: u32 = if (matching(frame_duration, Tick_duration)) 0 else 1;
+        const a: u32 = @max(@as(u32, @intCast(frame_duration / TickDuration)), 1);
+        const b: u32 = if (matching(frame_step, TickDuration)) 0 else 1;
+        const c: u32 = if (matching(frame_duration, TickDuration)) 0 else 1;
 
         return a + b + c;
     }

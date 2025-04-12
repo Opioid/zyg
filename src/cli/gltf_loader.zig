@@ -224,10 +224,10 @@ pub const Loader = struct {
 
                 var resolution = Vec2i{ 1280, 720 };
                 if (graph.take.view.cameras.items.len > 0) {
-                    resolution = graph.take.view.cameras.items[0].resolution;
+                    resolution = graph.take.view.cameras.items[0].super().resolution;
                 }
 
-                pc.setResolution(resolution, .{ 0, 0, resolution[0], resolution[1] });
+                pc.super.setResolution(resolution, .{ 0, 0, resolution[0], resolution[1] });
 
                 const fr: Vec2f = @floatFromInt(resolution);
                 const ratio = fr[0] / fr[1];
@@ -240,9 +240,9 @@ pub const Loader = struct {
                 const world_trafo = parent_trafo.transform(trafo);
                 graph.scene.propSetWorldTransformation(entity_id, world_trafo);
 
-                pc.entity = entity_id;
+                pc.super.entity = entity_id;
 
-                try graph.take.view.cameras.append(alloc, pc);
+                try graph.take.view.cameras.append(alloc, .{ .Perspective = pc });
             }
         } else if (value.object.get("mesh")) |mesh_node| {
             const index = json.readUInt(mesh_node);

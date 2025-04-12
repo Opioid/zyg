@@ -100,7 +100,55 @@ fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources:
 
     var cam_iter = value.object.iterator();
     while (cam_iter.next()) |cam_entry| {
-        if (std.mem.eql(u8, "Perspective", cam_entry.key_ptr.*)) {
+        if (std.mem.eql(u8, "Orthographic", cam_entry.key_ptr.*)) {
+            var camera = cam.Orthographic{};
+
+            var trafo = Transformation{
+                .position = @splat(0.0),
+                .scale = @splat(1.0),
+                .rotation = math.quaternion.identity,
+            };
+
+            var animation_ptr: ?*std.json.Value = null;
+
+            var iter = cam_entry.value_ptr.object.iterator();
+            while (iter.next()) |entry| {
+                if (std.mem.eql(u8, "parameters", entry.key_ptr.*)) {
+                    camera.setParameters(entry.value_ptr.*);
+                } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
+                    json.readTransformation(entry.value_ptr.*, &trafo);
+                } else if (std.mem.eql(u8, "animation", entry.key_ptr.*)) {
+                    animation_ptr = entry.value_ptr;
+                }
+            }
+
+            graph.scene.calculateNumInterpolationFrames(camera.super.frame_step, camera.super.frame_duration);
+
+            const entity_id = try graph.scene.createEntity(alloc);
+
+            _ = try graph.propSetTransformation(
+                alloc,
+                entity_id,
+                Prop.Null,
+                trafo,
+                parent_trafo,
+                animation_ptr,
+                false,
+            );
+
+            camera.super.entity = entity_id;
+
+            const resolution = json.readVec2iMember(cam_entry.value_ptr.*, "resolution", .{ 0, 0 });
+            const crop = json.readVec4iMember(cam_entry.value_ptr.*, "crop", .{ 0, 0, resolution[0], resolution[1] });
+
+            camera.super.setResolution(resolution, crop);
+
+            try graph.take.view.cameras.append(alloc, .{ .Orthographic = camera });
+
+            try graph.camera_trafos.append(alloc, trafo);
+
+            return;
+        } else if (std.mem.eql(u8, "Perspective", cam_entry.key_ptr.*)) {
             var camera = cam.Perspective{};
 
             var trafo = Transformation{
@@ -122,7 +170,7 @@ fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources:
                 }
             }
 
-            graph.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
+            graph.scene.calculateNumInterpolationFrames(camera.super.frame_step, camera.super.frame_duration);
 
             const entity_id = try graph.scene.createEntity(alloc);
 
@@ -136,14 +184,14 @@ fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources:
                 false,
             );
 
-            camera.entity = entity_id;
+            camera.super.entity = entity_id;
 
             const resolution = json.readVec2iMember(cam_entry.value_ptr.*, "resolution", .{ 0, 0 });
             const crop = json.readVec4iMember(cam_entry.value_ptr.*, "crop", .{ 0, 0, resolution[0], resolution[1] });
 
-            camera.setResolution(resolution, crop);
+            camera.super.setResolution(resolution, crop);
 
-            try graph.take.view.cameras.append(alloc, camera);
+            try graph.take.view.cameras.append(alloc, .{ .Perspective = camera });
 
             try graph.camera_trafos.append(alloc, trafo);
 

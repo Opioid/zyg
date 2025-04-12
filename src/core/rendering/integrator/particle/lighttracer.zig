@@ -4,7 +4,7 @@ const VertexPool = vt.Pool;
 const MaterialSample = @import("../../../scene/material/material_sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const Worker = @import("../../worker.zig").Worker;
-const Camera = @import("../../../camera/perspective.zig").Perspective;
+const Camera = @import("../../../camera/camera.zig").Camera;
 const Sensor = @import("../../../rendering/sensor/sensor.zig").Sensor;
 const Light = @import("../../../scene/light/light.zig").Light;
 const MediumStack = @import("../../../scene/prop/medium.zig").Stack;
@@ -197,11 +197,12 @@ pub const Lighttracer = struct {
 
         const fr = sensor.filter_radius_int;
 
-        var filter_crop = camera.crop + Vec4i{ -fr, -fr, fr, fr };
+        var crop = camera.crop();
+
+        var filter_crop = crop + Vec4i{ -fr, -fr, fr, fr };
         filter_crop[2] -= filter_crop[0] + 1;
         filter_crop[3] -= filter_crop[1] + 1;
 
-        var crop = camera.crop;
         crop[2] -= crop[0] + 1;
         crop[3] -= crop[1] + 1;
 

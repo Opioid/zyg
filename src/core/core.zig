@@ -1,4 +1,4 @@
-pub const camera = @import("camera/perspective.zig");
+pub const camera = @import("camera/camera.zig");
 pub const file = @import("file/read_stream.zig");
 pub const image = @import("image/image.zig");
 pub const log = @import("log.zig");

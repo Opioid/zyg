@@ -6,11 +6,10 @@ const Lighttracer = @import("../rendering/integrator/particle/lighttracer.zig").
 const hlp = @import("../rendering/integrator/helper.zig");
 const Depth = hlp.Depth;
 const LightSampling = hlp.LightSampling;
-const CausticsPath = hlp.CausticsPath;
 const CausticsResolve = @import("../scene/renderstate.zig").CausticsResolve;
 const LightTree = @import("../scene/light/light_tree.zig");
 const SamplerFactory = @import("../sampler/sampler.zig").Factory;
-const cam = @import("../camera/perspective.zig");
+const Camera = @import("../camera/camera.zig").Camera;
 const Sink = @import("../exporting/sink.zig").Sink;
 const PngWriter = @import("../image/encoding/png/png_writer.zig").Writer;
 const FFMPEG = @import("../exporting/ffmpeg.zig").FFMPEG;
@@ -66,7 +65,7 @@ pub const View = struct {
 
     aovs: aov.Factory = .{},
 
-    cameras: List(cam.Perspective) = .empty,
+    cameras: List(Camera) = .empty,
 
     num_samples_per_pixel: u32 = 0,
     num_particles_per_pixel: u32 = 0,
@@ -100,7 +99,7 @@ pub const View = struct {
         const spacing = 1.0 / @sqrt(@as(f32, @floatFromInt(spp)));
 
         for (self.cameras.items) |*c| {
-            c.sample_spacing = spacing;
+            c.super().sample_spacing = spacing;
         }
     }
 
@@ -371,10 +370,10 @@ pub const Take = struct {
                 const framerate = json.readUIntMember(entry.value_ptr.*, "framerate", 0);
                 const error_diffusion = json.readBoolMember(entry.value_ptr.*, "error_diffusion", false);
 
-                for (self.view.cameras.items, 0..) |c, i| {
-                    dimensions[i] = c.resolution;
+                for (self.view.cameras.items, 0..) |*c, i| {
+                    dimensions[i] = c.super().resolution;
                     framerates[i] = if (0 == framerate)
-                        @intFromFloat(@round(1.0 / @as(f64, @floatFromInt(camera.frame_step))))
+                        @intFromFloat(@round(1.0 / @as(f64, @floatFromInt(camera.super().frame_step))))
                     else
                         framerate;
                 }

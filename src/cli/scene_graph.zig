@@ -104,12 +104,12 @@ pub const Graph = struct {
     }
 
     pub fn simulate(self: *Self, start: u64, end: u64) void {
-        const frames_start = start - (start % Scene.Tick_duration);
-        const end_rem = end % Scene.Tick_duration;
-        const frames_end = end + (if (end_rem > 0) Scene.Tick_duration - end_rem else 0);
+        const frames_start = start - (start % Scene.TickDuration);
+        const end_rem = end % Scene.TickDuration;
+        const frames_end = end + (if (end_rem > 0) Scene.TickDuration - end_rem else 0);
 
         for (self.animations.items) |*a| {
-            a.resample(frames_start, frames_end, Scene.Tick_duration);
+            a.resample(frames_start, frames_end, Scene.TickDuration);
             a.update(self);
         }
 

@@ -1,4 +1,4 @@
-const cam = @import("../camera/perspective.zig");
+const Camera = @import("../camera/camera.zig").Camera;
 const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
 const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
@@ -45,7 +45,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Worker = struct {
-    camera: *cam.Perspective = undefined,
+    camera: *Camera = undefined,
     sensor: *Sensor = undefined,
     scene: *Scene = undefined,
 
@@ -115,7 +115,7 @@ pub const Worker = struct {
         const scene = self.scene;
         var rng = &self.rng;
 
-        var crop = camera.crop;
+        var crop = camera.super().crop;
         crop[2] -= crop[0] + 1;
         crop[3] -= crop[1] + 1;
 
@@ -124,7 +124,7 @@ pub const Worker = struct {
         isolated_bounds[3] -= isolated_bounds[1];
 
         const fr = sensor.filter_radius_int;
-        const r = camera.resolution + @as(Vec2i, @splat(2 * fr));
+        const r = camera.super().resolution + @as(Vec2i, @splat(2 * fr));
         const a = @as(u32, @intCast(r[0])) * @as(u32, @intCast(r[1]));
         const o = @as(u64, iteration) * a;
         const so = iteration / num_expected_samples;
@@ -177,7 +177,7 @@ pub const Worker = struct {
         self.samplers[0].startPixel(tsi, seed);
 
         for (range[0]..range[1]) |_| {
-            self.lighttracer.li(frame, self, &camera.mediums);
+            self.lighttracer.li(frame, self, &camera.super().mediums);
 
             self.samplers[0].incrementSample();
         }
@@ -334,7 +334,7 @@ pub const Worker = struct {
     }
 
     pub fn absoluteTime(self: *const Worker, frame: u32, frame_delta: f32) u64 {
-        return self.camera.absoluteTime(frame, frame_delta);
+        return self.camera.super().absoluteTime(frame, frame_delta);
     }
 
     pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate) Vec4f {
