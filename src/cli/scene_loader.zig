@@ -278,7 +278,7 @@ pub const Loader = struct {
                 }
             }
 
-            if (trafo.scale[1] <= 0.0 and trafo.scale[2] <= 2 and 1 == scene.propShape(entity_id).numParts()) {
+            if (trafo.scale[1] <= 0.0 and trafo.scale[2] <= 2.0 and 1 == scene.propShape(entity_id).numParts()) {
                 const material = scene.propMaterial(entity_id, 0);
                 if (material.heterogeneousVolume()) {
                     if (material.usefulTexture()) |t| {
@@ -303,8 +303,8 @@ pub const Loader = struct {
                             }
                         }
 
-                        trafo.scale = @as(Vec4f, @splat(0.5)) * voxel_scale * @as(Vec4f, @floatFromInt(dimensions));
-                        trafo.position += trafo.scale + voxel_scale * @as(Vec4f, @floatFromInt(offset));
+                        trafo.scale = voxel_scale * @as(Vec4f, @floatFromInt(dimensions));
+                        trafo.position += (@as(Vec4f, @splat(0.5)) * trafo.scale) + voxel_scale * @as(Vec4f, @floatFromInt(offset));
                     }
                 }
             }

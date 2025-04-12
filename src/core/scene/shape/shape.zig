@@ -102,8 +102,7 @@ pub const Shape = union(enum) {
         return switch (self.*) {
             .Canopy, .DistantSphere, .InfiniteSphere => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -0.5, -0.5, 0.0, 0.0 }, .{ 0.5, 0.5, 0.0, 0.0 }),
-            .Cube => AABB.init(@splat(-1.0), @splat(1.0)),
-            .Sphere => AABB.init(@splat(-0.5), @splat(0.5)),
+            .Cube, .Sphere => AABB.init(@splat(-0.5), @splat(0.5)),
             inline .CurveMesh, .TriangleMesh => |*m| m.tree.aabb(),
         };
     }
@@ -126,10 +125,7 @@ pub const Shape = union(enum) {
     pub fn area(self: *const Shape, part: u32, scale: Vec4f) f32 {
         return switch (self.*) {
             .Canopy => 2.0 * std.math.pi,
-            .Cube => {
-                const d = @as(Vec4f, @splat(2.0)) * scale;
-                return 2.0 * (d[0] * d[1] + d[0] * d[2] + d[1] * d[2]);
-            },
+            .Cube => return 2.0 * (scale[0] * scale[1] + scale[0] * scale[2] + scale[1] * scale[2]),
             .CurveMesh => 0.0,
             .Disk => std.math.pi * math.pow2(0.5 * scale[0]),
 
@@ -146,10 +142,7 @@ pub const Shape = union(enum) {
 
     pub fn volume(self: *const Shape, scale: Vec4f) f32 {
         return switch (self.*) {
-            .Cube => {
-                const d = @as(Vec4f, @splat(2.0)) * scale;
-                return d[0] * d[1] * d[2];
-            },
+            .Cube => return scale[0] * scale[1] * scale[2],
             else => 0.0,
         };
     }

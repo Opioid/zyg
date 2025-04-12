@@ -26,7 +26,7 @@ pub const Cube = struct {
 
         const local_ray = trafo.worldToObjectRay(ray);
 
-        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
+        const aabb = AABB.init(@splat(-0.5), @splat(0.5));
         const hit_t = aabb.intersectP(local_ray);
         if (hit_t < ray.max_t) {
             hpoint.t = hit_t;
@@ -43,7 +43,7 @@ pub const Cube = struct {
 
         const local_ray = frag.trafo.worldToObjectRay(ray);
         const local_p = local_ray.point(hit_t);
-        const distance = @abs(@as(Vec4f, @splat(1.0)) - @abs(local_p));
+        const distance = @abs(@as(Vec4f, @splat(0.5)) - @abs(local_p));
 
         const i = math.indexMinComponent3(distance);
         const s = std.math.copysign(@as(f32, 1.0), local_p[i]);
@@ -62,7 +62,7 @@ pub const Cube = struct {
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {
         const local_ray = trafo.worldToObjectRay(ray);
 
-        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
+        const aabb = AABB.init(@splat(-0.5), @splat(0.5));
         return aabb.intersect(local_ray);
     }
 
@@ -90,7 +90,7 @@ pub const Cube = struct {
     ) bool {
         var local_ray = trafo.worldToObjectRay(ray);
 
-        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
+        const aabb = AABB.init(@splat(-0.5), @splat(0.5));
         const hit_t = aabb.intersectInterval(local_ray);
         if (std.math.floatMax(f32) == hit_t[0]) {
             return true;
@@ -113,7 +113,7 @@ pub const Cube = struct {
     ) Volume {
         var local_ray = trafo.worldToObjectRay(ray);
 
-        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
+        const aabb = AABB.init(@splat(-0.5), @splat(0.5));
         const hit_t = aabb.intersectInterval(local_ray);
         if (std.math.floatMax(f32) == hit_t[0]) {
             return Volume.initPass(@splat(1.0));
@@ -127,15 +127,15 @@ pub const Cube = struct {
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {
         const r3 = sampler.sample3D();
-        const xyz = @as(Vec4f, @splat(2.0)) * (r3 - @as(Vec4f, @splat(0.5)));
+        const xyz = r3 - @as(Vec4f, @splat(0.5));
         const wp = trafo.objectToWorldPoint(xyz);
         const axis = wp - p;
 
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
 
-        const d = @as(Vec4f, @splat(2.0)) * trafo.scale();
-        const volume = d[0] * d[1] * d[2];
+        const scale = trafo.scale();
+        const volume = scale[0] * scale[1] * scale[2];
 
         return SampleTo.init(
             wp,
@@ -147,15 +147,15 @@ pub const Cube = struct {
     }
 
     pub fn sampleVolumeToUvw(p: Vec4f, uvw: Vec4f, trafo: Trafo) SampleTo {
-        const xyz = @as(Vec4f, @splat(2.0)) * (uvw - @as(Vec4f, @splat(0.5)));
+        const xyz = uvw - @as(Vec4f, @splat(0.5));
         const wp = trafo.objectToWorldPoint(xyz);
         const axis = wp - p;
 
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
 
-        const d = @as(Vec4f, @splat(2.0)) * trafo.scale();
-        const volume = d[0] * d[1] * d[2];
+        const scale = trafo.scale();
+        const volume = scale[0] * scale[1] * scale[2];
 
         return SampleTo.init(
             wp,
@@ -167,13 +167,13 @@ pub const Cube = struct {
     }
 
     pub fn sampleVolumeFromUvw(uvw: Vec4f, trafo: Trafo, importance_uv: Vec2f) SampleFrom {
-        const xyz = @as(Vec4f, @splat(2.0)) * (uvw - @as(Vec4f, @splat(0.5)));
+        const xyz = uvw - @as(Vec4f, @splat(0.5));
         const wp = trafo.objectToWorldPoint(xyz);
 
         const dir = math.smpl.sphereUniform(importance_uv);
 
-        const d = @as(Vec4f, @splat(2.0)) * trafo.scale();
-        const volume = d[0] * d[1] * d[2];
+        const scale = trafo.scale();
+        const volume = scale[0] * scale[1] * scale[2];
 
         return SampleFrom.init(
             wp,
@@ -187,8 +187,8 @@ pub const Cube = struct {
     }
 
     pub fn volumePdf(p: Vec4f, frag: *const Fragment) f32 {
-        const d = @as(Vec4f, @splat(2.0)) * frag.trafo.scale();
-        const volume = d[0] * d[1] * d[2];
+        const scale = frag.trafo.scale();
+        const volume = scale[0] * scale[1] * scale[2];
 
         const sl = math.squaredDistance3(p, frag.p);
         return sl / volume;
