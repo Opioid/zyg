@@ -88,164 +88,26 @@ pub const Noise = struct {
     }
 
     pub fn evaluateNormalmap(self: Noise, rs: Renderstate, uv_set: TexCoordMode, worker: *const Worker) Vec2f {
-        const center = self.evaluate1(rs, @splat(0.0), uv_set);
-
         const dd = worker.screenspaceDifferential(rs, uv_set);
         const ddx: Vec2f = .{ dd[0], dd[1] };
         const ddy: Vec2f = .{ dd[2], dd[3] };
 
-        // _ = worker;
-        // const ddx: Vec2f = .{ 0.01, 0.0 };
-        // const ddy: Vec2f = .{ 0.0, 0.01 };
-
-        //   std.debug.print("{}, {}\n", .{ ddx, ddy });
-
+        const center = self.evaluate1(rs, @splat(0.0), uv_set);
         const left = self.evaluate1(rs, ddx, uv_set);
-
         const top = self.evaluate1(rs, ddy, uv_set);
 
-        const nx = center - left;
-        const ny = center - top;
-
-        // const nm = Vec2f{ nx, ny };
-
-        // const nmz = @sqrt(math.max(math.dot2(nm, nm), 0.000001));
-
-        // const n = math.normalize3(Vec4f{ nx, ny, nmz, 0.0 });
+        const nx = left - center;
+        const ny = top - center;
 
         const n = math.normalize3(.{ nx, ny, math.length2(ddx + ddy), 0.0 });
 
         return .{ n[0], n[1] };
-
-        // // const noise = self.evaluate1(rs, uv_set);
-
-        // const att = self.attenuation;
-
-        // var weight: f32 = 0.0;
-        // var amplitude: f32 = 1.0;
-
-        // var value: Vec2f = @splat(0.0);
-
-        // _ = uv_set;
-
-        // var scale = Vec2f{ self.scale[0], self.scale[1] };
-
-        // const uv = rs.uv();
-
-        // for (0..self.levels) |_| {
-        //     const local_weight = std.math.pow(f32, amplitude, att);
-        //     value += perlinDerivatives2D(uv * scale) * @as(Vec2f, @splat(local_weight));
-
-        //     weight += local_weight;
-        //     amplitude *= 0.5;
-        //     scale *= @splat(2.0);
-        // }
-
-        // value /= @splat(weight);
-
-        // return value;
     }
-
-    // pub fn evaluateNormalmap(self: Noise, rs: Renderstate, uv_set: TexCoordMode, worker: *const Worker) Vec2f {
-    //     _ = worker;
-
-    //     const att = self.attenuation;
-
-    //     var weight: f32 = 0.0;
-    //     var amplitude: f32 = 1.0;
-
-    //     var value: Vec2f = @splat(0.0);
-
-    //     _ = uv_set;
-
-    //     var scale = Vec2f{ self.scale[0], self.scale[1] };
-
-    //     const uv = rs.uv();
-
-    //     for (0..self.levels) |_| {
-    //         const local_weight = std.math.pow(f32, amplitude, att);
-    //         value += perlinDerivatives2D(uv * scale) * @as(Vec2f, @splat(local_weight));
-
-    //         weight += local_weight;
-    //         amplitude *= 0.5;
-    //         scale *= @splat(2.0);
-    //     }
-
-    //     value /= @splat(weight);
-
-    //     return value;
-    // }
-
-    // pub fn evaluateDerivatives1(self: Noise, rs: Renderstate, uv_set: TexCoordMode) Vec4f {
-    //     // const noise = self.evaluate1(rs, uv_set);
-
-    //     _ = uv_set;
-
-    //     const scale = Vec2f{ self.scale[0], self.scale[1] };
-
-    //     const p = rs.uv() * scale;
-
-    //     const fx, const X = floorfrac(p[0]);
-    //     const fy, const Y = floorfrac(p[1]);
-
-    //     const u = fade(f32, fx);
-    //     const v = fade(f32, fy);
-
-    //     // const ga = randomVector(hash2(X, Y));
-    //     // const gb = randomVector(hash2(X + 1, Y));
-    //     // const gc = randomVector(hash2(X, Y + 1));
-    //     // const gd = randomVector(hash2(X + 1, Y + 1));
-
-    //     const ga = st_hash(@intCast(Vec2u{ X, Y }));
-    //     const gb = st_hash(@intCast(Vec2u{ X + 1, Y }));
-    //     const gc = st_hash(@intCast(Vec2u{ X, Y + 1 }));
-    //     const gd = st_hash(@intCast(Vec2u{ X + 1, Y + 1 }));
-
-    //     const f = Vec2f{ fx, fy };
-
-    //     const va = math.dot2(ga, f - Vec2f{ 0.0, 0.0 });
-    //     const vb = math.dot2(gb, f - Vec2f{ 1.0, 0.0 });
-    //     const vc = math.dot2(gc, f - Vec2f{ 0.0, 1.0 });
-    //     const vd = math.dot2(gd, f - Vec2f{ 1.0, 1.0 });
-
-    //     const the_value = va + u * (vb - va) + v * (vc - va) + u * v * (va - vb - vc + vd);
-
-    //     // return (@as(Vec4f, @splat(the_value)) + @as(Vec4f, @splat(1.0))) * @as(Vec4f, @splat(0.5));
-
-    //     const du = fadeDerivative(f32, fx);
-    //     const dv = fadeDerivative(f32, fy);
-
-    //     const nm = ga + @as(Vec2f, @splat(u)) * (gb - ga) + @as(Vec2f, @splat(v)) * (gc - ga) + @as(Vec2f, @splat(u * v)) * (ga - gb - gc + gd) +
-    //         Vec2f{ du, dv } * (Vec2f{ v, u } * @as(Vec2f, @splat(va - vb - vc + vd)) + Vec2f{ vb, vc } - @as(Vec2f, @splat(va)));
-
-    //     //    const nmz: f32 = @sqrt(math.max(1.0 - math.dot2(nm, nm), 0.01));
-
-    //     const nmz = the_value;
-
-    //     return ((Vec4f{ nm[0], nm[1], nmz, 0.0 })); // + @as(Vec4f, @splat(1.0))) * @as(Vec4f, @splat(0.5));
-    // }
 
     pub fn evaluate3(self: Noise, rs: Renderstate, uv_set: TexCoordMode) Vec4f {
         const noise = self.evaluate1(rs, @splat(0.0), uv_set);
 
         return @splat(noise);
-    }
-
-    fn scalarPerlin2D_1(p: Vec2f) f32 {
-        const fx, const X = floorfrac(p[0]);
-        const fy, const Y = floorfrac(p[1]);
-
-        const u = fade(f32, fx);
-        const v = fade(f32, fy);
-
-        const c = [_]f32{
-            gradient2(hash2(X, Y), fx, fy),
-            gradient2(hash2(X + 1, Y), fx - 1.0, fy),
-            gradient2(hash2(X, Y + 1), fx, fy - 1.0),
-            gradient2(hash2(X + 1, Y + 1), fx - 1.0, fy - 1.0),
-        };
-
-        return gradient_scale2D(math.bilinear(f32, c, u, v));
     }
 
     fn perlin2D_1(p: Vec2f) f32 {
@@ -264,62 +126,6 @@ pub const Noise = struct {
         const c = gradient2v(hash, fp0, fp1);
 
         return gradient_scale2D(math.bilinear(f32, c, uv[0], uv[1]));
-    }
-
-    pub fn perlinDerivatives2D(p: Vec2f) Vec2f {
-        const fx, const X = floorfrac(p[0]);
-        const fy, const Y = floorfrac(p[1]);
-
-        const u = fade(f32, fx);
-        const v = fade(f32, fy);
-
-        const du = fadeDerivative(f32, fx);
-        const dv = fadeDerivative(f32, fy);
-
-        const va = gradient2(hash2(X, Y), fx, fy);
-        const vb = gradient2(hash2(X + 1, Y), fx - 1.0, fy);
-        const vc = gradient2(hash2(X, Y + 1), fx, fy - 1.0);
-        const vd = gradient2(hash2(X + 1, Y + 1), fx - 1.0, fy - 1.0);
-
-        const ga = randomVector(hash2(X, Y));
-        const gb = randomVector(hash2(X + 1, Y));
-        const gc = randomVector(hash2(X, Y + 1));
-        const gd = randomVector(hash2(X + 1, Y + 1));
-
-        const nm = ga + @as(Vec2f, @splat(u)) * (gb - ga) + @as(Vec2f, @splat(v)) * (gc - ga) + @as(Vec2f, @splat(u * v)) * (ga - gb - gc + gd) +
-            Vec2f{ du, dv } * (Vec2f{ v, u } * @as(Vec2f, @splat(va - vb - vc + vd)) + Vec2f{ vb, vc } - @as(Vec2f, @splat(va)));
-
-        return nm;
-    }
-
-    fn scalarPerlin3D_1(p: Vec4f) f32 {
-        const fx, const X = floorfrac(p[0]);
-        const fy, const Y = floorfrac(p[1]);
-        const fz, const Z = floorfrac(p[2]);
-
-        const u = fade(fx);
-        const v = fade(fy);
-        const w = fade(fz);
-
-        const c0 = [_]f32{
-            gradient3(hash3(X, Y, Z), fx, fy, fz),
-            gradient3(hash3(X + 1, Y, Z), fx - 1.0, fy, fz),
-            gradient3(hash3(X, Y + 1, Z), fx, fy - 1.0, fz),
-            gradient3(hash3(X + 1, Y + 1, Z), fx - 1.0, fy - 1.0, fz),
-        };
-
-        const result0 = math.bilinear(f32, c0, u, v);
-
-        const c1 = [_]f32{
-            gradient3(hash3(X, Y, Z + 1), fx, fy, fz - 1.0),
-            gradient3(hash3(X + 1, Y, Z + 1), fx - 1.0, fy, fz - 1.0),
-            gradient3(hash3(X, Y + 1, Z + 1), fx, fy - 1.0, fz - 1.0),
-            gradient3(hash3(X + 1, Y + 1, Z + 1), fx - 1.0, fy - 1.0, fz - 1.0),
-        };
-
-        const result1 = math.bilinear(f32, c1, u, v);
-
-        return gradient_scale3D(math.lerp(result0, result1, w));
     }
 
     fn perlin3D_1(p: Vec4f) f32 {
@@ -390,28 +196,6 @@ pub const Noise = struct {
         return negate_if(u, 0 != (h & 1)) + negate_if(v, 0 != (h & 2));
     }
 
-    fn randomVector(hash: u32) Vec2f {
-        // 8 possible directions (+-1,+-2) and (+-2,+-1)
-
-        const Dirs: [8]Vec2f = .{
-            .{ 1.0, 2.0 },
-            .{ -1.0, 2.0 },
-            .{ 1.0, -2.0 },
-            .{ -1.0, -2.0 },
-            .{ 2.0, 1.0 },
-            .{ 2.0, -1.0 },
-            .{ -2.0, 1.0 },
-            .{ -2.0, -1.0 },
-        };
-
-        const h = hash & 7;
-
-        return Dirs[h];
-        // const u: f32 = if (h < 4) 1.0 else 2.0;
-        // const v: f32 = if (h < 4) 2.0 else 1.0;
-        // return .{ negate_if(u, 0 != (h & 1)), negate_if(v, 0 != (h & 2)) };
-    }
-
     fn gradient2v(hash: Vec4u, x: Vec4f, y: Vec4f) Vec4f {
         // 8 possible directions (+-1,+-2) and (+-2,+-1)
         const h = hash & @as(Vec4u, @splat(7));
@@ -446,28 +230,6 @@ pub const Noise = struct {
 
     fn negate_if(val: f32, b: bool) f32 {
         return if (b) -val else val;
-    }
-
-    // vec2 hash( in ivec2 p )  // this hash is not production ready, please
-    // {                        // replace this by something better
-
-    //     // 2D -> 1D
-    //     ivec2 n = p.x*ivec2(3,37) + p.y*ivec2(311,113);
-
-    //     // 1D hash by Hugo Elias
-    //     n = (n << 13) ^ n;
-    //     n = n * (n * n * 15731 + 789221) + 1376312589;
-    //     return -1.0 + 2.0 * vec2(n & ivec2(0x0fffffff)) / float(0x0fffffff);
-    // }
-
-    fn st_hash(p: Vec2i) Vec2f {
-        // 2D -> 1D
-        var n = @as(Vec2i, @splat(p[0])) * Vec2i{ 3, 37 } + @as(Vec2i, @splat(p[1])) * Vec2i{ 311, 113 };
-
-        // 1D hash by Hugo Elias
-        n = (n << @as(@Vector(2, u5), @splat(13))) ^ n;
-        n = n * (n * n * @as(Vec2i, @splat(15731)) + @as(Vec2i, @splat(789221))) + @as(Vec2i, @splat(1376312589));
-        return @as(Vec2f, @splat(-1.0)) + @as(Vec2f, @splat(2.0)) * @as(Vec2f, @floatFromInt(n & @as(Vec2i, @splat(0x0fffffff)))) / @as(Vec2f, @splat(@floatFromInt(0x0fffffff)));
     }
 
     fn hash2(x: u32, y: u32) u32 {

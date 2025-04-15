@@ -343,18 +343,13 @@ pub const Worker = struct {
     pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate, texcoord: Texture.TexCoordMode) Vec4f {
         const rd = self.camera.calculateRayDifferential(self.layer, rs.p, rs.time, self.scene);
 
-        var ds: DifferentialSurface = undefined;
-        if (.UV0 == texcoord) {
-            ds = self.scene.propShape(rs.prop).surfaceDifferential(rs.primitive, rs.trafo);
-        } else {
-            const on = rs.trafo.worldToObjectNormal(rs.geo_n);
-            ds = hlp.triplanarDifferential(on);
-        }
+        const ds: DifferentialSurface =
+            if (.UV0 == texcoord)
+                self.scene.propShape(rs.prop).surfaceDifferential(rs.primitive, rs.trafo)
+            else
+                hlp.triplanarDifferential(rs.geo_n, rs.trafo);
 
-        const dpdu_w = rs.trafo.objectToWorldVector(ds.dpdu);
-        const dpdv_w = rs.trafo.objectToWorldVector(ds.dpdv);
-
-        return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, dpdu_w, dpdv_w);
+        return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, ds.dpdu, ds.dpdv);
     }
 
     // https://blog.yiningkarlli.com/2018/10/bidirectional-mipmap.html

@@ -438,9 +438,12 @@ pub const Rectangle = struct {
 
     pub fn surfaceDifferential(trafo: Trafo) DifferentialSurface {
         if (trafo.scaleZ() < 0.0) {
-            return .{ .dpdu = .{ -1.0 / trafo.scaleX(), 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -1.0 / trafo.scaleY(), 0.0, 0.0 } };
+            return .{ .dpdu = -trafo.rotation.r[0], .dpdv = -trafo.rotation.r[1] };
         } else {
-            return .{ .dpdu = .{ -1.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -1.0, 0.0, 0.0 } };
+            return .{
+                .dpdu = @as(Vec4f, @splat(-trafo.scaleX())) * trafo.rotation.r[0],
+                .dpdv = @as(Vec4f, @splat(-trafo.scaleY())) * trafo.rotation.r[1],
+            };
         }
     }
 };

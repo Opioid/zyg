@@ -891,7 +891,7 @@ pub const Mesh = struct {
         return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
     }
 
-    pub fn surfaceDifferential(self: *const Mesh, primitive: u32) DifferentialSurface {
+    pub fn surfaceDifferential(self: *const Mesh, primitive: u32, trafo: Trafo) DifferentialSurface {
         const puv = self.tree.data.trianglePuv(self.tree.data.indexTriangle(primitive));
 
         const duv02 = puv.uv[0] - puv.uv[2];
@@ -921,6 +921,9 @@ pub const Mesh = struct {
             dpdv = invdet * (@as(Vec4f, @splat(-duv12[0])) * dp02 + @as(Vec4f, @splat(duv02[0])) * dp12);
         }
 
-        return .{ .dpdu = dpdu, .dpdv = dpdv };
+        const dpdu_w = trafo.objectToWorldVector(dpdu);
+        const dpdv_w = trafo.objectToWorldVector(dpdv);
+
+        return .{ .dpdu = dpdu_w, .dpdv = dpdv_w };
     }
 };
