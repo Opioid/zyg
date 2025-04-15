@@ -198,7 +198,7 @@ const Context = struct {
 
         const d = self.dimensions;
 
-        var luminance = self.alloc.alloc(f32, @as(usize, @intCast(d[0]))) catch return;
+        var luminance = self.alloc.alloc(f32, @intCast(d[0])) catch return;
         defer self.alloc.free(luminance);
 
         const idf = @as(Vec2f, @splat(1.0)) / @as(Vec2f, @floatFromInt(d));
@@ -214,7 +214,7 @@ const Context = struct {
                 const u = idf[0] * (@as(f32, @floatFromInt(x)) + 0.5);
                 const uv_weight = self.shape.uvWeight(.{ u, v });
 
-                const li = math.vec3fTo4f(self.image.Float3.get2D(@as(i32, @intCast(x)), @as(i32, @intCast(y))));
+                const li = math.vec3fTo4f(self.image.Float3.get2D(@intCast(x), @intCast(y)));
                 const wli = @as(Vec4f, @splat(uv_weight)) * li;
 
                 avg += Vec4f{ wli[0], wli[1], wli[2], uv_weight };

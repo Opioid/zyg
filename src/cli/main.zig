@@ -51,6 +51,7 @@ pub fn main() !void {
 
     // try core.ggx_integrate.integrate(alloc, &threads);
     // try core.rainbow_integrate.integrate(alloc);
+    // try core.image.testing.write_reference_normal_map(alloc, "reference_normal.png");
 
     var graph = try Graph.init(alloc);
     defer graph.deinit(alloc);

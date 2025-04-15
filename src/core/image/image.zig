@@ -21,6 +21,7 @@ pub const Float1Sparse = ti.TypedSparseImage(f32);
 pub const Float2 = ti.TypedImage(Vec2f);
 pub const Float3 = ti.TypedImage(Pack3f);
 pub const Float4 = ti.TypedImage(Pack4f);
+pub const testing = @import("test_image.zig");
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
