@@ -151,7 +151,7 @@ pub const Reader = struct {
 
         try stream.seekBy(row_blocks * 8);
 
-        var buffer = try alloc.allocWithOptions(u8, bytes_per_row_block, 4, null);
+        var buffer = try alloc.allocWithOptions(u8, bytes_per_row_block, .@"4", null);
         defer alloc.free(buffer);
         var uncompressed = try alloc.alloc(u8, bytes_per_row_block);
         defer alloc.free(uncompressed);

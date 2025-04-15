@@ -37,7 +37,8 @@ pub const Checker = struct {
         return checker;
     }
 
-    // https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
+    // https://iquilezles.org/articles/checkerfiltering/
+    // https://iquilezles.org/articles/morecheckerfiltering/
 
     pub fn evaluate(self: Checker, rs: Renderstate, key: ts.Key, uv_set: TexCoordMode, worker: *const Worker) Vec4f {
         const dd = worker.screenspaceDifferential(rs, uv_set);
@@ -62,7 +63,10 @@ pub const Checker = struct {
         const w = math.max2(@abs(ddx), @abs(ddy)) + @as(Vec2f, @splat(0.0001));
 
         // analytical integral (box filter)
-        const i = (tri(uv + @as(Vec2f, @splat(0.5)) * w) - tri(uv - @as(Vec2f, @splat(0.5)) * w)) / w;
+        //   const i = (tri(uv + @as(Vec2f, @splat(0.5)) * w) - tri(uv - @as(Vec2f, @splat(0.5)) * w)) / w;
+
+        // analytical integral (triangle filter)
+        const i = (p(uv + w) - @as(Vec2f, @splat(2.0)) * p(uv) + p(uv - w)) / (w * w);
 
         // xor pattern
         return 0.5 - 0.5 * i[0] * i[1];
@@ -73,5 +77,14 @@ pub const Checker = struct {
         const hx = math.frac(x[0] * 0.5) - 0.5;
         const hy = math.frac(x[1] * 0.5) - 0.5;
         return .{ 1.0 - 2.0 * @abs(hx), 1.0 - 2.0 * @abs(hy) };
+    }
+
+    fn p(x: Vec2f) Vec2f {
+        const hx = math.frac(x[0] * 0.5) - 0.5;
+        const hy = math.frac(x[1] * 0.5) - 0.5;
+        return .{
+            x[0] * 0.5 + hx * (1.0 - 2.0 * @abs(hx)),
+            x[1] * 0.5 + hy * (1.0 - 2.0 * @abs(hy)),
+        };
     }
 };

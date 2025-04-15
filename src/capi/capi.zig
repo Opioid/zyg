@@ -245,7 +245,7 @@ export fn su_image_create(
 
         const desc = img.Description.init3D(.{ @intCast(width), @intCast(height), @intCast(depth), 1 });
 
-        const buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, 8, null) catch {
+        const buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, .@"8", null) catch {
             return -1;
         };
 

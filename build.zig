@@ -110,6 +110,7 @@ pub fn build(b: *std.Build) void {
             //"takes/curve_test.take",
             //"takes/imrod.take",
             //"takes/model_test.take",
+            //"takes/nme.take",
             //"takes/furnace_test.take",
             //"takes/animation_test.take",
             //"takes/material_test.take",
