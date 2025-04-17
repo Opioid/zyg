@@ -181,21 +181,27 @@ pub const Reader = struct {
         return Error.NoPixels;
     }
 
-    fn readImageType(value: std.json.Value) !img.Type {
+    pub const ImageType = enum {
+        Byte1,
+        Float1,
+        Float2,
+    };
+
+    fn readImageType(value: std.json.Value) !ImageType {
         const node = value.object.get("type") orelse return Error.UndefinedImageType;
 
         const type_name = node.string;
 
         if (std.mem.eql(u8, "Byte1", type_name)) {
-            return img.Type.Byte1;
+            return ImageType.Byte1;
         }
 
         if (std.mem.eql(u8, "Float1", type_name)) {
-            return img.Type.Float1;
+            return ImageType.Float1;
         }
 
         if (std.mem.eql(u8, "Float2", type_name)) {
-            return img.Type.Float2;
+            return ImageType.Float2;
         }
 
         return Error.UndefinedImageType;

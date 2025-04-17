@@ -74,17 +74,12 @@ pub const Checker = struct {
 
     // triangular signal
     fn tri(x: Vec2f) Vec2f {
-        const hx = math.frac(x[0] * 0.5) - 0.5;
-        const hy = math.frac(x[1] * 0.5) - 0.5;
-        return .{ 1.0 - 2.0 * @abs(hx), 1.0 - 2.0 * @abs(hy) };
+        const h = math.frac(x * @as(Vec2f, @splat(0.5))) - @as(Vec2f, @splat(0.5));
+        return @as(Vec2f, @splat(1.0)) - @as(Vec2f, @splat(2.0)) * @abs(h);
     }
 
     fn p(x: Vec2f) Vec2f {
-        const hx = math.frac(x[0] * 0.5) - 0.5;
-        const hy = math.frac(x[1] * 0.5) - 0.5;
-        return .{
-            x[0] * 0.5 + hx * (1.0 - 2.0 * @abs(hx)),
-            x[1] * 0.5 + hy * (1.0 - 2.0 * @abs(hy)),
-        };
+        const h = math.frac(x * @as(Vec2f, @splat(0.5))) - @as(Vec2f, @splat(0.5));
+        return x * @as(Vec2f, @splat(0.5)) + h * (@as(Vec2f, @splat(1.0)) - @as(Vec2f, @splat(2.0)) * @abs(h));
     }
 };

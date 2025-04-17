@@ -1,5 +1,5 @@
-pub const DetailNormal = @import("procedural_detail_normal.zig").DetailNormal;
 pub const Checker = @import("procedural_checker.zig").Checker;
+pub const DetailNormal = @import("procedural_detail_normal.zig").DetailNormal;
 pub const Max = @import("procedural_max.zig").Max;
 pub const Mix = @import("procedural_mix.zig").Mix;
 pub const Mul = @import("procedural_mul.zig").Mul;

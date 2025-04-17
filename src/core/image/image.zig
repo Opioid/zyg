@@ -47,20 +47,6 @@ pub const Swizzle = enum {
     }
 };
 
-pub const Type = enum {
-    Byte1,
-    Byte2,
-    Byte3,
-    Byte4,
-    Half1,
-    Half3,
-    Half4,
-    Float1,
-    Float2,
-    Float3,
-    Float4,
-};
-
 pub const Image = union(enum) {
     Byte1: Byte1,
     Byte2: Byte2,
