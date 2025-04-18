@@ -17,8 +17,8 @@ const std = @import("std");
 
 pub const Noise = struct {
     pub const Class = enum {
-        Perlin,
-        Cell,
+        Cellular,
+        Gradient,
     };
 
     pub const Flags = packed struct {
@@ -38,7 +38,10 @@ pub const Noise = struct {
 
     scale: Vec4f,
 
-    pub fn evaluate1(self: Noise, rs: Renderstate, uv_offset: Vec2f, uv_set: TexCoordMode) f32 {
+    const Self = @This();
+
+    pub fn evaluate1(self: Self, rs: Renderstate, uv_offset: Vec2f, uv_set: TexCoordMode) f32 {
+        const is_cellular = .Cellular == self.class;
         const att = self.attenuation;
 
         var weight: f32 = 0.0;
@@ -53,6 +56,7 @@ pub const Noise = struct {
 
             for (0..self.levels) |_| {
                 const local_weight = std.math.pow(f32, amplitude, att);
+
                 value += perlin3D_1(uvw * scale) * local_weight;
 
                 weight += local_weight;
@@ -66,7 +70,10 @@ pub const Noise = struct {
 
             for (0..self.levels) |_| {
                 const local_weight = std.math.pow(f32, amplitude, att);
-                value += perlin2D_1(uv * scale) * local_weight;
+
+                const local = if (is_cellular) worley2D_1(uv * scale, 1.0) else perlin2D_1(uv * scale);
+
+                value += local * local_weight;
 
                 weight += local_weight;
                 amplitude *= 0.5;
@@ -76,7 +83,7 @@ pub const Noise = struct {
 
         value /= weight;
 
-        const unsigned = if (self.flags.absolute) @abs(value) else (value + 1.0) * 0.5;
+        const unsigned = if (is_cellular) value else (if (self.flags.absolute) @abs(value) else (value + 1.0) * 0.5);
 
         const a = self.ratio - self.transition;
         const b = self.ratio + self.transition;
@@ -87,7 +94,7 @@ pub const Noise = struct {
         return if (self.flags.invert) (1.0 - result) else result;
     }
 
-    pub fn evaluateNormalmap(self: Noise, rs: Renderstate, uv_set: TexCoordMode, worker: *const Worker) Vec2f {
+    pub fn evaluateNormalmap(self: Self, rs: Renderstate, uv_set: TexCoordMode, worker: *const Worker) Vec2f {
         const dd = worker.screenspaceDifferential(rs, uv_set);
         const ddx: Vec2f = .{ dd[0], dd[1] };
         const ddy: Vec2f = .{ dd[2], dd[3] };
@@ -104,7 +111,7 @@ pub const Noise = struct {
         return .{ n[0], n[1] };
     }
 
-    pub fn evaluate3(self: Noise, rs: Renderstate, uv_set: TexCoordMode) Vec4f {
+    pub fn evaluate3(self: Self, rs: Renderstate, uv_set: TexCoordMode) Vec4f {
         const noise = self.evaluate1(rs, @splat(0.0), uv_set);
 
         return @splat(noise);
@@ -149,6 +156,139 @@ pub const Noise = struct {
         const result = math.bilinear(Vec2f, cc, uvw[0], uvw[1]);
 
         return gradient_scale3D(math.lerp(result[0], result[1], uvw[2]));
+    }
+
+    fn worley2D_1(p: Vec2f, jitter: f32) f32 {
+        const localpos, const P = floorfrac2(p);
+
+        var min_dist: f32 = 1.0e6;
+
+        // var min_pos: Vec2f = @splat(0.0);
+
+        var x: i32 = -1;
+        while (x <= 1) : (x += 1) {
+            var y: i32 = -1;
+            while (y <= 1) : (y += 1) {
+                const xy = Vec2i{ x, y };
+
+                const dist = worley_distance(localpos, xy, P, jitter);
+                // const cellpos = worley_cell_position(xy, P, jitter) - localpos;
+
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    // min_pos = cellpos;
+                }
+            }
+        }
+
+        // Voronoi style
+        // return cell_noise2_float(min_pos + p);
+
+        return min_dist;
+    }
+
+    fn worley2D_test(p: Vec2f, jitter: f32) Vec4f {
+        const localpos, const P = floorfrac2(p);
+
+        var min_dist: f32 = 1.0e6;
+
+        var min_dist2: f32 = 1.0e6;
+
+        // var min_pos: Vec2f = @splat(0.0);
+
+        var x: i32 = -1;
+        while (x <= 1) : (x += 1) {
+            var y: i32 = -1;
+            while (y <= 1) : (y += 1) {
+                const xy = Vec2i{ x, y };
+
+                const dist = worley_distance(localpos, xy, P, jitter);
+                // const cellpos = worley_cell_position(xy, P, jitter) - localpos;
+
+                if (dist < min_dist) {
+                    min_dist2 = min_dist;
+                    min_dist = dist;
+                    // min_pos = cellpos;
+                } else if (dist < min_dist2) {
+                    min_dist2 = dist;
+                }
+            }
+        }
+
+        // Voronoi style
+        // return cell_noise2_float(min_pos + p);
+
+        const color_a = Vec4f{ 1.0, 0.0, 0.0, 0.0 };
+        const color_b = Vec4f{ 0.0, 0.0, 0.5, 0.0 };
+
+        //  std.debug.print("{} {}\n", .{ min_dist, min_dist2 });
+
+        const result = math.min4(@as(Vec4f, @splat(min_dist)) * color_a + @as(Vec4f, @splat(math.min(min_dist2, 1.0))) * color_b, @splat(1.0));
+
+        std.debug.print("{}\n", .{result});
+
+        return result;
+    }
+
+    // float mx_worley_distance(vec2 p, int x, int y, int xoff, int yoff, float jitter, int metric)
+    // {
+    //     vec2 cellpos = mx_worley_cell_position(x, y, xoff, yoff, jitter);
+    //     vec2 diff = cellpos - p;
+    //     if (metric == 2)
+    //         return abs(diff.x) + abs(diff.y);       // Manhattan distance
+    //     if (metric == 3)
+    //         return max(abs(diff.x), abs(diff.y));   // Chebyshev distance
+    //     // Either Euclidean or Distance^2
+    //     return dot(diff, diff);
+    // }
+
+    fn worley_distance(p: Vec2f, xy: Vec2i, offset: Vec2u, jitter: f32) f32 {
+        const cellpos = worley_cell_position(xy, offset, jitter);
+        const diff = cellpos - p;
+
+        return math.dot2(diff, diff);
+    }
+
+    fn worley_cell_position(xy: Vec2i, offset: Vec2u, jitter: f32) Vec2f {
+        var off = cell_noise2_vec(@floatFromInt(xy + @as(Vec2i, @intCast(offset))));
+
+        off -= @splat(0.5);
+        off *= @splat(jitter);
+        off += @splat(0.5);
+
+        return @as(Vec2f, @floatFromInt(xy)) + off;
+    }
+
+    fn cell_noise2_float(p: Vec2f) f32 {
+        // integer part of float might be out of bounds for u32, but we don't care
+        @setRuntimeSafety(false);
+
+        const ip: Vec2u = @intFromFloat(@floor(p));
+
+        return bits_to_01(hash2(ip[0], ip[1]));
+    }
+
+    fn cell_noise2_vec(p: Vec2f) Vec2f {
+        // integer part of float might be out of bounds for u32, but we don't care
+        @setRuntimeSafety(false);
+
+        const ip: Vec2u = @intFromFloat(@floor(p));
+
+        return .{
+            bits_to_01(hash3(ip[0], ip[1], 0)),
+            bits_to_01(hash3(ip[0], ip[1], 1)),
+        };
+    }
+
+    fn bits_to_01(in: u32) f32 {
+        // return @as(f32, @floatFromInt(bits)) / @as(f32, @floatFromInt(0xffffffff));
+
+        var bits = in;
+
+        bits &= 0x007FFFFF;
+        bits |= 0x3F800000;
+
+        return @as(f32, @bitCast(bits)) - 1.0;
     }
 
     fn floorfrac(x: f32) struct { f32, u32 } {
