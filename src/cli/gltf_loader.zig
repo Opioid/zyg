@@ -251,7 +251,7 @@ pub const Loader = struct {
             const mesh = meshes.array.items[index];
             const entity_id = try self.loadMesh(alloc, mesh, graph);
 
-            const world_trafo = parent_trafo.transformScaled(trafo);
+            const world_trafo = parent_trafo.transform(trafo);
 
             graph.scene.propSetWorldTransformation(entity_id, world_trafo);
         }
