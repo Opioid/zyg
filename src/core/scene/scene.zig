@@ -228,13 +228,10 @@ pub const Scene = struct {
         try self.sky.compile(alloc, time, self, threads, fs);
 
         try self.bvh_builder.build(alloc, &self.prop_bvh, self.finite_props.items, self.prop_aabbs.items, threads);
-        self.prop_bvh.setProps(self.props.items);
 
         try self.bvh_builder.build(alloc, &self.unoccluding_bvh, self.unoccluding_props.items, self.prop_aabbs.items, threads);
-        self.unoccluding_bvh.setProps(self.props.items);
 
         try self.bvh_builder.build(alloc, &self.volume_bvh, self.volumes.items, self.prop_aabbs.items, threads);
-        self.volume_bvh.setProps(self.props.items);
 
         const num_lights = self.lights.items.len;
         if (num_lights > self.light_temp_powers.len) {

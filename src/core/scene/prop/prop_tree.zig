@@ -23,7 +23,6 @@ pub const Tree = struct {
 
     nodes: [*]Node = undefined,
     indices: [*]u32 = undefined,
-    props: [*]const Prop = undefined,
 
     pub fn deinit(self: *Tree, alloc: Allocator) void {
         alloc.free(self.indices[0..self.num_indices]);
@@ -44,10 +43,6 @@ pub const Tree = struct {
         }
     }
 
-    pub fn setProps(self: *Tree, props: []const Prop) void {
-        self.props = props.ptr;
-    }
-
     pub fn aabb(self: Tree) AABB {
         if (0 == self.num_nodes) {
             return math.aabb.Empty;
@@ -63,8 +58,8 @@ pub const Tree = struct {
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         const nodes = self.nodes;
-        const props = self.props;
-        const finite_props = self.indices;
+        const instances = self.indices;
+        const props = scene.props.items.ptr;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -73,7 +68,7 @@ pub const Tree = struct {
             if (0 != num) {
                 const start = node.indicesStart();
                 const end = start + num;
-                for (finite_props[start..end]) |p| {
+                for (instances[start..end]) |p| {
                     if (props[p].intersect(p, probe, frag, scene)) {
                         probe.ray.max_t = frag.isec.t;
                         prop = p;
@@ -121,8 +116,8 @@ pub const Tree = struct {
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         const nodes = self.nodes;
-        const props = self.props;
-        const finite_props = self.indices;
+        const instances = self.indices;
+        const props = worker.scene.props.items.ptr;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -131,7 +126,7 @@ pub const Tree = struct {
             if (0 != num) {
                 const start = node.indicesStart();
                 const end = start + num;
-                for (finite_props[start..end]) |p| {
+                for (instances[start..end]) |p| {
                     if (!props[p].visibility(p, probe, sampler, worker, tr)) {
                         return false;
                     }
@@ -180,8 +175,8 @@ pub const Tree = struct {
         var energy: Vec4f = @splat(0.0);
 
         const nodes = self.nodes;
-        const props = self.props;
-        const finite_props = self.indices;
+        const instances = self.indices;
+        const props = worker.scene.props.items.ptr;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -190,7 +185,7 @@ pub const Tree = struct {
             if (0 != num) {
                 const start = node.indicesStart();
                 const end = start + num;
-                for (finite_props[start..end]) |p| {
+                for (instances[start..end]) |p| {
                     energy += props[p].emission(p, vertex, frag, split_threshold, sampler, worker);
                 }
 
@@ -230,8 +225,8 @@ pub const Tree = struct {
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         const nodes = self.nodes;
-        const props = self.props;
-        const finite_props = self.indices;
+        const instances = self.indices;
+        const props = worker.scene.props.items.ptr;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -240,7 +235,7 @@ pub const Tree = struct {
             if (0 != num) {
                 const start = node.indicesStart();
                 const end = start + num;
-                for (finite_props[start..end]) |p| {
+                for (instances[start..end]) |p| {
                     const lr = props[p].scatter(p, probe, frag, throughput.*, sampler, worker);
 
                     if (.Pass != lr.event) {
