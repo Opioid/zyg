@@ -131,11 +131,11 @@ pub const Pathtracer = struct {
         inf_frag.event = .Pass;
 
         for (worker.scene.infinite_props.items) |prop| {
-            if (!worker.propIntersect(prop, &vertex.probe, &inf_frag)) {
+            if (!worker.propIntersect(prop, vertex.probe, &inf_frag)) {
                 continue;
             }
 
-            worker.propInterpolateFragment(prop, &vertex.probe, &inf_frag);
+            worker.propInterpolateFragment(prop, vertex.probe, &inf_frag);
 
             energy += inf_frag.evaluateRadiance(p, wo, sampler, worker) orelse continue;
         }

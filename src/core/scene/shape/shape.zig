@@ -148,7 +148,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn intersect(self: *const Shape, probe: *const Probe, trafo: Trafo) Intersection {
+    pub fn intersect(self: *const Shape, probe: Probe, trafo: Trafo) Intersection {
         return switch (self.*) {
             .Canopy => Canopy.intersect(probe.ray, trafo),
             .Cube => Cube.intersect(probe.ray, trafo),
@@ -176,7 +176,7 @@ pub const Shape = union(enum) {
         }
     }
 
-    pub fn intersectP(self: *const Shape, probe: *const Probe, trafo: Trafo) bool {
+    pub fn intersectP(self: *const Shape, probe: Probe, trafo: Trafo) bool {
         return switch (self.*) {
             .Cube => Cube.intersectP(probe.ray, trafo),
             .CurveMesh => |m| m.intersectP(probe.ray, trafo),
@@ -190,7 +190,7 @@ pub const Shape = union(enum) {
 
     pub fn visibility(
         self: *const Shape,
-        probe: *const Probe,
+        probe: Probe,
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
@@ -210,7 +210,7 @@ pub const Shape = union(enum) {
 
     pub fn transmittance(
         self: *const Shape,
-        probe: *const Probe,
+        probe: Probe,
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
@@ -227,7 +227,7 @@ pub const Shape = union(enum) {
 
     pub fn scatter(
         self: *const Shape,
-        probe: *const Probe,
+        probe: Probe,
         trafo: Trafo,
         throughput: Vec4f,
         entity: u32,

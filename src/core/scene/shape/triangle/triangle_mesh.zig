@@ -486,7 +486,7 @@ pub const Mesh = struct {
 
     pub fn transmittance(
         self: *const Mesh,
-        probe: *const Probe,
+        probe: Probe,
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
@@ -511,7 +511,7 @@ pub const Mesh = struct {
 
     pub fn scatter(
         self: *const Mesh,
-        probe: *const Probe,
+        probe: Probe,
         trafo: Trafo,
         throughput: Vec4f,
         entity: u32,

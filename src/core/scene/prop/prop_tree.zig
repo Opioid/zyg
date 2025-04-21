@@ -69,7 +69,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (instances[start..end]) |p| {
-                    if (props[p].intersect(p, probe, frag, scene)) {
+                    if (props[p].intersect(p, probe.*, frag, scene)) {
                         probe.ray.max_t = frag.isec.t;
                         prop = p;
                     }
@@ -103,14 +103,14 @@ pub const Tree = struct {
         const hit = Prop.Null != prop;
 
         if (hit) {
-            props[prop].fragment(probe, frag, scene);
+            props[prop].fragment(probe.*, frag, scene);
         }
 
         frag.prop = prop;
         return hit;
     }
 
-    pub fn visibility(self: Tree, probe: *const Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
+    pub fn visibility(self: Tree, probe: Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
         var stack = NodeStack{};
 
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
@@ -236,7 +236,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (instances[start..end]) |p| {
-                    const lr = props[p].scatter(p, probe, frag, throughput.*, sampler, worker);
+                    const lr = props[p].scatter(p, probe.*, frag, throughput.*, sampler, worker);
 
                     if (.Pass != lr.event) {
                         probe.ray.max_t = lr.t;

@@ -261,7 +261,7 @@ pub const Scene = struct {
         return self.prop_bvh.intersect(probe, frag, self);
     }
 
-    pub fn visibility(self: *const Scene, probe: *const Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
+    pub fn visibility(self: *const Scene, probe: Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
         if (self.prop_bvh.visibility(probe, sampler, worker, tr)) {
             return self.volume_bvh.visibility(probe, sampler, worker, tr);
         }

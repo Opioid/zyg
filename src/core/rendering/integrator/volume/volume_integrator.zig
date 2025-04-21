@@ -176,7 +176,7 @@ pub const Integrator = struct {
 
             vertex.probe.ray.max_t = free_path;
 
-            const hit = shape.intersect(&vertex.probe, trafo);
+            const hit = shape.intersect(vertex.probe, trafo);
             if (Intersection.Null == hit.primitive) {
                 const wil = sampleHg(g, sampler);
                 const frame = Frame.init(vertex.probe.ray.direction);

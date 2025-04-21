@@ -241,7 +241,7 @@ pub const Worker = struct {
         }
     }
 
-    pub fn visibility(self: *Worker, probe: *const Probe, sampler: *Sampler, tr: *Vec4f) bool {
+    pub fn visibility(self: *Worker, probe: Probe, sampler: *Sampler, tr: *Vec4f) bool {
         return self.scene.visibility(probe, sampler, self, tr);
     }
 
@@ -292,7 +292,7 @@ pub const Worker = struct {
         return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *const Worker, entity: u32, probe: *const Probe, frag: *Fragment) bool {
+    pub fn propIntersect(self: *const Worker, entity: u32, probe: Probe, frag: *Fragment) bool {
         if (self.scene.prop(entity).intersect(entity, probe, frag, self.scene)) {
             frag.prop = entity;
             return true;
@@ -301,7 +301,7 @@ pub const Worker = struct {
         return false;
     }
 
-    pub fn propInterpolateFragment(self: *const Worker, entity: u32, probe: *const Probe, frag: *Fragment) void {
+    pub fn propInterpolateFragment(self: *const Worker, entity: u32, probe: Probe, frag: *Fragment) void {
         self.scene.prop(entity).fragment(probe, frag, self.scene);
     }
 

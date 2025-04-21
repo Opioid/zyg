@@ -118,7 +118,7 @@ pub const Prop = struct {
         self.properties.static = false;
     }
 
-    pub fn intersect(self: Prop, entity: u32, probe: *const Probe, frag: *Fragment, scene: *const Scene) bool {
+    pub fn intersect(self: Prop, entity: u32, probe: Probe, frag: *Fragment, scene: *const Scene) bool {
         const properties = self.properties;
 
         if (!properties.visible(probe.depth.surface)) {
@@ -141,11 +141,11 @@ pub const Prop = struct {
         return false;
     }
 
-    pub fn fragment(self: Prop, probe: *const Probe, frag: *Fragment, scene: *const Scene) void {
+    pub fn fragment(self: Prop, probe: Probe, frag: *Fragment, scene: *const Scene) void {
         scene.shape(self.shape).fragment(probe.ray, frag);
     }
 
-    pub fn visibility(self: Prop, entity: u32, probe: *const Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
+    pub fn visibility(self: Prop, entity: u32, probe: Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
         const properties = self.properties;
         const scene = worker.scene;
 
@@ -201,7 +201,7 @@ pub const Prop = struct {
     pub fn scatter(
         self: Prop,
         entity: u32,
-        probe: *const Probe,
+        probe: Probe,
         frag: *Fragment,
         throughput: Vec4f,
         sampler: *Sampler,

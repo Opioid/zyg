@@ -81,7 +81,7 @@ pub const Cube = struct {
     }
 
     pub fn transmittance(
-        probe: *const Probe,
+        probe: Probe,
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
@@ -103,7 +103,7 @@ pub const Cube = struct {
     }
 
     pub fn scatter(
-        probe: *const Probe,
+        probe: Probe,
         trafo: Trafo,
         throughput: Vec4f,
         entity: u32,

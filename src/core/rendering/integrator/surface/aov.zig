@@ -97,7 +97,7 @@ pub const AOV = struct {
             occlusion_probe.ray = Ray.init(origin, ws, 0.0, radius);
 
             var tr: Vec4f = @splat(1.0);
-            if (worker.scene.visibility(&occlusion_probe, sampler, worker, &tr)) {
+            if (worker.scene.visibility(occlusion_probe, sampler, worker, &tr)) {
                 result += num_samples_reciprocal;
             }
 

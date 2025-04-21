@@ -223,10 +223,10 @@ pub const Lighttracer = struct {
 
             const wi = -camera_sample.dir;
             const p = frag.offsetP(wi);
-            var tprobe = vertex.probe.clone(Ray.init(p, wi, 0.0, camera_sample.t));
+            const tprobe = vertex.probe.clone(Ray.init(p, wi, 0.0, camera_sample.t));
 
             var tr: Vec4f = @splat(1.0);
-            if (!worker.visibility(&tprobe, sampler, &tr)) {
+            if (!worker.visibility(tprobe, sampler, &tr)) {
                 continue;
             }
 
