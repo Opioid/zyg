@@ -1,11 +1,11 @@
 const Vertex = @import("../vertex.zig").Vertex;
-const Probe = Vertex.Probe;
 const Material = @import("../material/material.zig").Material;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
 const int = @import("../shape/intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
+const Probe = @import("../shape/probe.zig").Probe;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../../rendering/worker.zig").Worker;
 
@@ -131,7 +131,7 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
-        const hit = scene.shape(self.shape).intersect(probe.ray, trafo);
+        const hit = scene.shape(self.shape).intersect(probe, trafo);
         if (Intersection.Null != hit.primitive) {
             frag.isec = hit;
             frag.trafo = trafo;
@@ -162,11 +162,11 @@ pub const Prop = struct {
         const shape = scene.shape(self.shape);
 
         if (properties.volume) {
-            return shape.transmittance(probe.ray, probe.depth.volume, trafo, entity, sampler, worker, tr);
+            return shape.transmittance(probe, trafo, entity, sampler, worker, tr);
         } else if (properties.evaluate_visibility) {
-            return shape.visibility(probe.ray, trafo, entity, sampler, worker, tr);
+            return shape.visibility(probe, trafo, entity, sampler, worker, tr);
         } else {
-            return !shape.intersectP(probe.ray, trafo);
+            return !shape.intersectP(probe, trafo);
         }
     }
 
@@ -216,7 +216,7 @@ pub const Prop = struct {
 
         const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
 
-        const result = scene.shape(self.shape).scatter(probe.ray, probe.depth.volume, trafo, throughput, entity, sampler, worker);
+        const result = scene.shape(self.shape).scatter(probe, trafo, throughput, entity, sampler, worker);
         if (.Absorb == result.event) {
             frag.trafo = trafo;
         }

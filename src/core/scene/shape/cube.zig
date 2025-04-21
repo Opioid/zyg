@@ -3,6 +3,7 @@ const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Volume = int.Volume;
+const Probe = @import("probe.zig").Probe;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -80,15 +81,14 @@ pub const Cube = struct {
     }
 
     pub fn transmittance(
-        ray: Ray,
+        probe: *const Probe,
         trafo: Trafo,
         entity: u32,
-        depth: u32,
         sampler: *Sampler,
         worker: *Worker,
         tr: *Vec4f,
     ) bool {
-        var local_ray = trafo.worldToObjectRay(ray);
+        var local_ray = trafo.worldToObjectRay(probe.ray);
 
         const aabb = AABB.init(@splat(-0.5), @splat(0.5));
         const hit_t = aabb.intersectInterval(local_ray);
@@ -99,19 +99,18 @@ pub const Cube = struct {
         local_ray.setMinMaxT(hit_t[0], hit_t[1]);
 
         const material = worker.scene.propMaterial(entity, 0);
-        return worker.propTransmittance(local_ray, material, entity, depth, sampler, tr);
+        return worker.propTransmittance(local_ray, material, entity, probe.depth.volume, sampler, tr);
     }
 
     pub fn scatter(
-        ray: Ray,
+        probe: *const Probe,
         trafo: Trafo,
         throughput: Vec4f,
         entity: u32,
-        depth: u32,
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
-        var local_ray = trafo.worldToObjectRay(ray);
+        var local_ray = trafo.worldToObjectRay(probe.ray);
 
         const aabb = AABB.init(@splat(-0.5), @splat(0.5));
         const hit_t = aabb.intersectInterval(local_ray);
@@ -122,7 +121,7 @@ pub const Cube = struct {
         local_ray.setMinMaxT(hit_t[0], hit_t[1]);
 
         const material = worker.scene.propMaterial(entity, 0);
-        return worker.propScatter(local_ray, throughput, material, entity, depth, sampler);
+        return worker.propScatter(local_ray, throughput, material, entity, probe.depth.volume, sampler);
     }
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {

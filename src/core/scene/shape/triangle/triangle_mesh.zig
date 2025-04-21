@@ -10,6 +10,7 @@ const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Volume = int.Volume;
 const DifferentialSurface = int.DifferentialSurface;
+const Probe = @import("../probe.zig").Probe;
 const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
@@ -485,16 +486,15 @@ pub const Mesh = struct {
 
     pub fn transmittance(
         self: *const Mesh,
-        ray: Ray,
+        probe: *const Probe,
         trafo: Trafo,
         entity: u32,
-        depth: u32,
         sampler: *Sampler,
         worker: *Worker,
         tr: *Vec4f,
     ) bool {
-        const tray = trafo.worldToObjectRay(ray);
-        return self.tree.transmittance(tray, entity, depth, sampler, worker, tr);
+        const tray = trafo.worldToObjectRay(probe.ray);
+        return self.tree.transmittance(tray, entity, probe.depth.volume, sampler, worker, tr);
     }
 
     pub fn emission(
@@ -511,16 +511,15 @@ pub const Mesh = struct {
 
     pub fn scatter(
         self: *const Mesh,
-        ray: Ray,
+        probe: *const Probe,
         trafo: Trafo,
         throughput: Vec4f,
         entity: u32,
-        depth: u32,
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
-        const tray = trafo.worldToObjectRay(ray);
-        return self.tree.scatter(tray, throughput, entity, depth, sampler, worker);
+        const tray = trafo.worldToObjectRay(probe.ray);
+        return self.tree.scatter(tray, throughput, entity, probe.depth.volume, sampler, worker);
     }
 
     //Gram-Schmidt method

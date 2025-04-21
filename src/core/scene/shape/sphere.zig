@@ -5,6 +5,7 @@ const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Volume = int.Volume;
+const Probe = @import("probe.zig").Probe;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -163,14 +164,14 @@ pub const Sphere = struct {
     }
 
     pub fn transmittance(
-        ray: Ray,
+        probe: *const Probe,
         trafo: Trafo,
         entity: u32,
-        depth: u32,
         sampler: *Sampler,
         worker: *Worker,
         tr: *Vec4f,
     ) bool {
+        const ray = probe.ray;
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -193,7 +194,7 @@ pub const Sphere = struct {
                 start,
                 end,
             );
-            return worker.propTransmittance(tray, material, entity, depth, sampler, tr);
+            return worker.propTransmittance(tray, material, entity, probe.depth.volume, sampler, tr);
         }
 
         return true;
@@ -220,14 +221,14 @@ pub const Sphere = struct {
     }
 
     pub fn scatter(
-        ray: Ray,
+        probe: *const Probe,
         trafo: Trafo,
         throughput: Vec4f,
         entity: u32,
-        depth: u32,
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
+        const ray = probe.ray;
         const v = trafo.position - ray.origin;
         const b = math.dot3(ray.direction, v);
 
@@ -251,7 +252,7 @@ pub const Sphere = struct {
                 end,
             );
 
-            return worker.propScatter(tray, throughput, material, entity, depth, sampler);
+            return worker.propScatter(tray, throughput, material, entity, probe.depth.volume, sampler);
         }
 
         return Volume.initPass(@splat(1.0));

@@ -1,4 +1,4 @@
-const Probe = @import("../../scene/vertex.zig").Vertex.Probe;
+const Probe = @import("../../scene/shape/probe.zig").Probe;
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;

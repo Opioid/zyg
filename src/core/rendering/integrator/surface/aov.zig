@@ -1,6 +1,6 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
-const Probe = Vertex.Probe;
 const Fragment = @import("../../../scene/shape/intersection.zig").Fragment;
+const Probe = @import("../../../scene/shape/probe.zig").Probe;
 const ro = @import("../../../scene/ray_offset.zig");
 const Scene = @import("../../../scene/scene.zig").Scene;
 const Shape = @import("../../../scene/shape/shape.zig").Shape;
