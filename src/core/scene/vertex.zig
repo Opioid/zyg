@@ -128,7 +128,7 @@ pub const Vertex = struct {
         const m = frag.material(worker.scene);
 
         var rs: Renderstate = undefined;
-        rs.trafo = frag.trafo;
+        rs.trafo = frag.isec.trafo;
         rs.p = frag.p;
         rs.t = frag.t;
         rs.b = frag.b;

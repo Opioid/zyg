@@ -92,13 +92,6 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn complex(self: *const Shape) bool {
-        return switch (self.*) {
-            .CurveMesh, .TriangleMesh => true,
-            else => false,
-        };
-    }
-
     pub fn aabb(self: *const Shape) AABB {
         return switch (self.*) {
             .Canopy, .DistantSphere, .InfiniteSphere => math.aabb.Empty,
@@ -148,17 +141,17 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn intersect(self: *const Shape, probe: Probe, trafo: Trafo) Intersection {
+    pub fn intersect(self: *const Shape, probe: Probe, trafo: Trafo, isec: *Intersection) bool {
         return switch (self.*) {
-            .Canopy => Canopy.intersect(probe.ray, trafo),
-            .Cube => Cube.intersect(probe.ray, trafo),
-            .CurveMesh => |m| m.intersect(probe.ray, trafo),
-            .Disk => Disk.intersect(probe.ray, trafo),
-            .DistantSphere => DistantSphere.intersect(probe.ray, trafo),
-            .InfiniteSphere => InfiniteSphere.intersect(probe.ray),
-            .Rectangle => Rectangle.intersect(probe.ray, trafo),
-            .Sphere => Sphere.intersect(probe.ray, trafo),
-            .TriangleMesh => |m| m.intersect(probe.ray, trafo),
+            .Canopy => Canopy.intersect(probe.ray, trafo, isec),
+            .Cube => Cube.intersect(probe.ray, trafo, isec),
+            .CurveMesh => |m| m.intersect(probe.ray, trafo, isec),
+            .Disk => Disk.intersect(probe.ray, trafo, isec),
+            .DistantSphere => DistantSphere.intersect(probe.ray, trafo, isec),
+            .InfiniteSphere => InfiniteSphere.intersect(probe.ray, trafo, isec),
+            .Rectangle => Rectangle.intersect(probe.ray, trafo, isec),
+            .Sphere => Sphere.intersect(probe.ray, trafo, isec),
+            .TriangleMesh => |m| m.intersect(probe.ray, trafo, isec),
         };
     }
 
@@ -176,7 +169,16 @@ pub const Shape = union(enum) {
         }
     }
 
-    pub fn intersectP(self: *const Shape, probe: Probe, trafo: Trafo) bool {
+    pub fn intersectP(
+        self: *const Shape,
+        probe: Probe,
+        trafo: Trafo,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) bool {
+        _ = sampler;
+        _ = worker;
+
         return switch (self.*) {
             .Cube => Cube.intersectP(probe.ray, trafo),
             .CurveMesh => |m| m.intersectP(probe.ray, trafo),
@@ -194,7 +196,7 @@ pub const Shape = union(enum) {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        worker: *const Worker,
+        worker: *Worker,
         tr: *Vec4f,
     ) bool {
         return switch (self.*) {
@@ -412,13 +414,13 @@ pub const Shape = union(enum) {
     ) f32 {
         return switch (self.*) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Cube, .CurveMesh => 0.0,
             .Disk => Disk.pdf(dir, p, frag, split_threshold, material),
-            .DistantSphere => DistantSphere.pdf(frag.trafo),
+            .DistantSphere => DistantSphere.pdf(frag.isec.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
-            .Rectangle => Rectangle.pdf(p, frag.trafo, split_threshold, material),
-            .Sphere => Sphere.pdf(p, frag.trafo, split_threshold, material),
+            .Rectangle => Rectangle.pdf(p, frag.isec.trafo, split_threshold, material),
+            .Sphere => Sphere.pdf(p, frag.isec.trafo, split_threshold, material),
             .TriangleMesh => |m| m.pdf(part, variant, dir, p, n, frag, total_sphere, split_threshold),
+            else => 0.0,
         };
     }
 

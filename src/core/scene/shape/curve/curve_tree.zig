@@ -1,4 +1,5 @@
 pub const IndexedData = @import("curve_indexed_data.zig").IndexedData;
+const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Node = @import("../../bvh/node.zig").Node;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const Intersection = @import("../../shape/intersection.zig").Intersection;
@@ -29,15 +30,16 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: Ray) Intersection {
+    pub fn intersect(self: Tree, ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         var tray = ray;
 
         var stack = NodeStack{};
         var n: u32 = 0;
 
-        var hpoint = Intersection{};
-
         const nodes = self.nodes;
+
+        var hpoint: IndexedData.Fragment = undefined;
+        var primitive = Intersection.Null;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -49,9 +51,8 @@ pub const Tree = struct {
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(tray, i)) |hit| {
                         tray.max_t = hit.t;
-                        hpoint.t = hit.t;
-                        hpoint.u = hit.u;
-                        hpoint.primitive = i;
+                        hpoint = hit;
+                        primitive = i;
                     }
                 }
 
@@ -80,7 +81,17 @@ pub const Tree = struct {
             }
         }
 
-        return hpoint;
+        if (Intersection.Null == primitive) {
+            return false;
+        }
+
+        isec.t = hpoint.t;
+        isec.u = hpoint.u;
+        isec.primitive = primitive;
+        isec.prototype = Intersection.Null;
+        isec.trafo = trafo;
+
+        return true;
     }
 
     pub fn intersectP(self: Tree, ray: Ray) bool {

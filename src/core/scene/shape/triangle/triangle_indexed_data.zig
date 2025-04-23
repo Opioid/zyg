@@ -12,6 +12,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const IndexedData = struct {
+    pub const Fragment = triangle.Fragment;
+
     const Triangle = packed struct {
         a: u32,
         b: u32,

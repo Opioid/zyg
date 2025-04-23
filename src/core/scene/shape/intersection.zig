@@ -54,6 +54,13 @@ pub const Intersection = struct {
     u: f32 = undefined,
     v: f32 = undefined,
     primitive: u32 = Null,
+    prototype: u32 = Null,
+
+    trafo: Trafo = undefined,
+
+    pub inline fn valid(self: Intersection) bool {
+        return Null != self.primitive;
+    }
 };
 
 pub const Fragment = struct {
@@ -62,7 +69,6 @@ pub const Fragment = struct {
     part: u32,
     event: Volume.Event,
 
-    trafo: Trafo,
     p: Vec4f,
     geo_n: Vec4f,
     t: Vec4f,
@@ -137,7 +143,7 @@ pub const Fragment = struct {
         }
 
         var rs: Renderstate = undefined;
-        rs.trafo = self.trafo;
+        rs.trafo = self.isec.trafo;
         rs.origin = shading_p;
         rs.geo_n = self.geo_n;
         rs.uvw = self.uvw;

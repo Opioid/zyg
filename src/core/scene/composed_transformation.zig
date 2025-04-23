@@ -1,3 +1,5 @@
+const Probe = @import("shape/probe.zig").Probe;
+
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
 const Mat3x3 = math.Mat3x3;
@@ -48,6 +50,21 @@ pub const ComposedTransformation = struct {
 
     pub fn objectToWorld(self: Self) Mat4x4 {
         return Mat4x4.compose(self.rotation, self.scale(), self.position);
+    }
+
+    pub fn transform(self: Self, other: Self) Self {
+        var rotation = self.rotation.mul(other.rotation);
+
+        const new_scale = self.scale() * other.scale();
+
+        rotation.r[0][3] = new_scale[0];
+        rotation.r[1][3] = new_scale[1];
+        rotation.r[2][3] = new_scale[2];
+
+        return .{
+            .position = self.objectToWorldPoint(other.position),
+            .rotation = rotation,
+        };
     }
 
     pub fn objectToWorldVector(self: Self, v: Vec4f) Vec4f {
@@ -112,5 +129,9 @@ pub const ComposedTransformation = struct {
             ray.min_t,
             ray.max_t,
         );
+    }
+
+    pub fn worldToObjectProbe(self: Self, probe: Probe) Probe {
+        return probe.clone(self.worldToObjectRay(probe.ray));
     }
 };

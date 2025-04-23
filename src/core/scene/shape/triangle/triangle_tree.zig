@@ -43,13 +43,14 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: Ray) Intersection {
+    pub fn intersect(self: Tree, ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         var tray = ray;
 
         var stack = NodeStack{};
         var n: u32 = 0;
 
-        var hpoint = Intersection{};
+        var hpoint: IndexedData.Fragment = undefined;
+        var primitive = Intersection.Null;
 
         const nodes = self.nodes;
 
@@ -63,10 +64,8 @@ pub const Tree = struct {
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(tray, i)) |hit| {
                         tray.max_t = hit.t;
-                        hpoint.t = hit.t;
-                        hpoint.u = hit.u;
-                        hpoint.v = hit.v;
-                        hpoint.primitive = i;
+                        hpoint = hit;
+                        primitive = i;
                     }
                 }
 
@@ -95,7 +94,18 @@ pub const Tree = struct {
             }
         }
 
-        return hpoint;
+        if (Intersection.Null == primitive) {
+            return false;
+        }
+
+        isec.t = hpoint.t;
+        isec.u = hpoint.u;
+        isec.v = hpoint.v;
+        isec.primitive = primitive;
+        isec.prototype = Intersection.Null;
+        isec.trafo = trafo;
+
+        return true;
     }
 
     pub fn intersectP(self: Tree, ray: Ray) bool {
@@ -212,6 +222,7 @@ pub const Tree = struct {
     pub fn transmittance(
         self: Tree,
         ray: Ray,
+        trafo: Trafo,
         entity: u32,
         depth: u32,
         sampler: *Sampler,
@@ -225,23 +236,24 @@ pub const Tree = struct {
         var tray = ray;
         tray.max_t = ro.RayMaxT;
 
+        var isec: Intersection = .{};
+
         while (true) {
-            const hit = self.intersect(tray);
-            if (Intersection.Null == hit.primitive) {
+            if (!self.intersect(tray, trafo, &isec)) {
                 break;
             }
 
-            const n = data.normal(data.indexTriangle(hit.primitive));
+            const n = data.normal(data.indexTriangle(isec.primitive));
 
             if (math.dot3(n, ray.direction) > 0.0) {
-                tray.max_t = math.min(hit.t, RayMaxT);
+                tray.max_t = math.min(isec.t, RayMaxT);
 
                 if (!worker.propTransmittance(tray, material, entity, depth, sampler, tr)) {
                     return false;
                 }
             }
 
-            const ray_min_t = ro.offsetF(hit.t);
+            const ray_min_t = ro.offsetF(isec.t);
             if (ray_min_t > RayMaxT) {
                 break;
             }
@@ -290,10 +302,10 @@ pub const Tree = struct {
                         frag.part = itri.part;
 
                         const p = self.data.interpolateP(itri, hit.u, hit.v);
-                        frag.p = frag.trafo.objectToWorldPoint(p);
+                        frag.p = frag.isec.trafo.objectToWorldPoint(p);
 
                         const geo_n = self.data.normal(itri);
-                        frag.geo_n = frag.trafo.objectToWorldNormal(geo_n);
+                        frag.geo_n = frag.isec.trafo.objectToWorldNormal(geo_n);
 
                         const uv = self.data.interpolateUv(itri, hit.u, hit.v);
 
@@ -337,6 +349,7 @@ pub const Tree = struct {
     pub fn scatter(
         self: Tree,
         ray: Ray,
+        trafo: Trafo,
         throughput: Vec4f,
         entity: u32,
         depth: u32,
@@ -352,16 +365,17 @@ pub const Tree = struct {
 
         var tr: Vec4f = @splat(1.0);
 
+        var isec: Intersection = .{};
+
         while (true) {
-            const hit = self.intersect(tray);
-            if (Intersection.Null == hit.primitive) {
+            if (!self.intersect(tray, trafo, &isec)) {
                 break;
             }
 
-            const n = data.normal(data.indexTriangle(hit.primitive));
+            const n = data.normal(data.indexTriangle(isec.primitive));
 
             if (math.dot3(n, ray.direction) > 0.0) {
-                tray.max_t = math.min(hit.t, RayMaxT);
+                tray.max_t = math.min(isec.t, RayMaxT);
 
                 var result = worker.propScatter(tray, throughput, material, entity, depth, sampler);
 
@@ -373,7 +387,7 @@ pub const Tree = struct {
                 }
             }
 
-            const ray_min_t = ro.offsetF(hit.t);
+            const ray_min_t = ro.offsetF(isec.t);
             if (ray_min_t > RayMaxT) {
                 break;
             }

@@ -23,19 +23,20 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const InfiniteSphere = struct {
-    pub fn intersect(ray: Ray) Intersection {
-        var hpoint = Intersection{};
-
+    pub fn intersect(ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         if (ray.max_t >= ro.RayMaxT) {
-            hpoint.t = ro.RayMaxT;
-            hpoint.primitive = 0;
+            isec.t = ro.RayMaxT;
+            isec.primitive = 0;
+            isec.prototype = Intersection.Null;
+            isec.trafo = trafo;
+            return true;
         }
 
-        return hpoint;
+        return false;
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
-        const xyz = math.normalize3(frag.trafo.rotation.transformVectorTransposed(ray.direction));
+        const xyz = math.normalize3(frag.isec.trafo.rotation.transformVectorTransposed(ray.direction));
 
         frag.uvw = .{
             std.math.atan2(xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
@@ -49,8 +50,8 @@ pub const InfiniteSphere = struct {
         frag.p = @as(Vec4f, @splat(ro.RayMaxT)) * dir;
         const n = -dir;
         frag.geo_n = n;
-        frag.t = frag.trafo.rotation.r[0];
-        frag.b = frag.trafo.rotation.r[1];
+        frag.t = frag.isec.trafo.rotation.r[0];
+        frag.b = frag.isec.trafo.rotation.r[1];
         frag.n = n;
         frag.part = 0;
     }

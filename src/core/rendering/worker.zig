@@ -293,7 +293,7 @@ pub const Worker = struct {
     }
 
     pub fn propIntersect(self: *const Worker, entity: u32, probe: Probe, frag: *Fragment) bool {
-        if (self.scene.prop(entity).intersect(entity, probe, frag, self.scene)) {
+        if (self.scene.prop(entity).intersect(entity, probe, &frag.isec, self.scene, &self.scene.prop_space)) {
             frag.prop = entity;
             return true;
         }
@@ -302,7 +302,7 @@ pub const Worker = struct {
     }
 
     pub fn propInterpolateFragment(self: *const Worker, entity: u32, probe: Probe, frag: *Fragment) void {
-        self.scene.prop(entity).fragment(probe, frag, self.scene);
+        self.scene.propShape(entity).fragment(probe.ray, frag);
     }
 
     pub fn intersectAndResolveMask(self: *Worker, probe: *Probe, frag: *Fragment, sampler: *Sampler) bool {

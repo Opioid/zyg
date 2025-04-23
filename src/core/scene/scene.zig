@@ -1,6 +1,8 @@
+const Space = @import("space.zig").Space;
 pub const Prop = @import("prop/prop.zig").Prop;
 const PropBvh = @import("prop/prop_tree.zig").Tree;
 const PropBvhBuilder = @import("prop/prop_tree_builder.zig").Builder;
+pub const Instancer = @import("prop/instancer.zig").Instancer;
 const lgt = @import("light/light.zig");
 const Light = lgt.Light;
 const LightProperties = lgt.Properties;
@@ -10,7 +12,7 @@ const int = @import("shape/intersection.zig");
 const Fragment = int.Fragment;
 const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
-const shp = @import("shape/shape.zig");
+pub const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
 const Renderstate = @import("renderstate.zig").Renderstate;
 const Vertex = @import("vertex.zig").Vertex;
@@ -41,8 +43,8 @@ pub const Scene = struct {
     pub const Lights = LightTree.Lights;
     pub const LightPick = Distribution1D.Discrete;
     pub const SamplesTo = Shape.SamplesTo;
-    pub const UnitsPerSecond: u64 = 705600000;
-    pub const TickDuration = UnitsPerSecond / 60;
+    pub const UnitsPerSecond = Space.UnitsPerSecond;
+    pub const TickDuration = Space.TickDuration;
     const Num_steps = 4;
     const Interval = 1.0 / @as(f32, @floatFromInt(Num_steps));
 
@@ -67,6 +69,7 @@ pub const Scene = struct {
     images: List(Image) = .empty,
     materials: List(Material) = .empty,
     shapes: List(Shape),
+    instancers: List(Instancer),
 
     num_interpolation_frames: u32 = 0,
 
@@ -79,14 +82,11 @@ pub const Scene = struct {
     unoccluding_bvh: PropBvh = .{},
     volume_bvh: PropBvh = .{},
 
-    camera_pos: Vec4f = undefined,
     caustic_aabb: AABB = undefined,
 
     props: List(Prop),
-    prop_world_transformations: List(Transformation),
     prop_parts: List(u32),
-    prop_frames: List(u32),
-    prop_aabbs: List(AABB),
+    prop_space: Space,
 
     lights: List(Light),
     light_aabbs: List(AABB),
@@ -94,8 +94,6 @@ pub const Scene = struct {
 
     material_ids: List(u32),
     light_ids: List(u32),
-
-    keyframes: List(math.Transformation),
 
     light_temp_powers: []f32,
     light_distribution: Distribution1D = .{},
@@ -122,18 +120,16 @@ pub const Scene = struct {
 
         return Scene{
             .shapes = shapes,
+            .instancers = try List(Instancer).initCapacity(alloc, 4),
             .bvh_builder = try PropBvhBuilder.init(alloc),
             .props = try List(Prop).initCapacity(alloc, Num_reserved_props),
-            .prop_world_transformations = try List(Transformation).initCapacity(alloc, Num_reserved_props),
+            .prop_space = try Space.init(alloc, Num_reserved_props),
             .prop_parts = try List(u32).initCapacity(alloc, Num_reserved_props),
-            .prop_frames = try List(u32).initCapacity(alloc, Num_reserved_props),
-            .prop_aabbs = try List(AABB).initCapacity(alloc, Num_reserved_props),
             .lights = try List(Light).initCapacity(alloc, Num_reserved_props),
             .light_aabbs = try List(AABB).initCapacity(alloc, Num_reserved_props),
             .light_cones = try List(Vec4f).initCapacity(alloc, Num_reserved_props),
             .material_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
             .light_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
-            .keyframes = try List(math.Transformation).initCapacity(alloc, Num_reserved_props),
             .light_temp_powers = try alloc.alloc(f32, Num_reserved_props),
             .finite_props = try List(u32).initCapacity(alloc, Num_reserved_props),
             .infinite_props = try List(u32).initCapacity(alloc, 2),
@@ -166,20 +162,18 @@ pub const Scene = struct {
         self.light_distribution.deinit(alloc);
         alloc.free(self.light_temp_powers);
 
-        self.keyframes.deinit(alloc);
         self.light_ids.deinit(alloc);
         self.material_ids.deinit(alloc);
         self.light_cones.deinit(alloc);
         self.light_aabbs.deinit(alloc);
         self.lights.deinit(alloc);
-        self.prop_aabbs.deinit(alloc);
-        self.prop_frames.deinit(alloc);
         self.prop_parts.deinit(alloc);
-        self.prop_world_transformations.deinit(alloc);
+        self.prop_space.deinit(alloc);
         self.props.deinit(alloc);
 
         self.procedural.deinit(alloc);
 
+        deinitResources(Instancer, alloc, &self.instancers);
         deinitResources(Shape, alloc, &self.shapes);
         deinitResources(Material, alloc, &self.materials);
         deinitResources(Image, alloc, &self.images);
@@ -192,16 +186,13 @@ pub const Scene = struct {
         self.unoccluding_props.clearRetainingCapacity();
         self.infinite_props.clearRetainingCapacity();
         self.finite_props.clearRetainingCapacity();
-        self.keyframes.clearRetainingCapacity();
         self.light_ids.clearRetainingCapacity();
         self.material_ids.clearRetainingCapacity();
         self.light_cones.clearRetainingCapacity();
         self.light_aabbs.clearRetainingCapacity();
         self.lights.clearRetainingCapacity();
-        self.prop_aabbs.clearRetainingCapacity();
-        self.prop_frames.clearRetainingCapacity();
         self.prop_parts.clearRetainingCapacity();
-        self.prop_world_transformations.clearRetainingCapacity();
+        self.prop_space.clear();
         self.props.clearRetainingCapacity();
     }
 
@@ -218,8 +209,6 @@ pub const Scene = struct {
     }
 
     pub fn compile(self: *Scene, alloc: Allocator, camera_pos: Vec4f, time: u64, threads: *Threads, fs: *Filesystem) !void {
-        self.camera_pos = camera_pos;
-
         const frames_start = time - (time % TickDuration);
         self.current_time_start = frames_start;
 
@@ -227,11 +216,11 @@ pub const Scene = struct {
 
         try self.sky.compile(alloc, time, self, threads, fs);
 
-        try self.bvh_builder.build(alloc, &self.prop_bvh, self.finite_props.items, self.prop_aabbs.items, threads);
+        try self.bvh_builder.build(alloc, &self.prop_bvh, self.finite_props.items, self.prop_space.aabbs.items, threads);
 
-        try self.bvh_builder.build(alloc, &self.unoccluding_bvh, self.unoccluding_props.items, self.prop_aabbs.items, threads);
+        try self.bvh_builder.build(alloc, &self.unoccluding_bvh, self.unoccluding_props.items, self.prop_space.aabbs.items, threads);
 
-        try self.bvh_builder.build(alloc, &self.volume_bvh, self.volumes.items, self.prop_aabbs.items, threads);
+        try self.bvh_builder.build(alloc, &self.volume_bvh, self.volumes.items, self.prop_space.aabbs.items, threads);
 
         const num_lights = self.lights.items.len;
         if (num_lights > self.light_temp_powers.len) {
@@ -250,7 +239,7 @@ pub const Scene = struct {
         var caustic_aabb = math.aabb.Empty;
         for (self.finite_props.items) |i| {
             if (self.props.items[i].caustic()) {
-                caustic_aabb.mergeAssign(self.prop_aabbs.items[i]);
+                caustic_aabb.mergeAssign(self.prop_space.aabbs.items[i]);
             }
         }
 
@@ -300,15 +289,15 @@ pub const Scene = struct {
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configure(@intFromEnum(ShapeID.DistantSphere), &.{}, false, self);
+        self.props.items[p].configureShape(@intFromEnum(ShapeID.DistantSphere), &.{}, false, self);
 
         return p;
     }
 
-    pub fn createProp(self: *Scene, alloc: Allocator, shape_id: u32, materials: []const u32, unoccluding: bool) !u32 {
+    pub fn createPropShape(self: *Scene, alloc: Allocator, shape_id: u32, materials: []const u32, unoccluding: bool, prototype: bool) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configure(shape_id, materials, unoccluding, self);
+        self.props.items[p].configureShape(shape_id, materials, unoccluding, self);
 
         const shape_inst = self.shape(shape_id);
         const num_parts = shape_inst.numParts();
@@ -322,7 +311,21 @@ pub const Scene = struct {
             try self.light_ids.append(alloc, Null);
         }
 
-        try self.classifyProp(alloc, p, shape_inst);
+        if (!prototype) {
+            try self.classifyProp(alloc, p);
+        }
+
+        return p;
+    }
+
+    pub fn createPropInstancer(self: *Scene, alloc: Allocator, shape_id: u32, prototype: bool) !u32 {
+        const p = try self.allocateProp(alloc);
+
+        self.props.items[p].configureIntancer(shape_id);
+
+        if (!prototype) {
+            try self.classifyProp(alloc, p);
+        }
 
         return p;
     }
@@ -333,19 +336,26 @@ pub const Scene = struct {
         self.props.items[p] = self.props.items[entity];
         self.prop_parts.items[p] = self.prop_parts.items[entity];
 
-        const shape_inst = self.propShape(p);
-
-        try self.classifyProp(alloc, p, shape_inst);
+        try self.classifyProp(alloc, p);
 
         return p;
     }
 
-    fn classifyProp(self: *Scene, alloc: Allocator, p: u32, shape_inst: *const Shape) !void {
-        if (self.props.items[p].volume()) {
+    pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32) !void {
+        const num_frames = self.num_interpolation_frames;
+        try self.prop_space.allocateFrames(alloc, entity, num_frames);
+
+        self.props.items[entity].configureAnimated(self);
+    }
+
+    fn classifyProp(self: *Scene, alloc: Allocator, p: u32) !void {
+        const po = self.prop(p);
+
+        if (po.volume()) {
             try self.volumes.append(alloc, p);
         } else {
-            if (shape_inst.finite()) {
-                if (self.props.items[p].unoccluding()) {
+            if (po.finite(self)) {
+                if (po.unoccluding()) {
                     try self.unoccluding_props.append(alloc, p);
                 } else {
                     try self.finite_props.append(alloc, p);
@@ -386,85 +396,18 @@ pub const Scene = struct {
         }
     }
 
-    const Frame = struct {
-        f: u32,
-        w: f32,
-    };
-
-    fn frameAt(self: *const Scene, time: u64) Frame {
-        const i = (time - self.current_time_start) / TickDuration;
-        const a_time = self.current_time_start + i * TickDuration;
-        const delta = time - a_time;
-
-        const t: f32 = @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(TickDuration)));
-
-        return .{ .f = @intCast(i), .w = t };
-    }
-
     pub fn propWorldPosition(self: *const Scene, entity: u32) Vec4f {
-        const f = self.prop_frames.items[entity];
+        const f = self.prop_space.frames.items[entity];
         if (Null == f) {
-            return self.prop_world_transformations.items[entity].position;
+            return self.prop_space.world_transformations.items[entity].position;
         }
 
-        return self.keyframes.items[f].position;
+        return self.prop_space.keyframes.items[f].position;
     }
 
     pub fn propTransformationAt(self: *const Scene, entity: u32, time: u64) Transformation {
-        const f = self.prop_frames.items[entity];
-        return self.propTransformationAtMaybeStatic(entity, time, Null == f);
-    }
-
-    pub fn propTransformationAtMaybeStatic(self: *const Scene, entity: u32, time: u64, static: bool) Transformation {
-        if (static) {
-            var trafo = self.prop_world_transformations.items[entity];
-            trafo.translate(-self.camera_pos);
-            return trafo;
-        }
-
-        return self.propAnimatedTransformationAt(self.prop_frames.items[entity], time);
-    }
-
-    pub fn propSetWorldTransformation(self: *Scene, entity: u32, t: math.Transformation) void {
-        self.prop_world_transformations.items[entity] = Transformation.init(t);
-    }
-
-    pub fn propAllocateFrames(self: *Scene, alloc: Allocator, entity: u32) !void {
-        const current_len: u32 = @intCast(self.keyframes.items.len);
-        self.prop_frames.items[entity] = current_len;
-
-        const num_frames = self.num_interpolation_frames;
-        try self.keyframes.resize(alloc, current_len + num_frames);
-
-        self.props.items[entity].configureAnimated(self);
-    }
-
-    pub fn propHasAnimatedFrames(self: *const Scene, entity: u32) bool {
-        return Null != self.prop_frames.items[entity];
-    }
-
-    pub fn propSetFrame(self: *Scene, entity: u32, index: u32, frame: math.Transformation) void {
-        const b = self.prop_frames.items[entity];
-
-        self.keyframes.items[b + index] = frame;
-    }
-
-    pub fn propSetFrames(self: *Scene, entity: u32, frames: [*]const math.Transformation) void {
-        const len = self.num_interpolation_frames;
-        const b = self.prop_frames.items[entity];
-        const e = b + len;
-
-        @memcpy(self.keyframes.items[b..e], frames[0..len]);
-    }
-
-    pub fn propSetFramesScale(self: *Scene, entity: u32, scale: Vec4f) void {
-        const len = self.num_interpolation_frames;
-        const b = self.prop_frames.items[entity];
-        const e = b + len;
-
-        for (self.keyframes.items[b..e]) |*f| {
-            f.scale = scale;
-        }
+        const f = self.prop_space.frames.items[entity];
+        return self.prop_space.transformationAtMaybeStatic(entity, time, self.current_time_start, Null == f);
     }
 
     pub fn propSetVisibility(
@@ -499,12 +442,12 @@ pub const Scene = struct {
         const variant = shape_inst.prepareSampling(alloc, part, m, &self.light_tree_builder, self, threads) catch 0;
         l.variant = variant;
 
-        const trafo = self.propTransformationAt(entity, time);
+        const trafo = self.prop_space.transformationAt(entity, time, self.current_time_start);
         const extent = if (l.volumetric()) shape_inst.volume(trafo.scale()) else shape_inst.area(part, trafo.scale());
 
         const average_radiance = mat.prepareSampling(alloc, shape_inst, part, trafo, extent, self, threads);
 
-        const f = self.prop_frames.items[entity];
+        const f = self.prop_space.frames.items[entity];
         const part_aabb = shape_inst.partAabb(part, variant);
         const part_cone = shape_inst.partCone(part, variant);
 
@@ -517,7 +460,7 @@ pub const Scene = struct {
             const tc = trafo.objectToWorldNormal(part_cone);
             self.light_cones.items[light_id] = Vec4f{ tc[0], tc[1], tc[2], part_cone[3] };
         } else {
-            const frames = self.keyframes.items.ptr + f;
+            const frames = self.prop_space.keyframes.items.ptr + f;
 
             var rotation = math.quaternion.toMat3x3(frames[0].rotation);
             var composed = Mat4x4.compose(rotation, frames[0].scale, frames[0].position);
@@ -566,19 +509,19 @@ pub const Scene = struct {
     }
 
     pub fn propAabbIntersect(self: *const Scene, entity: u32, ray: math.Ray) bool {
-        return self.prop_aabbs.items[entity].intersect(ray);
+        return self.prop_space.aabbs.items[entity].intersect(ray);
     }
 
     pub fn propAabbIntersectP(self: *const Scene, entity: u32, ray: math.Ray) ?f32 {
-        return self.prop_aabbs.items[entity].intersectP(ray);
+        return self.prop_space.aabbs.items[entity].intersectP(ray);
     }
 
     pub fn propRadius(self: *const Scene, entity: u32) f32 {
-        return self.prop_aabbs.items[entity].cachedRadius();
+        return self.prop_space.aabbs.items[entity].cachedRadius();
     }
 
     pub fn propShape(self: *const Scene, entity: usize) *Shape {
-        return &self.shapes.items[self.props.items[entity].shape];
+        return &self.shapes.items[self.props.items[entity].resource];
     }
 
     pub fn propIsShadowCatcher(self: *const Scene, entity: u32) bool {
@@ -618,6 +561,10 @@ pub const Scene = struct {
 
     pub fn shape(self: *const Scene, shape_id: u32) *const Shape {
         return &self.shapes.items[shape_id];
+    }
+
+    pub fn instancer(self: *const Scene, shape_id: u32) *const Instancer {
+        return &self.instancers.items[shape_id];
     }
 
     pub fn prop(self: *const Scene, index: u32) Prop {
@@ -719,10 +666,8 @@ pub const Scene = struct {
 
     fn allocateProp(self: *Scene, alloc: Allocator) !u32 {
         try self.props.append(alloc, .{});
-        try self.prop_world_transformations.append(alloc, undefined);
+        try self.prop_space.allocateInstance(alloc);
         try self.prop_parts.append(alloc, 0);
-        try self.prop_frames.append(alloc, Null);
-        try self.prop_aabbs.append(alloc, undefined);
 
         return @intCast(self.props.items.len - 1);
     }
@@ -764,56 +709,12 @@ pub const Scene = struct {
     }
 
     fn calculateWorldBounds(self: *Scene, camera_pos: Vec4f) void {
-        for (self.prop_frames.items, 0..) |f, entity| {
-            const shape_aabb = self.propShape(entity).aabb();
+        for (0..self.prop_space.frames.items.len) |entity| {
+            const p: u32 = @truncate(entity);
+            const prop_aabb = self.prop(p).localAabb(self);
 
-            var bounds: AABB = undefined;
-
-            if (Null == f) {
-                const trafo = self.prop_world_transformations.items[entity];
-
-                bounds = shape_aabb.transform(trafo.objectToWorld());
-            } else {
-                const frames = self.keyframes.items.ptr + f;
-
-                bounds = shape_aabb.transform(frames[0].toMat4x4());
-
-                var i: u32 = 0;
-                const len = self.num_interpolation_frames - 1;
-                while (i < len) : (i += 1) {
-                    const a = frames[i];
-                    const b = frames[i + 1];
-
-                    var t = Interval;
-                    var j: u32 = Num_steps - 1;
-                    while (j > 0) : (j -= 1) {
-                        const inter = a.lerp(b, t);
-                        bounds.mergeAssign(shape_aabb.transform(inter.toMat4x4()));
-                        t += Interval;
-                    }
-                }
-
-                bounds.mergeAssign(shape_aabb.transform(frames[len].toMat4x4()));
-            }
-
-            bounds.translate(-camera_pos);
-            bounds.cacheRadius();
-            self.prop_aabbs.items[entity] = bounds;
+            self.prop_space.calculateWorldBounds(p, prop_aabb, camera_pos, self.num_interpolation_frames);
         }
-    }
-
-    fn propAnimatedTransformationAt(self: *const Scene, frames_id: u32, time: u64) Transformation {
-        const f = self.frameAt(time);
-
-        const frames = self.keyframes.items.ptr + frames_id;
-
-        const a = frames[f.f];
-        const b = frames[f.f + 1];
-
-        var inter = a.lerp(b, f.w);
-        inter.position -= self.camera_pos;
-
-        return Transformation.init(inter);
     }
 
     fn countFrames(frame_step: u64, frame_duration: u64) u32 {

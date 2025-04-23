@@ -214,7 +214,7 @@ pub const Graph = struct {
             }
 
             if (Null != entity_id) {
-                self.scene.propSetWorldTransformation(entity_id, result.world_trafo);
+                self.scene.prop_space.setWorldTransformation(entity_id, result.world_trafo);
             }
         }
 
@@ -254,9 +254,9 @@ pub const Graph = struct {
                 const render_id = self.prop_props.items[entity];
                 if (Null != render_id) {
                     if (animation) {
-                        self.scene.propSetFrames(render_id, frames);
+                        self.scene.prop_space.setFrames(render_id, frames, self.scene.num_interpolation_frames);
                     } else {
-                        self.scene.propSetWorldTransformation(render_id, frames[0]);
+                        self.scene.prop_space.setWorldTransformation(render_id, frames[0]);
                     }
                 }
 
@@ -285,7 +285,7 @@ pub const Graph = struct {
         const render_id = self.prop_props.items[entity];
 
         if (Null != render_id) {
-            const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[render_id];
+            const df = self.scene.prop_space.keyframes.items.ptr + self.scene.prop_space.frames.items[render_id];
 
             var i: u32 = 0;
             while (i < len) : (i += 1) {

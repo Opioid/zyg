@@ -56,7 +56,7 @@ pub const Lighttracer = struct {
 
         const light = worker.scene.light(light_id);
         if (light.volumetric()) {
-            vertex.mediums.pushVolumeLight(light);
+            vertex.mediums.pushVolumeLight(light, light_sample.trafo);
         }
 
         self.integrate(vertex, worker, light, light_sample);

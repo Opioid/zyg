@@ -54,14 +54,14 @@ pub const Sky = struct {
         var sun_mat = try SkyMaterial.initSun(alloc);
         sun_mat.commit();
         const sun_mat_id = try scene.createMaterial(alloc, .{ .Sky = sun_mat });
-        const sun_prop = try scene.createProp(alloc, @intFromEnum(Scene.ShapeID.DistantSphere), &.{sun_mat_id}, true);
+        const sun_prop = try scene.createPropShape(alloc, @intFromEnum(Scene.ShapeID.DistantSphere), &.{sun_mat_id}, true, false);
 
         const sky_image = try scene.createImage(alloc, .{ .Float3 = .{} });
         const emission_map = Texture.initImage(.Float3, sky_image, .UV0, @splat(1.0));
         var sky_mat = SkyMaterial.initSky(emission_map);
         sky_mat.commit();
         const sky_mat_id = try scene.createMaterial(alloc, .{ .Sky = sky_mat });
-        const sky_prop = try scene.createProp(alloc, @intFromEnum(Scene.ShapeID.Canopy), &.{sky_mat_id}, true);
+        const sky_prop = try scene.createPropShape(alloc, @intFromEnum(Scene.ShapeID.Canopy), &.{sky_mat_id}, true, false);
 
         self.sky = sky_prop;
         self.sun = sun_prop;
@@ -72,7 +72,7 @@ pub const Sky = struct {
             .rotation = math.quaternion.initRotationX(math.degreesToRadians(90.0)),
         };
 
-        scene.propSetWorldTransformation(sky_prop, trafo);
+        scene.prop_space.setWorldTransformation(sky_prop, trafo);
 
         try scene.createLight(alloc, sun_prop);
         try scene.createLight(alloc, sky_prop);
@@ -114,9 +114,9 @@ pub const Sky = struct {
 
         const scale: Vec4f = if (under_horizon) @splat(0.0) else Vec4f{ Radius, Radius, Radius, 1.0 };
 
-        if (scene.propHasAnimatedFrames(self.sun)) {
-            self.sun_rotation = scene.propTransformationAt(self.sun, time).rotation;
-            scene.propSetFramesScale(self.sun, scale);
+        if (scene.prop_space.hasAnimatedFrames(self.sun)) {
+            self.sun_rotation = scene.prop_space.transformationAt(self.sun, time, scene.current_time_start).rotation;
+            scene.prop_space.setFramesScale(self.sun, scale, scene.num_interpolation_frames);
         } else {
             const trafo = Transformation{
                 .position = @splat(0.0),
@@ -124,7 +124,7 @@ pub const Sky = struct {
                 .rotation = math.quaternion.initFromMat3x3(self.sun_rotation),
             };
 
-            scene.propSetWorldTransformation(self.sun, trafo);
+            scene.prop_space.setWorldTransformation(self.sun, trafo);
         }
 
         var hasher = std.hash.Fnv1a_128.init();
@@ -220,7 +220,7 @@ pub const Sky = struct {
             .model = &model,
             .shape = scene.propShape(self.sky),
             .image = image,
-            .trafo = scene.propTransformationAtMaybeStatic(self.sky, 0, true),
+            .trafo = scene.prop_space.transformationAtMaybeStatic(self.sky, 0, 0, true),
         };
 
         threads.runParallel(&context, SkyContext.bakeSky, 0);

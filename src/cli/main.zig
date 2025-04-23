@@ -205,7 +205,7 @@ fn reloadFrameDependant(
     for (graph.take.view.cameras.items[0..num_take_cameras], graph.camera_trafos.items) |*camera, trafo| {
         const entity_id = try graph.scene.createEntity(alloc);
         camera.super().entity = entity_id;
-        graph.scene.propSetWorldTransformation(entity_id, trafo);
+        graph.scene.prop_space.setWorldTransformation(entity_id, trafo);
     }
 
     scene_loader.load(alloc, graph) catch |err| {

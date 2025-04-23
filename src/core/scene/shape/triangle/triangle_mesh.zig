@@ -429,9 +429,9 @@ pub const Mesh = struct {
         return self.parts[part].totalCone(variant);
     }
 
-    pub fn intersect(self: *const Mesh, ray: Ray, trafo: Trafo) Intersection {
+    pub fn intersect(self: *const Mesh, ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         const local_ray = trafo.worldToObjectRay(ray);
-        return self.tree.intersect(local_ray);
+        return self.tree.intersect(local_ray, trafo, isec);
     }
 
     pub fn fragment(self: *const Mesh, frag: *Fragment) void {
@@ -445,10 +445,10 @@ pub const Mesh = struct {
         const hit_v = frag.isec.v;
 
         const p = data.interpolateP(itri, hit_u, hit_v);
-        frag.p = frag.trafo.objectToWorldPoint(p);
+        frag.p = frag.isec.trafo.objectToWorldPoint(p);
 
         const geo_n = data.normal(itri);
-        frag.geo_n = frag.trafo.objectToWorldNormal(geo_n);
+        frag.geo_n = frag.isec.trafo.objectToWorldNormal(geo_n);
 
         var t: Vec4f = undefined;
         var n: Vec4f = undefined;
@@ -456,8 +456,8 @@ pub const Mesh = struct {
         var bit_sign: f32 = undefined;
         data.interpolateData(itri, hit_u, hit_v, &t, &n, &uv, &bit_sign);
 
-        const t_w = frag.trafo.objectToWorldNormal(t);
-        const n_w = frag.trafo.objectToWorldNormal(n);
+        const t_w = frag.isec.trafo.objectToWorldNormal(t);
+        const n_w = frag.isec.trafo.objectToWorldNormal(n);
         const b_w = @as(Vec4f, @splat(bit_sign)) * math.cross3(n_w, t_w);
 
         frag.t = t_w;
@@ -494,7 +494,7 @@ pub const Mesh = struct {
         tr: *Vec4f,
     ) bool {
         const tray = trafo.worldToObjectRay(probe.ray);
-        return self.tree.transmittance(tray, entity, probe.depth.volume, sampler, worker, tr);
+        return self.tree.transmittance(tray, trafo, entity, probe.depth.volume, sampler, worker, tr);
     }
 
     pub fn emission(
@@ -505,7 +505,7 @@ pub const Mesh = struct {
         sampler: *Sampler,
         worker: *const Worker,
     ) Vec4f {
-        const tray = frag.trafo.worldToObjectRay(vertex.probe.ray);
+        const tray = frag.isec.trafo.worldToObjectRay(vertex.probe.ray);
         return self.tree.emission(tray, vertex, frag, split_threshold, sampler, worker);
     }
 
@@ -519,7 +519,7 @@ pub const Mesh = struct {
         worker: *Worker,
     ) Volume {
         const tray = trafo.worldToObjectRay(probe.ray);
-        return self.tree.scatter(tray, throughput, entity, probe.depth.volume, sampler, worker);
+        return self.tree.scatter(tray, trafo, throughput, entity, probe.depth.volume, sampler, worker);
     }
 
     //Gram-Schmidt method
@@ -808,8 +808,8 @@ pub const Mesh = struct {
     ) f32 {
         const n_dot_dir = @abs(math.dot3(frag.geo_n, dir));
 
-        const op = frag.trafo.worldToObjectPoint(p);
-        const on = frag.trafo.worldToObjectNormal(n);
+        const op = frag.isec.trafo.worldToObjectPoint(p);
+        const on = frag.isec.trafo.worldToObjectNormal(n);
 
         const pm = self.primitive_mapping[frag.isec.primitive];
 
@@ -827,7 +827,7 @@ pub const Mesh = struct {
 
         const cross_axis = math.cross3(e1, e2);
 
-        const ca = (frag.trafo.scale() * frag.trafo.scale()) * cross_axis;
+        const ca = (frag.isec.trafo.scale() * frag.isec.trafo.scale()) * cross_axis;
         const tri_area = 0.5 * math.length3(ca);
 
         const center = (a + b + c) / @as(Vec4f, @splat(3.0));

@@ -22,19 +22,20 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Cube = struct {
-    pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
-        var hpoint = Intersection{};
-
+    pub fn intersect(ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         const local_ray = trafo.worldToObjectRay(ray);
 
         const aabb = AABB.init(@splat(-0.5), @splat(0.5));
         const hit_t = aabb.intersectP(local_ray);
         if (hit_t < ray.max_t) {
-            hpoint.t = hit_t;
-            hpoint.primitive = 0;
+            isec.t = hit_t;
+            isec.primitive = 0;
+            isec.prototype = Intersection.Null;
+            isec.trafo = trafo;
+            return true;
         }
 
-        return hpoint;
+        return false;
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
@@ -42,13 +43,13 @@ pub const Cube = struct {
 
         frag.p = ray.point(hit_t);
 
-        const local_ray = frag.trafo.worldToObjectRay(ray);
+        const local_ray = frag.isec.trafo.worldToObjectRay(ray);
         const local_p = local_ray.point(hit_t);
         const distance = @abs(@as(Vec4f, @splat(0.5)) - @abs(local_p));
 
         const i = math.indexMinComponent3(distance);
         const s = std.math.copysign(@as(f32, 1.0), local_p[i]);
-        const n = @as(Vec4f, @splat(s)) * frag.trafo.rotation.r[i];
+        const n = @as(Vec4f, @splat(s)) * frag.isec.trafo.rotation.r[i];
 
         frag.part = 0;
         frag.geo_n = n;
@@ -186,7 +187,7 @@ pub const Cube = struct {
     }
 
     pub fn volumePdf(p: Vec4f, frag: *const Fragment) f32 {
-        const scale = frag.trafo.scale();
+        const scale = frag.isec.trafo.scale();
         const volume = scale[0] * scale[1] * scale[2];
 
         const sl = math.squaredDistance3(p, frag.p);

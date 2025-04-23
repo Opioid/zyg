@@ -24,21 +24,21 @@ const std = @import("std");
 pub const Canopy = struct {
     const Eps = -0.0005;
 
-    pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
-        var hpoint = Intersection{};
-
+    pub fn intersect(ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         if (ray.max_t < ro.RayMaxT or math.dot3(ray.direction, trafo.rotation.r[2]) < Eps) {
-            return hpoint;
+            return false;
         }
 
-        hpoint.primitive = 0;
-        hpoint.t = ro.RayMaxT;
+        isec.primitive = 0;
+        isec.prototype = Intersection.Null;
+        isec.t = ro.RayMaxT;
+        isec.trafo = trafo;
 
-        return hpoint;
+        return true;
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
-        const xyz = math.normalize3(frag.trafo.rotation.transformVectorTransposed(ray.direction));
+        const xyz = math.normalize3(frag.isec.trafo.rotation.transformVectorTransposed(ray.direction));
 
         const disk = hemisphereToDiskEquidistant(xyz);
         frag.uvw = .{
@@ -53,8 +53,8 @@ pub const Canopy = struct {
         frag.p = @as(Vec4f, @splat(ro.RayMaxT)) * dir;
         const n = -dir;
         frag.geo_n = n;
-        frag.t = frag.trafo.rotation.r[0];
-        frag.b = frag.trafo.rotation.r[1];
+        frag.t = frag.isec.trafo.rotation.r[0];
+        frag.b = frag.isec.trafo.rotation.r[1];
         frag.n = n;
         frag.part = 0;
     }

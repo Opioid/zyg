@@ -22,25 +22,25 @@ pub const Mesh = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn intersect(self: *const Mesh, ray: Ray, trafo: Trafo) Intersection {
+    pub fn intersect(self: *const Mesh, ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         const local_ray = trafo.worldToObjectRay(ray);
-        return self.tree.intersect(local_ray);
+        return self.tree.intersect(local_ray, trafo, isec);
     }
 
     pub fn fragment(self: *const Mesh, ray: Ray, frag: *Fragment) void {
-        const local_ray = frag.trafo.worldToObjectRay(ray);
+        const local_ray = frag.isec.trafo.worldToObjectRay(ray);
 
         const hit_u = frag.isec.u;
 
         const data = self.tree.data.interpolateData(local_ray, frag.isec.primitive, hit_u);
 
-        const t = math.normalize3(frag.trafo.objectToWorldNormal(data.dpdu));
-        const b = math.normalize3(frag.trafo.objectToWorldNormal(data.dpdv));
+        const t = math.normalize3(frag.isec.trafo.objectToWorldNormal(data.dpdu));
+        const b = math.normalize3(frag.isec.trafo.objectToWorldNormal(data.dpdv));
         const n = math.cross3(t, b);
 
-        const geo_n = frag.trafo.objectToWorldNormal(data.geo_n);
+        const geo_n = frag.isec.trafo.objectToWorldNormal(data.geo_n);
 
-        const offset = frag.trafo.scaleX() * 0.5 * data.width;
+        const offset = frag.isec.trafo.scaleX() * 0.5 * data.width;
 
         frag.p = ray.point(frag.isec.t);
         frag.t = t;

@@ -437,7 +437,7 @@ export fn su_prop_create(shape: u32, num_materials: u32, materials: [*]const u32
             matbuf.appendAssumeCapacity(fallback_mat);
         }
 
-        const prop = e.scene.createProp(e.alloc, shape, matbuf.items, false) catch return -1;
+        const prop = e.scene.createPropShape(e.alloc, shape, matbuf.items, false, false) catch return -1;
 
         return @as(i32, @intCast(prop));
     }
@@ -487,7 +487,7 @@ export fn su_prop_set_transformation(prop: u32, trafo: [*]const f32) i32 {
 
         t.rotation = math.quaternion.initFromMat3x3(r);
 
-        e.scene.propSetWorldTransformation(prop, t);
+        e.scene.prop_space.setWorldTransformation(prop, t);
         return 0;
     }
 
@@ -504,7 +504,7 @@ export fn su_prop_set_transformation_frame(prop: u32, frame: u32, trafo: [*]cons
             return -1;
         }
 
-        if (scn.Prop.Null == e.scene.prop_frames.items[prop]) {
+        if (scn.Prop.Null == e.scene.prop_space.frames.items[prop]) {
             e.scene.propAllocateFrames(e.alloc, prop) catch return -1;
         }
 
@@ -516,7 +516,7 @@ export fn su_prop_set_transformation_frame(prop: u32, frame: u32, trafo: [*]cons
 
         t.rotation = math.quaternion.initFromMat3x3(r);
 
-        e.scene.propSetFrame(prop, frame, t);
+        e.scene.prop_space.setFrame(prop, frame, t);
         return 0;
     }
 
