@@ -352,6 +352,7 @@ pub const Tree = struct {
         var stack = NodeStack{};
 
         var result = Volume.initPass(@splat(1.0));
+        var isec: Intersection = undefined;
         var prop = Prop.Null;
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
@@ -367,7 +368,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (instances[start..end]) |p| {
-                    const lr = props[p].scatter(p, probe.*, frag, throughput.*, sampler, worker);
+                    const lr = props[p].scatter(p, probe.*, &isec, throughput.*, sampler, worker);
 
                     if (.Pass != lr.event) {
                         probe.ray.max_t = lr.t;
@@ -408,7 +409,8 @@ pub const Tree = struct {
 
         throughput.* *= result.tr;
 
-        if (.Pass != result.event) {
+        if (.Scatter == result.event or .Absorb == result.event) {
+            frag.isec = isec;
             frag.prop = prop;
             frag.part = 0;
             frag.p = probe.ray.point(result.t);

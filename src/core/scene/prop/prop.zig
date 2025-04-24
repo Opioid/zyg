@@ -244,7 +244,7 @@ pub const Prop = struct {
         self: Prop,
         entity: u32,
         probe: Probe,
-        frag: *Fragment,
+        isec: *Intersection,
         throughput: Vec4f,
         sampler: *Sampler,
         worker: *Worker,
@@ -260,7 +260,7 @@ pub const Prop = struct {
 
         const result = scene.shape(self.resource).scatter(probe, trafo, throughput, entity, sampler, worker);
         if (.Absorb == result.event) {
-            frag.isec.trafo = trafo;
+            isec.trafo = trafo;
         }
 
         return result;
