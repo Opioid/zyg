@@ -182,10 +182,10 @@ pub const Tree = struct {
 
     pub fn visibility(
         self: Tree,
+        comptime Volumetric: bool,
         probe: Probe,
         sampler: *Sampler,
         worker: *Worker,
-        volumetric: bool,
         tr: *Vec4f,
     ) bool {
         var stack = NodeStack{};
@@ -204,7 +204,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (instances[start..end]) |p| {
-                    if (!props[p].visibility(p, p, probe, sampler, worker, &worker.scene.prop_space, volumetric, tr)) {
+                    if (!props[p].visibility(Volumetric, p, p, probe, sampler, worker, &worker.scene.prop_space, tr)) {
                         return false;
                     }
                 }
@@ -239,12 +239,12 @@ pub const Tree = struct {
 
     pub fn visibilityIndexed(
         self: Tree,
+        comptime Volumetric: bool,
         probe: Probe,
         indices: [*]const u32,
         sampler: *Sampler,
         worker: *Worker,
         space: *const Space,
-        volumetric: bool,
         tr: *Vec4f,
     ) bool {
         var stack = NodeStack{};
@@ -264,7 +264,7 @@ pub const Tree = struct {
                 const end = start + num;
                 for (instances[start..end]) |i| {
                     const p = indices[i];
-                    if (!props[p].visibility(i, p, probe, sampler, worker, space, volumetric, tr)) {
+                    if (!props[p].visibility(Volumetric, i, p, probe, sampler, worker, space, tr)) {
                         return false;
                     }
                 }

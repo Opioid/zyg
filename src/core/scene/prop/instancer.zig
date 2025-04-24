@@ -78,16 +78,14 @@ pub const Instancer = struct {
         return false;
     }
 
-    pub fn visibility(self: *const Self, probe: Probe, trafo: Trafo, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
+    pub fn visibility(self: *const Self, comptime Volumetric: bool, probe: Probe, trafo: Trafo, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
         const local_probe = trafo.worldToObjectProbe(probe);
 
-        return self.solid_bvh.visibilityIndexed(local_probe, self.prototypes.items.ptr, sampler, worker, &self.space, false, tr);
-    }
-
-    pub fn transmittance(self: *const Self, probe: Probe, trafo: Trafo, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
-        const local_probe = trafo.worldToObjectProbe(probe);
-
-        return self.volume_bvh.visibilityIndexed(local_probe, self.prototypes.items.ptr, sampler, worker, &self.space, true, tr);
+        if (Volumetric) {
+            return self.volume_bvh.visibilityIndexed(Volumetric, local_probe, self.prototypes.items.ptr, sampler, worker, &self.space, tr);
+        } else {
+            return self.solid_bvh.visibilityIndexed(Volumetric, local_probe, self.prototypes.items.ptr, sampler, worker, &self.space, tr);
+        }
     }
 
     pub fn scatter(

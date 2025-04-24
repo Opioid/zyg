@@ -188,13 +188,13 @@ pub const Prop = struct {
 
     pub fn visibility(
         self: Prop,
+        comptime Volumetric: bool,
         entity: u32,
         prototype: u32,
         probe: Probe,
         sampler: *Sampler,
         worker: *Worker,
         space: *const Space,
-        volumetric: bool,
         tr: *Vec4f,
     ) bool {
         const properties = self.properties;
@@ -211,15 +211,11 @@ pub const Prop = struct {
         const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.current_time_start, properties.static);
 
         if (properties.instancer) {
-            if (volumetric) {
-                return scene.instancer(self.resource).transmittance(probe, trafo, sampler, worker, tr);
-            } else {
-                return scene.instancer(self.resource).visibility(probe, trafo, sampler, worker, tr);
-            }
+            return scene.instancer(self.resource).visibility(Volumetric, probe, trafo, sampler, worker, tr);
         } else {
             const shape = scene.shape(self.resource);
 
-            if (volumetric) {
+            if (Volumetric) {
                 return shape.transmittance(probe, trafo, prototype, sampler, worker, tr);
             } else if (properties.evaluate_visibility) {
                 return shape.visibility(probe, trafo, prototype, sampler, worker, tr);
