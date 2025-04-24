@@ -78,7 +78,7 @@ pub const Scene = struct {
     bvh_builder: PropBvhBuilder,
     light_tree_builder: LightTreeBuilder = .{},
 
-    prop_bvh: PropBvh = .{},
+    solid_bvh: PropBvh = .{},
     unoccluding_bvh: PropBvh = .{},
     volume_bvh: PropBvh = .{},
 
@@ -102,7 +102,7 @@ pub const Scene = struct {
     finite_props: List(u32),
     infinite_props: List(u32),
     unoccluding_props: List(u32),
-    volumes: List(u32),
+    volume_props: List(u32),
 
     sky: Sky = .{},
 
@@ -134,7 +134,7 @@ pub const Scene = struct {
             .finite_props = try List(u32).initCapacity(alloc, Num_reserved_props),
             .infinite_props = try List(u32).initCapacity(alloc, 2),
             .unoccluding_props = try List(u32).initCapacity(alloc, Num_reserved_props),
-            .volumes = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .volume_props = try List(u32).initCapacity(alloc, Num_reserved_props),
         };
     }
 
@@ -148,12 +148,12 @@ pub const Scene = struct {
 
     pub fn deinit(self: *Scene, alloc: Allocator) void {
         self.light_tree_builder.deinit(alloc);
-        self.prop_bvh.deinit(alloc);
+        self.solid_bvh.deinit(alloc);
         self.unoccluding_bvh.deinit(alloc);
         self.volume_bvh.deinit(alloc);
         self.bvh_builder.deinit(alloc);
 
-        self.volumes.deinit(alloc);
+        self.volume_props.deinit(alloc);
         self.unoccluding_props.deinit(alloc);
         self.infinite_props.deinit(alloc);
         self.finite_props.deinit(alloc);
@@ -182,7 +182,7 @@ pub const Scene = struct {
     pub fn clear(self: *Scene) void {
         self.num_interpolation_frames = 0;
 
-        self.volumes.clearRetainingCapacity();
+        self.volume_props.clearRetainingCapacity();
         self.unoccluding_props.clearRetainingCapacity();
         self.infinite_props.clearRetainingCapacity();
         self.finite_props.clearRetainingCapacity();
@@ -197,7 +197,7 @@ pub const Scene = struct {
     }
 
     pub fn aabb(self: *const Scene) AABB {
-        return self.prop_bvh.aabb();
+        return self.solid_bvh.aabb();
     }
 
     pub fn causticAabb(self: *const Scene) AABB {
@@ -216,11 +216,11 @@ pub const Scene = struct {
 
         try self.sky.compile(alloc, time, self, threads, fs);
 
-        try self.bvh_builder.build(alloc, &self.prop_bvh, self.finite_props.items, self.prop_space.aabbs.items, threads);
+        try self.bvh_builder.build(alloc, &self.solid_bvh, self.finite_props.items, self.prop_space.aabbs.items, threads);
 
         try self.bvh_builder.build(alloc, &self.unoccluding_bvh, self.unoccluding_props.items, self.prop_space.aabbs.items, threads);
 
-        try self.bvh_builder.build(alloc, &self.volume_bvh, self.volumes.items, self.prop_space.aabbs.items, threads);
+        try self.bvh_builder.build(alloc, &self.volume_bvh, self.volume_props.items, self.prop_space.aabbs.items, threads);
 
         const num_lights = self.lights.items.len;
         if (num_lights > self.light_temp_powers.len) {
@@ -247,12 +247,12 @@ pub const Scene = struct {
     }
 
     pub fn intersect(self: *const Scene, probe: *Probe, frag: *Fragment) bool {
-        return self.prop_bvh.intersect(probe, frag, self);
+        return self.solid_bvh.intersect(probe, frag, self);
     }
 
     pub fn visibility(self: *const Scene, probe: Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
-        if (self.prop_bvh.visibility(probe, sampler, worker, tr)) {
-            return self.volume_bvh.visibility(probe, sampler, worker, tr);
+        if (self.solid_bvh.visibility(probe, sampler, worker, false, tr)) {
+            return self.volume_bvh.visibility(probe, sampler, worker, true, tr);
         }
 
         return false;
@@ -318,10 +318,10 @@ pub const Scene = struct {
         return p;
     }
 
-    pub fn createPropInstancer(self: *Scene, alloc: Allocator, shape_id: u32, prototype: bool) !u32 {
+    pub fn createPropInstancer(self: *Scene, alloc: Allocator, shape_id: u32, solid: bool, volume: bool, prototype: bool) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configureIntancer(shape_id);
+        self.props.items[p].configureIntancer(shape_id, solid, volume);
 
         if (!prototype) {
             try self.classifyProp(alloc, p);
@@ -352,8 +352,10 @@ pub const Scene = struct {
         const po = self.prop(p);
 
         if (po.volume()) {
-            try self.volumes.append(alloc, p);
-        } else {
+            try self.volume_props.append(alloc, p);
+        }
+
+        if (po.solid()) {
             if (po.finite(self)) {
                 if (po.unoccluding()) {
                     try self.unoccluding_props.append(alloc, p);

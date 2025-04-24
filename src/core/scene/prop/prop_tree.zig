@@ -182,7 +182,14 @@ pub const Tree = struct {
         return hit;
     }
 
-    pub fn visibility(self: Tree, probe: Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
+    pub fn visibility(
+        self: Tree,
+        probe: Probe,
+        sampler: *Sampler,
+        worker: *Worker,
+        volumetric: bool,
+        tr: *Vec4f,
+    ) bool {
         var stack = NodeStack{};
 
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
@@ -199,7 +206,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (instances[start..end]) |p| {
-                    if (!props[p].visibility(p, probe, sampler, worker, &worker.scene.prop_space, tr)) {
+                    if (!props[p].visibility(p, p, probe, sampler, worker, &worker.scene.prop_space, volumetric, tr)) {
                         return false;
                     }
                 }
@@ -239,6 +246,7 @@ pub const Tree = struct {
         sampler: *Sampler,
         worker: *Worker,
         space: *const Space,
+        volumetric: bool,
         tr: *Vec4f,
     ) bool {
         var stack = NodeStack{};
@@ -258,7 +266,7 @@ pub const Tree = struct {
                 const end = start + num;
                 for (instances[start..end]) |i| {
                     const p = indices[i];
-                    if (!props[p].visibility(i, probe, sampler, worker, space, tr)) {
+                    if (!props[p].visibility(i, p, probe, sampler, worker, space, volumetric, tr)) {
                         return false;
                     }
                 }
@@ -368,12 +376,13 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (instances[start..end]) |p| {
-                    const lr = props[p].scatter(p, probe.*, &isec, throughput.*, sampler, worker);
+                    const lr = props[p].scatter(p, p, probe.*, &isec, throughput.*, sampler, worker, &worker.scene.prop_space);
 
                     if (.Pass != lr.event) {
                         probe.ray.max_t = lr.t;
                         result = lr;
-                        prop = p;
+                        const prototype = isec.prototype;
+                        prop = if (Intersection.Null == prototype) p else prototype;
                     } else if (.Pass == result.event) {
                         result.tr *= lr.tr;
                     }
@@ -419,5 +428,77 @@ pub const Tree = struct {
             frag.n = vn;
             frag.uvw = result.uvw;
         }
+    }
+
+    pub fn scatterIndexed(
+        self: Tree,
+        probe: *Probe,
+        indices: [*]const u32,
+        isec: *Intersection,
+        throughput: Vec4f,
+        sampler: *Sampler,
+        worker: *Worker,
+        space: *const Space,
+    ) Volume {
+        var stack = NodeStack{};
+
+        var result = Volume.initPass(@splat(1.0));
+        var prop = Prop.Null;
+        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
+
+        const nodes = self.nodes;
+        const instances = self.indices;
+        const props = worker.scene.props.items.ptr;
+
+        while (NodeStack.End != n) {
+            const node = nodes[n];
+
+            const num = node.numIndices();
+            if (0 != num) {
+                const start = node.indicesStart();
+                const end = start + num;
+                for (instances[start..end]) |i| {
+                    const p = indices[i];
+
+                    const lr = props[p].scatter(i, p, probe.*, isec, throughput, sampler, worker, space);
+
+                    if (.Pass != lr.event) {
+                        probe.ray.max_t = lr.t;
+                        result = lr;
+                        const prototype = isec.prototype;
+                        prop = if (Intersection.Null == prototype) p else prototype;
+                    } else if (.Pass == result.event) {
+                        result.tr *= lr.tr;
+                    }
+                }
+
+                n = stack.pop();
+                continue;
+            }
+
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = nodes[a].intersect(probe.ray);
+            var distb = nodes[b].intersect(probe.ray);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.floatMax(f32) == dista) {
+                n = stack.pop();
+            } else {
+                n = a;
+                if (std.math.floatMax(f32) != distb) {
+                    stack.push(b);
+                }
+            }
+        }
+
+        isec.prototype = prop;
+
+        return result;
     }
 };

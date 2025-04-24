@@ -59,41 +59,6 @@ pub const Builder = struct {
         self.serialize(0, 0, tree, &current_prop);
     }
 
-    pub fn buildUnindexed(
-        self: *Builder,
-        alloc: Allocator,
-        tree: *Tree,
-        aabbs: []const AABB,
-        threads: *Threads,
-    ) !void {
-        const num_primitives: u32 = @intCast(aabbs.len);
-
-        if (0 == num_primitives) {
-            try tree.allocateIndices(alloc, 0);
-            _ = try tree.allocateNodes(alloc, 0);
-            return;
-        }
-
-        var references = try alloc.alloc(Reference, num_primitives);
-
-        var bounds = math.aabb.Empty;
-
-        for (aabbs, 0..) |b, i| {
-            references[i].set(b.bounds[0], b.bounds[1], @truncate(i));
-
-            bounds.mergeAssign(b);
-        }
-
-        try self.super.split(alloc, references, bounds, threads);
-
-        try tree.allocateIndices(alloc, self.super.numReferenceIds());
-        try tree.allocateNodes(alloc, self.super.numBuildNodes());
-
-        var current_prop: u32 = 0;
-        self.super.newNode();
-        self.serialize(0, 0, tree, &current_prop);
-    }
-
     fn serialize(
         self: *Builder,
         source_node: u32,

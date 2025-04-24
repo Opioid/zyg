@@ -493,6 +493,14 @@ pub const Loader = struct {
 
             var instancer = Instancer.init(alloc, @truncate(proto_indices_value.array.items.len)) catch return Scene.Null;
 
+            var solids: List(u32) = .{};
+            var volumes: List(u32) = .{};
+
+            defer {
+                volumes.deinit(alloc);
+                solids.deinit(alloc);
+            }
+
             for (proto_indices_value.array.items, trafos_value.array.items, 0..) |proto_index_value, trafo_value, i| {
                 var proto_index = json.readUInt(proto_index_value);
                 if (proto_index >= prototypes.items.len) {
@@ -511,18 +519,44 @@ pub const Loader = struct {
 
                 instancer.allocateInstance(alloc, proto_entity_id) catch return Scene.Null;
 
-                instancer.space.setWorldTransformation(@truncate(i), trafo);
+                const instance_id: u32 = @truncate(i);
+
+                instancer.space.setWorldTransformation(instance_id, trafo);
+
+                const po = graph.scene.prop(proto_entity_id);
+
+                if (po.solid()) {
+                    solids.append(alloc, instance_id) catch return Scene.Null;
+                }
+
+                if (po.volume()) {
+                    volumes.append(alloc, instance_id) catch return Scene.Null;
+                }
             }
 
             self.resources.commitAsync();
 
             instancer.calculateWorldBounds(&graph.scene);
 
-            graph.scene.bvh_builder.buildUnindexed(alloc, &instancer.tree, instancer.space.aabbs.items, self.resources.threads) catch return Scene.Null;
+            graph.scene.bvh_builder.build(
+                alloc,
+                &instancer.solid_bvh,
+                solids.items,
+                instancer.space.aabbs.items,
+                self.resources.threads,
+            ) catch return Scene.Null;
+
+            graph.scene.bvh_builder.build(
+                alloc,
+                &instancer.volume_bvh,
+                volumes.items,
+                instancer.space.aabbs.items,
+                self.resources.threads,
+            ) catch return Scene.Null;
 
             const shape = self.resources.instancers.store(alloc, Scene.Null, instancer) catch return Scene.Null;
 
-            return graph.scene.createPropInstancer(alloc, shape, prototype) catch Scene.Null;
+            return graph.scene.createPropInstancer(alloc, shape, solids.items.len > 0, volumes.items.len > 0, prototype) catch Scene.Null;
         }
 
         return Scene.Null;

@@ -1,6 +1,8 @@
 const Tree = @import("prop_tree.zig").Tree;
 const int = @import("../shape/intersection.zig");
+const Fragment = int.Fragment;
 const Intersection = int.Intersection;
+const Volume = int.Volume;
 const Probe = @import("../shape/probe.zig").Probe;
 const Scene = @import("../scene.zig").Scene;
 const Space = @import("../space.zig").Space;
@@ -9,6 +11,7 @@ const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../../rendering/worker.zig").Worker;
 
 const math = @import("base").math;
+const AABB = math.AABB;
 const Ray = math.Ray;
 const Vec4f = math.Vec4f;
 
@@ -21,7 +24,8 @@ pub const Instancer = struct {
 
     space: Space,
 
-    tree: Tree,
+    solid_bvh: Tree,
+    volume_bvh: Tree,
 
     const Self = @This();
 
@@ -29,11 +33,14 @@ pub const Instancer = struct {
         return .{
             .prototypes = try List(u32).initCapacity(alloc, num_reserve),
             .space = try Space.init(alloc, num_reserve),
-            .tree = .{},
+            .solid_bvh = .{},
+            .volume_bvh = .{},
         };
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
+        self.volume_bvh.deinit(alloc);
+        self.solid_bvh.deinit(alloc);
         self.space.deinit(alloc);
         self.prototypes.deinit(alloc);
     }
@@ -53,10 +60,16 @@ pub const Instancer = struct {
         }
     }
 
+    pub fn aabb(self: Self) AABB {
+        var total = self.solid_bvh.aabb();
+        total.mergeAssign(self.volume_bvh.aabb());
+        return total;
+    }
+
     pub fn intersect(self: *const Self, probe: Probe, trafo: Trafo, isec: *Intersection, scene: *const Scene) bool {
         var local_probe = trafo.worldToObjectProbe(probe);
 
-        if (self.tree.intersectIndexed(&local_probe, isec, self.prototypes.items.ptr, scene, &self.space)) {
+        if (self.solid_bvh.intersectIndexed(&local_probe, isec, self.prototypes.items.ptr, scene, &self.space)) {
             isec.trafo = trafo.transform(isec.trafo);
 
             return true;
@@ -68,6 +81,32 @@ pub const Instancer = struct {
     pub fn visibility(self: *const Self, probe: Probe, trafo: Trafo, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
         const local_probe = trafo.worldToObjectProbe(probe);
 
-        return self.tree.visibilityIndexed(local_probe, self.prototypes.items.ptr, sampler, worker, &self.space, tr);
+        return self.solid_bvh.visibilityIndexed(local_probe, self.prototypes.items.ptr, sampler, worker, &self.space, false, tr);
+    }
+
+    pub fn transmittance(self: *const Self, probe: Probe, trafo: Trafo, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
+        const local_probe = trafo.worldToObjectProbe(probe);
+
+        return self.volume_bvh.visibilityIndexed(local_probe, self.prototypes.items.ptr, sampler, worker, &self.space, true, tr);
+    }
+
+    pub fn scatter(
+        self: *const Self,
+        probe: Probe,
+        trafo: Trafo,
+        isec: *Intersection,
+        throughput: Vec4f,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) Volume {
+        var local_probe = trafo.worldToObjectProbe(probe);
+
+        const result = self.volume_bvh.scatterIndexed(&local_probe, self.prototypes.items.ptr, isec, throughput, sampler, worker, &self.space);
+
+        if (.Absorb == result.event) {
+            isec.trafo = trafo.transform(isec.trafo);
+        }
+
+        return result;
     }
 };
