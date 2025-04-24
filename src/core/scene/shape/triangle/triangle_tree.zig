@@ -236,7 +236,7 @@ pub const Tree = struct {
         var tray = ray;
         tray.max_t = ro.RayMaxT;
 
-        var isec: Intersection = .{};
+        var isec: Intersection = undefined;
 
         while (true) {
             if (!self.intersect(tray, trafo, &isec)) {
@@ -365,7 +365,7 @@ pub const Tree = struct {
 
         var tr: Vec4f = @splat(1.0);
 
-        var isec: Intersection = .{};
+        var isec: Intersection = undefined;
 
         while (true) {
             if (!self.intersect(tray, trafo, &isec)) {

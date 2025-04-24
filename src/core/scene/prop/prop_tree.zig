@@ -75,8 +75,7 @@ pub const Tree = struct {
                 for (instances[start..end]) |p| {
                     if (props[p].intersect(p, probe.*, &isec, scene, &scene.prop_space)) {
                         probe.ray.max_t = isec.t;
-                        const prototype = isec.prototype;
-                        prop = if (Intersection.Null == prototype) p else prototype;
+                        prop = isec.resolveEntity(p);
                     }
                 }
 
@@ -145,8 +144,7 @@ pub const Tree = struct {
                     const p = indices[i];
                     if (props[p].intersect(i, probe.*, isec, scene, space)) {
                         probe.ray.max_t = isec.t;
-                        const prototype = isec.prototype;
-                        prop = if (Intersection.Null == prototype) p else prototype;
+                        prop = isec.resolveEntity(p);
                     }
                 }
 
@@ -381,8 +379,7 @@ pub const Tree = struct {
                     if (.Pass != lr.event) {
                         probe.ray.max_t = lr.t;
                         result = lr;
-                        const prototype = isec.prototype;
-                        prop = if (Intersection.Null == prototype) p else prototype;
+                        prop = isec.resolveEntity(p);
                     } else if (.Pass == result.event) {
                         result.tr *= lr.tr;
                     }
@@ -465,8 +462,7 @@ pub const Tree = struct {
                     if (.Pass != lr.event) {
                         probe.ray.max_t = lr.t;
                         result = lr;
-                        const prototype = isec.prototype;
-                        prop = if (Intersection.Null == prototype) p else prototype;
+                        prop = isec.resolveEntity(p);
                     } else if (.Pass == result.event) {
                         result.tr *= lr.tr;
                     }

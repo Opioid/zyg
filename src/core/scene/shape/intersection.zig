@@ -50,16 +50,17 @@ pub const Volume = struct {
 pub const Intersection = struct {
     pub const Null: u32 = 0xFFFFFFFF;
 
-    t: f32 = undefined,
-    u: f32 = undefined,
-    v: f32 = undefined,
-    primitive: u32 = Null,
-    prototype: u32 = Null,
+    t: f32,
+    u: f32,
+    v: f32,
+    primitive: u32,
+    prototype: u32,
 
-    trafo: Trafo = undefined,
+    trafo: Trafo,
 
-    pub inline fn valid(self: Intersection) bool {
-        return Null != self.primitive;
+    pub inline fn resolveEntity(self: Intersection, p: u32) u32 {
+        const prototype = self.prototype;
+        return if (Intersection.Null == prototype) p else prototype;
     }
 };
 
