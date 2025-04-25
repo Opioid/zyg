@@ -32,7 +32,7 @@ pub fn testSize() void {
     testType(ComposedTransformation, "ComposedTransformation", 64);
     testType(Light, "Light", 16);
     testType(Renderstate, "Renderstate", 224);
-    testType(Fragment, "Fragment", 208);
+    testType(Fragment, "Fragment", 224);
     testType(Vertex, "Vertex", 672);
     testType(smpl.To, "SampleTo", 64);
     testType(smpl.From, "SampleFrom", 144);

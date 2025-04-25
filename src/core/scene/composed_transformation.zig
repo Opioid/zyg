@@ -53,7 +53,7 @@ pub const ComposedTransformation = struct {
     }
 
     pub fn transform(self: Self, other: Self) Self {
-        var rotation = self.rotation.mul(other.rotation);
+        var rotation = other.rotation.mul(self.rotation);
 
         const new_scale = self.scale() * other.scale();
 
