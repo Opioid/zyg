@@ -17,8 +17,6 @@ pub const Base = struct {
     resolution: Vec2i = @splat(0),
     crop: Vec4i = @splat(0),
 
-    mediums: MediumStack = undefined,
-
     frame_step: u64 = DefaultFrameTime,
     frame_duration: u64 = DefaultFrameTime,
 

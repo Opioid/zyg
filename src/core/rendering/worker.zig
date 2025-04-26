@@ -170,8 +170,6 @@ pub const Worker = struct {
     }
 
     pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
-        const camera = self.camera;
-
         var rng = &self.rng;
         rng.start(0, offset);
 
@@ -180,7 +178,7 @@ pub const Worker = struct {
         self.samplers[0].startPixel(tsi, seed);
 
         for (range[0]..range[1]) |_| {
-            self.lighttracer.li(frame, self, &camera.super().mediums);
+            self.lighttracer.li(frame, self);
 
             self.samplers[0].incrementSample();
         }

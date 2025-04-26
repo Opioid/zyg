@@ -75,8 +75,6 @@ pub const Perspective = struct {
     }
 
     pub fn update(self: *Self, time: u64, scene: *const Scene) void {
-        self.super.mediums.clear();
-
         const fr: Vec2f = @floatFromInt(self.super.resolution);
         const ratio = fr[1] / fr[0];
 
@@ -145,7 +143,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.RayMaxT), time, &self.super.mediums);
+        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.RayMaxT), time);
     }
 
     pub fn sampleTo(

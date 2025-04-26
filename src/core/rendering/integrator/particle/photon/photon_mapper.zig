@@ -223,6 +223,6 @@ pub const Mapper = struct {
 
         light_id.* = l.offset;
 
-        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.RayMaxT), time, &.{});
+        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.RayMaxT), time);
     }
 };

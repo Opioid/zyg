@@ -47,7 +47,7 @@ pub const Vertex = struct {
 
     const Self = @This();
 
-    pub fn init(ray: Ray, time: u64, mediums: *const MediumStack) Vertex {
+    pub fn init(ray: Ray, time: u64) Vertex {
         return .{
             .probe = Probe.init(ray, time),
             .state = .{},
@@ -62,7 +62,7 @@ pub const Vertex = struct {
             .shadow_catcher_emission = @splat(0.0),
             .origin = ray.origin,
             .geo_n = @splat(0.0),
-            .mediums = mediums.clone(),
+            .mediums = .{},
         };
     }
 

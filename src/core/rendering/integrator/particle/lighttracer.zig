@@ -36,9 +36,7 @@ pub const Lighttracer = struct {
 
     const Self = @This();
 
-    pub fn li(self: Self, frame: u32, worker: *Worker, initial_stack: *const MediumStack) void {
-        _ = initial_stack;
-
+    pub fn li(self: Self, frame: u32, worker: *Worker) void {
         const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
 
         const sampler = worker.pickSampler(0);
@@ -178,7 +176,7 @@ pub const Lighttracer = struct {
 
         sampler.incrementPadding();
 
-        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.RayMaxT), time, &.{});
+        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.RayMaxT), time);
     }
 
     fn directCamera(
