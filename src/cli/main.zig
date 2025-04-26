@@ -53,6 +53,7 @@ pub fn main() !void {
 
     // try core.ggx_integrate.integrate(alloc, &threads);
     // try core.rainbow_integrate.integrate(alloc);
+    // try core.image.testing.write_reference_normal_map(alloc, "reference_normal.png");
 
     var graph = try Graph.init(alloc);
     defer graph.deinit(alloc);
@@ -116,9 +117,9 @@ pub fn main() !void {
                     &resources,
                 ) catch continue;
 
-                for (graph.take.view.cameras.items, 0..) |camera, cid| {
-                    const start = @as(u64, i) * camera.frame_step;
-                    graph.simulate(start, start + camera.frame_duration);
+                for (graph.take.view.cameras.items, 0..) |*camera, cid| {
+                    const start = @as(u64, i) * camera.super().frame_step;
+                    graph.simulate(start, start + camera.super().frame_duration);
 
                     const camera_id: u32 = @intCast(cid);
                     try driver.render(alloc, camera_id, i, options.sample, options.num_samples);
@@ -199,14 +200,14 @@ fn reloadFrameDependant(
     try graph.scene.commitMaterials(alloc, resources.threads);
     graph.clear(alloc, false);
 
-    // This is a hack to recreate the camera entities that come from the take file in the scene
-    // It relies on the specifiec order in which are loaded and I hate everything that has to do with it
+    // This is a hack to recreate the camera entities that come from the take file in the scene.
+    // It relies on the specifiec order in which they are loaded and I hate everything that has to do with it.
     // This whole weird frame depenendant mechanism should be replaced with something more robust!
     const num_take_cameras = graph.camera_trafos.items.len;
     for (graph.take.view.cameras.items[0..num_take_cameras], graph.camera_trafos.items) |*camera, trafo| {
         const entity_id = try graph.scene.createEntity(alloc);
-        camera.entity = entity_id;
-        graph.scene.propSetWorldTransformation(entity_id, trafo);
+        camera.super().entity = entity_id;
+        graph.scene.prop_space.setWorldTransformation(entity_id, trafo);
     }
 
     scene_loader.load(alloc, graph) catch |err| {

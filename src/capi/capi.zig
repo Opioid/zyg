@@ -71,7 +71,7 @@ export fn su_init() i32 {
             return -1;
         };
 
-        e.take.view.cameras.append(alloc, .{}) catch {
+        e.take.view.cameras.append(alloc, .{ .Perspective = .{} }) catch {
             engine = null;
             return -1;
         };
@@ -139,20 +139,20 @@ export fn su_perspective_camera_create(width: u32, height: u32) i32 {
 
         var camera = &e.take.view.cameras.items[0];
 
-        camera.setResolution(resolution, crop);
-        camera.fov = math.degreesToRadians(80.0);
+        camera.super().setResolution(resolution, crop);
+        camera.setFov(math.degreesToRadians(80.0));
 
-        if (scn.Prop.Null == camera.entity) {
+        if (scn.Prop.Null == camera.super().entity) {
             const prop_id = e.scene.createEntity(e.alloc) catch {
                 return -1;
             };
 
-            camera.entity = prop_id;
+            camera.super().entity = prop_id;
         }
 
-        e.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
+        e.scene.calculateNumInterpolationFrames(camera.super().frame_step, camera.super().frame_duration);
 
-        return @intCast(camera.entity);
+        return @intCast(camera.super().entity);
     }
 
     return -1;
@@ -160,7 +160,7 @@ export fn su_perspective_camera_create(width: u32, height: u32) i32 {
 
 export fn su_camera_set_fov(fov: f32) i32 {
     if (engine) |*e| {
-        e.take.view.cameras.items[0].fov = fov;
+        e.take.view.cameras.items[0].setFov(fov);
         return 0;
     }
 
@@ -169,7 +169,7 @@ export fn su_camera_set_fov(fov: f32) i32 {
 
 export fn su_camera_sensor_dimensions(dimensions: [*]i32) i32 {
     if (engine) |*e| {
-        const d = e.take.view.cameras.items[0].resolution;
+        const d = e.take.view.cameras.items[0].resolution();
         dimensions[0] = d[0];
         dimensions[1] = d[1];
         return 0;
@@ -245,7 +245,7 @@ export fn su_image_create(
 
         const desc = img.Description.init3D(.{ @intCast(width), @intCast(height), @intCast(depth), 1 });
 
-        const buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, 8, null) catch {
+        const buffer = e.alloc.allocWithOptions(u8, bpc * num_channels * width * height * depth, .@"8", null) catch {
             return -1;
         };
 
@@ -437,7 +437,7 @@ export fn su_prop_create(shape: u32, num_materials: u32, materials: [*]const u32
             matbuf.appendAssumeCapacity(fallback_mat);
         }
 
-        const prop = e.scene.createProp(e.alloc, shape, matbuf.items, false) catch return -1;
+        const prop = e.scene.createPropShape(e.alloc, shape, matbuf.items, false, false) catch return -1;
 
         return @as(i32, @intCast(prop));
     }
@@ -487,7 +487,7 @@ export fn su_prop_set_transformation(prop: u32, trafo: [*]const f32) i32 {
 
         t.rotation = math.quaternion.initFromMat3x3(r);
 
-        e.scene.propSetWorldTransformation(prop, t);
+        e.scene.prop_space.setWorldTransformation(prop, t);
         return 0;
     }
 
@@ -504,7 +504,7 @@ export fn su_prop_set_transformation_frame(prop: u32, frame: u32, trafo: [*]cons
             return -1;
         }
 
-        if (scn.Prop.Null == e.scene.prop_frames.items[prop]) {
+        if (scn.Prop.Null == e.scene.prop_space.frames.items[prop]) {
             e.scene.propAllocateFrames(e.alloc, prop) catch return -1;
         }
 
@@ -516,7 +516,7 @@ export fn su_prop_set_transformation_frame(prop: u32, frame: u32, trafo: [*]cons
 
         t.rotation = math.quaternion.initFromMat3x3(r);
 
-        e.scene.propSetFrame(prop, frame, t);
+        e.scene.prop_space.setFrame(prop, frame, t);
         return 0;
     }
 

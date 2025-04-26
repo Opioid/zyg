@@ -570,7 +570,13 @@ const TextureDescriptor = struct {
                     } else if (std.mem.eql(u8, "Noise", entry.key_ptr.*)) {
                         var noise: prcd.Noise = undefined;
 
-                        noise.class = .Perlin;
+                        noise.class = .Gradient;
+
+                        const class_str = json.readStringMember(entry.value_ptr.*, "class", "");
+                        if (std.mem.eql(u8, "Cellular", class_str)) {
+                            noise.class = .Cellular;
+                        }
+
                         noise.flags.absolute = json.readBoolMember(entry.value_ptr.*, "absolute", false);
                         noise.flags.invert = json.readBoolMember(entry.value_ptr.*, "invert", false);
                         noise.levels = json.readUIntMember(entry.value_ptr.*, "levels", 1);

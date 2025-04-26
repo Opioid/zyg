@@ -1,25 +1,28 @@
-const cam = @import("../camera/perspective.zig");
+const Camera = @import("../camera/camera.zig").Camera;
 const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
 const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
 const Vertex = vt.Vertex;
-const Probe = vt.Vertex.Probe;
 const RayDif = vt.RayDif;
 const rst = @import("../scene/renderstate.zig");
 const Renderstate = rst.Renderstate;
 const CausticsResolve = rst.CausticsResolve;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
+const Probe = @import("../scene/shape/probe.zig").Probe;
 const MediumStack = @import("../scene/prop/medium.zig").Stack;
 const TileStackN = @import("tile_queue.zig").TileStackN;
 const Material = @import("../scene/material/material.zig").Material;
 const MaterialSample = @import("../scene/material/material_sample.zig").Sample;
+const hlp = @import("../scene/material/material_helper.zig");
 const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
-const shp = @import("../scene/shape/intersection.zig");
+const int = @import("../scene/shape/intersection.zig");
+const Fragment = int.Fragment;
+const Volume = int.Volume;
+const DifferentialSurface = int.DifferentialSurface;
+const Shape = @import("../scene/shape/shape.zig").Shape;
 const Texture = @import("../image/texture/texture.zig").Texture;
 const ts = @import("../image/texture/texture_sampler.zig");
-const Fragment = shp.Fragment;
-const Volume = shp.Volume;
 const LightTree = @import("../scene/light/light_tree.zig").Tree;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
@@ -53,7 +56,8 @@ pub const Worker = struct {
 
     const Step = 16;
 
-    camera: *cam.Perspective = undefined,
+    camera: *Camera = undefined,
+
     sensor: *Sensor = undefined,
 
     scene: *Scene = undefined,
@@ -137,7 +141,7 @@ pub const Worker = struct {
         const layer = self.layer;
         const sensor = self.sensor;
         const scene = self.scene;
-        const r = camera.resolution;
+        const r = camera.super().resolution;
         const so = iteration / num_expected_samples;
         const offset = Vec2i{ target_tile[0], target_tile[1] };
 
@@ -276,7 +280,7 @@ pub const Worker = struct {
         self.samplers[0].startPixel(tsi, seed);
 
         for (range[0]..range[1]) |_| {
-            self.lighttracer.li(frame, self, &camera.mediums);
+            self.lighttracer.li(frame, self, &camera.super().mediums);
 
             self.samplers[0].incrementSample();
         }
@@ -337,7 +341,7 @@ pub const Worker = struct {
         }
     }
 
-    pub fn visibility(self: *Worker, probe: *const Probe, sampler: *Sampler, tr: *Vec4f) bool {
+    pub fn visibility(self: *Worker, probe: Probe, sampler: *Sampler, tr: *Vec4f) bool {
         return self.scene.visibility(probe, sampler, self, tr);
     }
 
@@ -388,8 +392,8 @@ pub const Worker = struct {
         return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *const Worker, entity: u32, probe: *const Probe, frag: *Fragment) bool {
-        if (self.scene.prop(entity).intersect(entity, probe, frag, self.scene)) {
+    pub fn propIntersect(self: *const Worker, entity: u32, probe: Probe, frag: *Fragment) bool {
+        if (self.scene.prop(entity).intersect(entity, probe, &frag.isec, self.scene, &self.scene.prop_space)) {
             frag.prop = entity;
             return true;
         }
@@ -397,8 +401,8 @@ pub const Worker = struct {
         return false;
     }
 
-    pub fn propInterpolateFragment(self: *const Worker, entity: u32, probe: *const Probe, frag: *Fragment) void {
-        self.scene.prop(entity).fragment(probe, frag, self.scene);
+    pub fn propInterpolateFragment(self: *const Worker, entity: u32, probe: Probe, frag: *Fragment) void {
+        self.scene.propShape(entity).fragment(probe.ray, frag);
     }
 
     pub fn intersectAndResolveMask(self: *Worker, probe: *Probe, frag: *Fragment, sampler: *Sampler) bool {
@@ -433,18 +437,19 @@ pub const Worker = struct {
     }
 
     pub fn absoluteTime(self: *const Worker, frame: u32, frame_delta: f32) u64 {
-        return self.camera.absoluteTime(frame, frame_delta);
+        return self.camera.super().absoluteTime(frame, frame_delta);
     }
 
-    pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate) Vec4f {
+    pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate, texcoord: Texture.TexCoordMode) Vec4f {
         const rd = self.camera.calculateRayDifferential(self.layer, rs.p, rs.time, self.scene);
 
-        const ds = self.scene.propShape(rs.prop).differentialSurface(rs.primitive, rs.trafo);
+        const ds: DifferentialSurface =
+            if (.UV0 == texcoord)
+                self.scene.propShape(rs.prop).surfaceDifferential(rs.primitive, rs.trafo)
+            else
+                hlp.triplanarDifferential(rs.geo_n, rs.trafo);
 
-        const dpdu_w = rs.trafo.objectToWorldVector(ds.dpdu);
-        const dpdv_w = rs.trafo.objectToWorldVector(ds.dpdv);
-
-        return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, dpdu_w, dpdv_w);
+        return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, ds.dpdu, ds.dpdv);
     }
 
     // https://blog.yiningkarlli.com/2018/10/bidirectional-mipmap.html

@@ -1,16 +1,20 @@
+const Scene = @import("../scene.zig").Scene;
+const Space = @import("../space.zig").Space;
 const Vertex = @import("../vertex.zig").Vertex;
-const Probe = Vertex.Probe;
 const Material = @import("../material/material.zig").Material;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Scene = @import("../scene.zig").Scene;
 const int = @import("../shape/intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
+const Probe = @import("../shape/probe.zig").Probe;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Worker = @import("../../rendering/worker.zig").Worker;
 
-const base = @import("base");
-const Vec4f = base.math.Vec4f;
+const math = @import("base").math;
+const AABB = math.AABB;
+const Vec4f = math.Vec4f;
+
+const std = @import("std");
 
 pub const Prop = struct {
     pub const Null: u32 = 0xFFFFFFFF;
@@ -21,9 +25,11 @@ pub const Prop = struct {
         visible_in_shadow: bool = true,
         evaluate_visibility: bool = false,
         unoccluding: bool = false,
+        solid: bool = true,
         volume: bool = false,
         caustic: bool = false,
         static: bool = true,
+        instancer: bool = false,
         shadow_catcher: bool = false,
         shadow_catcher_light: bool = false,
 
@@ -36,7 +42,7 @@ pub const Prop = struct {
         }
     };
 
-    shape: u32 = Null,
+    resource: u32 = Null,
 
     properties: Properties = .{},
 
@@ -52,12 +58,20 @@ pub const Prop = struct {
         return self.properties.unoccluding;
     }
 
+    pub fn solid(self: Prop) bool {
+        return self.properties.solid;
+    }
+
     pub fn volume(self: Prop) bool {
         return self.properties.volume;
     }
 
     pub fn caustic(self: Prop) bool {
         return self.properties.caustic;
+    }
+
+    pub fn instancer(self: Prop) bool {
+        return self.properties.instancer;
     }
 
     pub fn setVisibility(
@@ -75,10 +89,10 @@ pub const Prop = struct {
         self.properties.shadow_catcher = true;
     }
 
-    pub fn configure(self: *Prop, shape: u32, materials: []const u32, unocc: bool, scene: *const Scene) void {
-        self.shape = shape;
+    pub fn configureShape(self: *Prop, resource: u32, materials: []const u32, unocc: bool, scene: *const Scene) void {
+        self.resource = resource;
 
-        const shape_inst = scene.shape(shape);
+        const shape_inst = scene.shape(resource);
 
         var mono = false;
         var pure_emissive = true;
@@ -108,9 +122,20 @@ pub const Prop = struct {
             }
         }
 
+        const volumetric = shape_inst.finite() and mono and scene.material(materials[0]).ior() < 1.0;
+
+        self.properties.solid = !volumetric;
+        self.properties.volume = volumetric;
+
         self.properties.unoccluding = unocc and shape_inst.finite() and pure_emissive;
-        self.properties.volume = shape_inst.finite() and mono and scene.material(materials[0]).ior() < 1.0;
         self.properties.visible_in_shadow = if (self.properties.shadow_catcher) false else self.properties.visible_in_reflection;
+    }
+
+    pub fn configureIntancer(self: *Prop, resource: u32, solidb: bool, volumetric: bool) void {
+        self.properties.solid = solidb;
+        self.properties.volume = volumetric;
+        self.resource = resource;
+        self.properties.instancer = true;
     }
 
     pub fn configureAnimated(self: *Prop, scene: *const Scene) void {
@@ -118,34 +143,60 @@ pub const Prop = struct {
         self.properties.static = false;
     }
 
-    pub fn intersect(self: Prop, entity: u32, probe: *const Probe, frag: *Fragment, scene: *const Scene) bool {
+    pub fn localAabb(self: Prop, scene: *const Scene) AABB {
+        if (self.properties.instancer) {
+            return scene.instancer(self.resource).aabb();
+        } else {
+            return scene.shape(self.resource).aabb();
+        }
+    }
+
+    pub fn finite(self: Prop, scene: *const Scene) bool {
+        if (self.properties.instancer) {
+            return true;
+        } else {
+            return scene.shape(self.resource).finite();
+        }
+    }
+
+    pub fn intersect(
+        self: Prop,
+        entity: u32,
+        probe: Probe,
+        isec: *Intersection,
+        scene: *const Scene,
+        space: *const Space,
+    ) bool {
         const properties = self.properties;
 
         if (!properties.visible(probe.depth.surface)) {
             return false;
         }
 
-        if (!scene.propAabbIntersect(entity, probe.ray)) {
+        if (!space.intersectAABB(entity, probe.ray)) {
             return false;
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
+        const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.current_time_start, properties.static);
 
-        const hit = scene.shape(self.shape).intersect(probe.ray, trafo);
-        if (Intersection.Null != hit.primitive) {
-            frag.isec = hit;
-            frag.trafo = trafo;
-            return true;
+        if (properties.instancer) {
+            return scene.instancer(self.resource).intersect(probe, trafo, isec, scene);
+        } else {
+            return scene.shape(self.resource).intersect(probe, trafo, isec);
         }
-
-        return false;
     }
 
-    pub fn fragment(self: Prop, probe: *const Probe, frag: *Fragment, scene: *const Scene) void {
-        scene.shape(self.shape).fragment(probe.ray, frag);
-    }
-
-    pub fn visibility(self: Prop, entity: u32, probe: *const Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
+    pub fn visibility(
+        self: Prop,
+        comptime Volumetric: bool,
+        entity: u32,
+        prototype: u32,
+        probe: Probe,
+        sampler: *Sampler,
+        worker: *Worker,
+        space: *const Space,
+        tr: *Vec4f,
+    ) bool {
         const properties = self.properties;
         const scene = worker.scene;
 
@@ -153,20 +204,24 @@ pub const Prop = struct {
             return true;
         }
 
-        if (!scene.propAabbIntersect(entity, probe.ray)) {
+        if (!space.intersectAABB(entity, probe.ray)) {
             return true;
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
+        const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.current_time_start, properties.static);
 
-        const shape = scene.shape(self.shape);
-
-        if (properties.volume) {
-            return shape.transmittance(probe.ray, probe.depth.volume, trafo, entity, sampler, worker, tr);
-        } else if (properties.evaluate_visibility) {
-            return shape.visibility(probe.ray, trafo, entity, sampler, worker, tr);
+        if (properties.instancer) {
+            return scene.instancer(self.resource).visibility(Volumetric, probe, trafo, sampler, worker, tr);
         } else {
-            return !shape.intersectP(probe.ray, trafo);
+            const shape = scene.shape(self.resource);
+
+            if (Volumetric) {
+                return shape.transmittance(probe, trafo, prototype, sampler, worker, tr);
+            } else if (properties.evaluate_visibility) {
+                return shape.visibility(probe, trafo, prototype, sampler, worker, tr);
+            } else {
+                return !shape.intersectP(probe, trafo, sampler, worker);
+            }
         }
     }
 
@@ -190,37 +245,46 @@ pub const Prop = struct {
             return @splat(0.0);
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, vertex.probe.time, properties.static);
+        const trafo = scene.prop_space.transformationAtMaybeStatic(entity, vertex.probe.time, scene.current_time_start, properties.static);
 
-        frag.trafo = trafo;
+        frag.isec.trafo = trafo;
         frag.prop = entity;
 
-        return scene.shape(self.shape).emission(vertex, frag, split_threshold, sampler, worker);
+        return scene.shape(self.resource).emission(vertex, frag, split_threshold, sampler, worker);
     }
 
     pub fn scatter(
         self: Prop,
         entity: u32,
-        probe: *const Probe,
-        frag: *Fragment,
+        prototype: u32,
+        probe: Probe,
+        isec: *Intersection,
         throughput: Vec4f,
         sampler: *Sampler,
         worker: *Worker,
+        space: *const Space,
     ) int.Volume {
         const properties = self.properties;
         const scene = worker.scene;
 
-        if (!scene.propAabbIntersect(entity, probe.ray)) {
+        if (!space.intersectAABB(entity, probe.ray)) {
             return int.Volume.initPass(@splat(1.0));
         }
 
-        const trafo = scene.propTransformationAtMaybeStatic(entity, probe.time, properties.static);
+        const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.current_time_start, properties.static);
 
-        const result = scene.shape(self.shape).scatter(probe.ray, probe.depth.volume, trafo, throughput, entity, sampler, worker);
-        if (.Absorb == result.event) {
-            frag.trafo = trafo;
+        if (properties.instancer) {
+            return scene.instancer(self.resource).scatter(probe, trafo, isec, throughput, sampler, worker);
+        } else {
+            const result = scene.shape(self.resource).scatter(probe, trafo, throughput, prototype, sampler, worker);
+
+            isec.prototype = Intersection.Null;
+
+            if (.Absorb == result.event) {
+                isec.trafo = trafo;
+            }
+
+            return result;
         }
-
-        return result;
     }
 };

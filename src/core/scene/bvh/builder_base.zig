@@ -331,7 +331,7 @@ pub const Base = struct {
         self.current_node = 0;
 
         const num_tasks = @min(
-            try std.math.powi(u32, 2, self.settings.parallel_build_depth),
+            std.math.powi(u32, 2, self.settings.parallel_build_depth) catch 1,
             @as(u32, @intCast(references.len / Parallelize_threshold)),
         );
 

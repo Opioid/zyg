@@ -19,16 +19,14 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const DistantSphere = struct {
-    pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
-        var hpoint = Intersection{};
-
+    pub fn intersect(ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         const radius = trafo.scaleX();
 
         const n = trafo.rotation.r[2];
         const b = math.dot3(n, ray.direction);
 
         if (b > 0.0 or ray.max_t < ro.RayMaxT or radius <= 0.0) {
-            return hpoint;
+            return false;
         }
 
         const det = (b * b) - math.dot3(n, n) + (radius * radius);
@@ -40,24 +38,27 @@ pub const DistantSphere = struct {
             const isec_t = trafo.rotation.r[0];
             const isec_b = trafo.rotation.r[1];
 
-            hpoint.u = math.dot3(isec_t, sk);
-            hpoint.v = math.dot3(isec_b, sk);
+            isec.u = math.dot3(isec_t, sk);
+            isec.v = math.dot3(isec_b, sk);
 
-            hpoint.primitive = 0;
-            hpoint.t = ro.RayMaxT;
+            isec.primitive = 0;
+            isec.prototype = Intersection.Null;
+            isec.t = ro.RayMaxT;
+            isec.trafo = trafo;
+            return true;
         }
 
-        return hpoint;
+        return false;
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
         frag.p = @as(Vec4f, @splat(ro.RayMaxT)) * ray.direction;
 
-        const n = frag.trafo.rotation.r[2];
+        const n = frag.isec.trafo.rotation.r[2];
 
         frag.geo_n = n;
-        frag.t = frag.trafo.rotation.r[0];
-        frag.b = frag.trafo.rotation.r[1];
+        frag.t = frag.isec.trafo.rotation.r[0];
+        frag.b = frag.isec.trafo.rotation.r[1];
         frag.n = n;
 
         frag.uvw = .{

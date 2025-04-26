@@ -11,6 +11,8 @@ const Shape = @import("../scene/shape/shape.zig").Shape;
 const Materials = Cache(Material, MaterialProvider);
 pub const ShapeProvider = @import("../scene/shape/shape_provider.zig").Provider;
 const Shapes = Cache(Shape, ShapeProvider);
+const Instancer = @import("../scene/prop/instancer.zig").Instancer;
+const Instancers = Cache(Instancer, void);
 
 const base = @import("base");
 const Threads = base.thread.Pool;
@@ -34,6 +36,7 @@ pub const Manager = struct {
     images: Images,
     materials: Materials,
     shapes: Shapes,
+    instancers: Instancers,
 
     pub fn init(alloc: Allocator, scene: *Scene, threads: *Threads) !Manager {
         return Manager{
@@ -43,6 +46,7 @@ pub const Manager = struct {
             .images = Images.init(.{}, &scene.images),
             .materials = Materials.init(.{}, &scene.materials),
             .shapes = Shapes.init(.{}, &scene.shapes),
+            .instancers = Instancers.init({}, &scene.instancers),
         };
     }
 

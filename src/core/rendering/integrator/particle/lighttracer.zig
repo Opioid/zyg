@@ -4,7 +4,7 @@ const VertexPool = vt.Pool;
 const MaterialSample = @import("../../../scene/material/material_sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const Worker = @import("../../worker.zig").Worker;
-const Camera = @import("../../../camera/perspective.zig").Perspective;
+const Camera = @import("../../../camera/camera.zig").Camera;
 const Sensor = @import("../../../rendering/sensor/sensor.zig").Sensor;
 const Light = @import("../../../scene/light/light.zig").Light;
 const MediumStack = @import("../../../scene/prop/medium.zig").Stack;
@@ -56,7 +56,7 @@ pub const Lighttracer = struct {
 
         const light = worker.scene.light(light_id);
         if (light.volumetric()) {
-            vertex.mediums.pushVolumeLight(light);
+            vertex.mediums.pushVolumeLight(light, light_sample.trafo);
         }
 
         self.integrate(vertex, worker, light, light_sample);
@@ -197,11 +197,12 @@ pub const Lighttracer = struct {
 
         const fr = sensor.filter_radius_int;
 
-        var filter_crop = camera.crop + Vec4i{ -fr, -fr, fr, fr };
+        var crop = camera.crop();
+
+        var filter_crop = crop + Vec4i{ -fr, -fr, fr, fr };
         filter_crop[2] -= filter_crop[0] + 1;
         filter_crop[3] -= filter_crop[1] + 1;
 
-        var crop = camera.crop;
         crop[2] -= crop[0] + 1;
         crop[3] -= crop[1] + 1;
 
@@ -222,10 +223,10 @@ pub const Lighttracer = struct {
 
             const wi = -camera_sample.dir;
             const p = frag.offsetP(wi);
-            var tprobe = vertex.probe.clone(Ray.init(p, wi, 0.0, camera_sample.t));
+            const tprobe = vertex.probe.clone(Ray.init(p, wi, 0.0, camera_sample.t));
 
             var tr: Vec4f = @splat(1.0);
-            if (!worker.visibility(&tprobe, sampler, &tr)) {
+            if (!worker.visibility(tprobe, sampler, &tr)) {
                 continue;
             }
 

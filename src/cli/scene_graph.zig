@@ -104,12 +104,12 @@ pub const Graph = struct {
     }
 
     pub fn simulate(self: *Self, start: u64, end: u64) void {
-        const frames_start = start - (start % Scene.Tick_duration);
-        const end_rem = end % Scene.Tick_duration;
-        const frames_end = end + (if (end_rem > 0) Scene.Tick_duration - end_rem else 0);
+        const frames_start = start - (start % Scene.TickDuration);
+        const end_rem = end % Scene.TickDuration;
+        const frames_end = end + (if (end_rem > 0) Scene.TickDuration - end_rem else 0);
 
         for (self.animations.items) |*a| {
-            a.resample(frames_start, frames_end, Scene.Tick_duration);
+            a.resample(frames_start, frames_end, Scene.TickDuration);
             a.update(self);
         }
 
@@ -214,7 +214,7 @@ pub const Graph = struct {
             }
 
             if (Null != entity_id) {
-                self.scene.propSetWorldTransformation(entity_id, result.world_trafo);
+                self.scene.prop_space.setWorldTransformation(entity_id, result.world_trafo);
             }
         }
 
@@ -254,9 +254,9 @@ pub const Graph = struct {
                 const render_id = self.prop_props.items[entity];
                 if (Null != render_id) {
                     if (animation) {
-                        self.scene.propSetFrames(render_id, frames);
+                        self.scene.prop_space.setFrames(render_id, frames, self.scene.num_interpolation_frames);
                     } else {
-                        self.scene.propSetWorldTransformation(render_id, frames[0]);
+                        self.scene.prop_space.setWorldTransformation(render_id, frames[0]);
                     }
                 }
 
@@ -285,7 +285,7 @@ pub const Graph = struct {
         const render_id = self.prop_props.items[entity];
 
         if (Null != render_id) {
-            const df = self.scene.keyframes.items.ptr + self.scene.prop_frames.items[render_id];
+            const df = self.scene.prop_space.keyframes.items.ptr + self.scene.prop_space.frames.items[render_id];
 
             var i: u32 = 0;
             while (i < len) : (i += 1) {

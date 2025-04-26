@@ -224,10 +224,10 @@ pub const Loader = struct {
 
                 var resolution = Vec2i{ 1280, 720 };
                 if (graph.take.view.cameras.items.len > 0) {
-                    resolution = graph.take.view.cameras.items[0].resolution;
+                    resolution = graph.take.view.cameras.items[0].super().resolution;
                 }
 
-                pc.setResolution(resolution, .{ 0, 0, resolution[0], resolution[1] });
+                pc.super.setResolution(resolution, .{ 0, 0, resolution[0], resolution[1] });
 
                 const fr: Vec2f = @floatFromInt(resolution);
                 const ratio = fr[0] / fr[1];
@@ -238,11 +238,11 @@ pub const Loader = struct {
                 const entity_id = try graph.scene.createEntity(alloc);
 
                 const world_trafo = parent_trafo.transform(trafo);
-                graph.scene.propSetWorldTransformation(entity_id, world_trafo);
+                graph.scene.prop_space.setWorldTransformation(entity_id, world_trafo);
 
-                pc.entity = entity_id;
+                pc.super.entity = entity_id;
 
-                try graph.take.view.cameras.append(alloc, pc);
+                try graph.take.view.cameras.append(alloc, .{ .Perspective = pc });
             }
         } else if (value.object.get("mesh")) |mesh_node| {
             const index = json.readUInt(mesh_node);
@@ -251,9 +251,9 @@ pub const Loader = struct {
             const mesh = meshes.array.items[index];
             const entity_id = try self.loadMesh(alloc, mesh, graph);
 
-            const world_trafo = parent_trafo.transformScaled(trafo);
+            const world_trafo = parent_trafo.transform(trafo);
 
-            graph.scene.propSetWorldTransformation(entity_id, world_trafo);
+            graph.scene.prop_space.setWorldTransformation(entity_id, world_trafo);
         }
     }
 
@@ -442,7 +442,7 @@ pub const Loader = struct {
 
         self.resources.commitAsync();
 
-        return try graph.scene.createProp(alloc, shape_id, graph.materials.items, false);
+        return try graph.scene.createPropShape(alloc, shape_id, graph.materials.items, false, false);
     }
 
     fn loadIndices(self: *Self, alloc: Allocator, id: u32, buffer: []u32, cur_vertex: u32) !u32 {

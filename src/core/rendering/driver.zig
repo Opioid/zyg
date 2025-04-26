@@ -121,17 +121,17 @@ pub const Driver = struct {
 
         const camera = &self.view.cameras.items[camera_id];
 
-        if (Scene.Null == camera.entity) {
+        if (Scene.Null == camera.super().entity) {
             return Error.NoCameraProp;
         }
 
-        const dim = camera.resolution;
+        const dim = camera.super().resolution;
 
         const view = self.view;
 
         try view.sensor.resize(alloc, dim, camera.numLayers(), view.aovs);
 
-        self.tiles.configure(camera.resolution, camera.crop, Worker.Tile_dimensions);
+        self.tiles.configure(camera.super().resolution, camera.super().crop, Worker.Tile_dimensions);
 
         try self.target.resize(alloc, img.Description.init2D(dim));
 
@@ -159,12 +159,12 @@ pub const Driver = struct {
 
         var camera = &self.view.cameras.items[camera_id];
 
-        if (Scene.Null == camera.entity) {
+        if (Scene.Null == camera.super().entity) {
             return Error.NoCameraProp;
         }
 
-        const camera_pos = self.scene.propWorldPosition(camera.entity);
-        const start = @as(u64, frame) * camera.frame_step;
+        const camera_pos = self.scene.propWorldPosition(camera.super().entity);
+        const start = @as(u64, frame) * camera.super().frame_step;
 
         try self.scene.compile(alloc, camera_pos, start, self.threads, self.fs);
 
@@ -189,7 +189,7 @@ pub const Driver = struct {
     }
 
     pub fn resolveToBuffer(self: *Driver, camera_id: u32, layer_id: u32, target: [*]Pack4f, num_pixels: u32) void {
-        const camera = &self.view.cameras.items[camera_id];
+        const camera = self.view.cameras.items[camera_id].super();
         const resolution = camera.resolution;
         const total_crop = Vec4i{ 0, 0, resolution[0], resolution[1] };
         if (@reduce(.Or, total_crop != camera.crop)) {
@@ -227,7 +227,8 @@ pub const Driver = struct {
         const start = std.time.milliTimestamp();
 
         const camera = &self.view.cameras.items[camera_id];
-        const crop = camera.crop;
+
+        const crop = camera.super().crop;
 
         for (0..camera.numLayers()) |l| {
             const layer_id: u32 = @truncate(l);
@@ -250,7 +251,7 @@ pub const Driver = struct {
             }
 
             if (self.view.aov_sample_count) {
-                const d = camera.resolution;
+                const d = camera.super().resolution;
                 const weights = try alloc.alloc(f32, @as(u32, @intCast(d[0] * d[1])));
                 defer alloc.free(weights);
 

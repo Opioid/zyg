@@ -682,7 +682,7 @@ pub const Grid = struct {
         const material = frag.material(worker.scene);
 
         if (material.heterogeneousVolume()) {
-            const trafo = frag.trafo;
+            const trafo = frag.isec.trafo;
             const local_position = trafo.worldToObjectPoint(frag.p);
 
             const aabb = worker.scene.propShape(frag.prop).aabb();

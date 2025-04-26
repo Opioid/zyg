@@ -3,7 +3,7 @@ const Map = @import("photon_map.zig").Map;
 const Vertex = @import("../../../../scene/vertex.zig").Vertex;
 const bxdf = @import("../../../../scene/material/bxdf.zig");
 const Worker = @import("../../../worker.zig").Worker;
-const Camera = @import("../../../../camera/perspective.zig").Perspective;
+const Camera = @import("../../../../camera/camera_perspective.zig").Perspective;
 const SampleFrom = @import("../../../../scene/shape/sample.zig").From;
 const Fragment = @import("../../../../scene/shape/intersection.zig").Fragment;
 const ro = @import("../../../../scene/ray_offset.zig");
@@ -100,7 +100,7 @@ pub const Mapper = struct {
 
             const light = worker.scene.light(light_id);
             if (light.volumetric()) {
-                vertex.mediums.pushVolumeLight(light);
+                vertex.mediums.pushVolumeLight(light, light_sample.trafo);
             }
 
             while (vertex.probe.depth.surface <= self.settings.max_bounces) {

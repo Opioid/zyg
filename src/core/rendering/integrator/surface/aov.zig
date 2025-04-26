@@ -1,6 +1,6 @@
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
-const Probe = Vertex.Probe;
 const Fragment = @import("../../../scene/shape/intersection.zig").Fragment;
+const Probe = @import("../../../scene/shape/probe.zig").Probe;
 const ro = @import("../../../scene/ray_offset.zig");
 const Scene = @import("../../../scene/scene.zig").Scene;
 const Shape = @import("../../../scene/shape/shape.zig").Shape;
@@ -97,7 +97,7 @@ pub const AOV = struct {
             occlusion_probe.ray = Ray.init(origin, ws, 0.0, radius);
 
             var tr: Vec4f = @splat(1.0);
-            if (worker.scene.visibility(&occlusion_probe, sampler, worker, &tr)) {
+            if (worker.scene.visibility(occlusion_probe, sampler, worker, &tr)) {
                 result += num_samples_reciprocal;
             }
 

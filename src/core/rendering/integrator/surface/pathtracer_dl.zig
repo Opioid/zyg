@@ -155,10 +155,10 @@ pub const PathtracerDL = struct {
             const samples = light.sampleTo(p, n, trafo, translucent, 0.0, sampler, worker.scene, &samples_buffer);
 
             for (samples) |light_sample| {
-                var shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
+                const shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
 
                 var tr: Vec4f = @splat(1.0);
-                if (!worker.visibility(&shadow_probe, sampler, &tr)) {
+                if (!worker.visibility(shadow_probe, sampler, &tr)) {
                     continue;
                 }
 
@@ -197,12 +197,12 @@ pub const PathtracerDL = struct {
         inf_frag.event = .Pass;
 
         for (worker.scene.infinite_props.items) |prop| {
-            if (!worker.propIntersect(prop, &vertex.probe, &inf_frag)) {
+            if (!worker.propIntersect(prop, vertex.probe, &inf_frag)) {
                 continue;
             }
 
             if (vertex.state.treat_as_singular or !Light.isLight(inf_frag.lightId(worker.scene))) {
-                worker.propInterpolateFragment(prop, &vertex.probe, &inf_frag);
+                worker.propInterpolateFragment(prop, vertex.probe, &inf_frag);
 
                 energy += inf_frag.evaluateRadiance(p, wo, sampler, worker) orelse @splat(0.0);
             }

@@ -50,10 +50,18 @@ pub const Volume = struct {
 pub const Intersection = struct {
     pub const Null: u32 = 0xFFFFFFFF;
 
-    t: f32 = undefined,
-    u: f32 = undefined,
-    v: f32 = undefined,
-    primitive: u32 = Null,
+    t: f32,
+    u: f32,
+    v: f32,
+    primitive: u32,
+    prototype: u32,
+
+    trafo: Trafo,
+
+    pub inline fn resolveEntity(self: Intersection, p: u32) u32 {
+        const prototype = self.prototype;
+        return if (Intersection.Null == prototype) p else prototype;
+    }
 };
 
 pub const Fragment = struct {
@@ -62,7 +70,6 @@ pub const Fragment = struct {
     part: u32,
     event: Volume.Event,
 
-    trafo: Trafo,
     p: Vec4f,
     geo_n: Vec4f,
     t: Vec4f,
@@ -137,7 +144,7 @@ pub const Fragment = struct {
         }
 
         var rs: Renderstate = undefined;
-        rs.trafo = self.trafo;
+        rs.trafo = self.isec.trafo;
         rs.origin = shading_p;
         rs.geo_n = self.geo_n;
         rs.uvw = self.uvw;
@@ -146,4 +153,9 @@ pub const Fragment = struct {
 
         return m.evaluateRadiance(wo, rs, sampler, worker);
     }
+};
+
+pub const DifferentialSurface = struct {
+    dpdu: Vec4f,
+    dpdv: Vec4f,
 };

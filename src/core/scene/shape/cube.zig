@@ -3,6 +3,7 @@ const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Volume = int.Volume;
+const Probe = @import("probe.zig").Probe;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
@@ -21,19 +22,20 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Cube = struct {
-    pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
-        var hpoint = Intersection{};
-
+    pub fn intersect(ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         const local_ray = trafo.worldToObjectRay(ray);
 
-        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
+        const aabb = AABB.init(@splat(-0.5), @splat(0.5));
         const hit_t = aabb.intersectP(local_ray);
         if (hit_t < ray.max_t) {
-            hpoint.t = hit_t;
-            hpoint.primitive = 0;
+            isec.t = hit_t;
+            isec.primitive = 0;
+            isec.prototype = Intersection.Null;
+            isec.trafo = trafo;
+            return true;
         }
 
-        return hpoint;
+        return false;
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
@@ -41,13 +43,13 @@ pub const Cube = struct {
 
         frag.p = ray.point(hit_t);
 
-        const local_ray = frag.trafo.worldToObjectRay(ray);
+        const local_ray = frag.isec.trafo.worldToObjectRay(ray);
         const local_p = local_ray.point(hit_t);
-        const distance = @abs(@as(Vec4f, @splat(1.0)) - @abs(local_p));
+        const distance = @abs(@as(Vec4f, @splat(0.5)) - @abs(local_p));
 
         const i = math.indexMinComponent3(distance);
         const s = std.math.copysign(@as(f32, 1.0), local_p[i]);
-        const n = @as(Vec4f, @splat(s)) * frag.trafo.rotation.r[i];
+        const n = @as(Vec4f, @splat(s)) * frag.isec.trafo.rotation.r[i];
 
         frag.part = 0;
         frag.geo_n = n;
@@ -62,7 +64,7 @@ pub const Cube = struct {
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {
         const local_ray = trafo.worldToObjectRay(ray);
 
-        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
+        const aabb = AABB.init(@splat(-0.5), @splat(0.5));
         return aabb.intersect(local_ray);
     }
 
@@ -80,17 +82,16 @@ pub const Cube = struct {
     }
 
     pub fn transmittance(
-        ray: Ray,
+        probe: Probe,
         trafo: Trafo,
         entity: u32,
-        depth: u32,
         sampler: *Sampler,
         worker: *Worker,
         tr: *Vec4f,
     ) bool {
-        var local_ray = trafo.worldToObjectRay(ray);
+        var local_ray = trafo.worldToObjectRay(probe.ray);
 
-        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
+        const aabb = AABB.init(@splat(-0.5), @splat(0.5));
         const hit_t = aabb.intersectInterval(local_ray);
         if (std.math.floatMax(f32) == hit_t[0]) {
             return true;
@@ -99,21 +100,20 @@ pub const Cube = struct {
         local_ray.setMinMaxT(hit_t[0], hit_t[1]);
 
         const material = worker.scene.propMaterial(entity, 0);
-        return worker.propTransmittance(local_ray, material, entity, depth, sampler, tr);
+        return worker.propTransmittance(local_ray, material, entity, probe.depth.volume, sampler, tr);
     }
 
     pub fn scatter(
-        ray: Ray,
+        probe: Probe,
         trafo: Trafo,
         throughput: Vec4f,
         entity: u32,
-        depth: u32,
         sampler: *Sampler,
         worker: *Worker,
     ) Volume {
-        var local_ray = trafo.worldToObjectRay(ray);
+        var local_ray = trafo.worldToObjectRay(probe.ray);
 
-        const aabb = AABB.init(@splat(-1.0), @splat(1.0));
+        const aabb = AABB.init(@splat(-0.5), @splat(0.5));
         const hit_t = aabb.intersectInterval(local_ray);
         if (std.math.floatMax(f32) == hit_t[0]) {
             return Volume.initPass(@splat(1.0));
@@ -122,20 +122,20 @@ pub const Cube = struct {
         local_ray.setMinMaxT(hit_t[0], hit_t[1]);
 
         const material = worker.scene.propMaterial(entity, 0);
-        return worker.propScatter(local_ray, throughput, material, entity, depth, sampler);
+        return worker.propScatter(local_ray, throughput, material, entity, probe.depth.volume, sampler);
     }
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {
         const r3 = sampler.sample3D();
-        const xyz = @as(Vec4f, @splat(2.0)) * (r3 - @as(Vec4f, @splat(0.5)));
+        const xyz = r3 - @as(Vec4f, @splat(0.5));
         const wp = trafo.objectToWorldPoint(xyz);
         const axis = wp - p;
 
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
 
-        const d = @as(Vec4f, @splat(2.0)) * trafo.scale();
-        const volume = d[0] * d[1] * d[2];
+        const scale = trafo.scale();
+        const volume = scale[0] * scale[1] * scale[2];
 
         return SampleTo.init(
             wp,
@@ -147,15 +147,15 @@ pub const Cube = struct {
     }
 
     pub fn sampleVolumeToUvw(p: Vec4f, uvw: Vec4f, trafo: Trafo) SampleTo {
-        const xyz = @as(Vec4f, @splat(2.0)) * (uvw - @as(Vec4f, @splat(0.5)));
+        const xyz = uvw - @as(Vec4f, @splat(0.5));
         const wp = trafo.objectToWorldPoint(xyz);
         const axis = wp - p;
 
         const sl = math.squaredLength3(axis);
         const t = @sqrt(sl);
 
-        const d = @as(Vec4f, @splat(2.0)) * trafo.scale();
-        const volume = d[0] * d[1] * d[2];
+        const scale = trafo.scale();
+        const volume = scale[0] * scale[1] * scale[2];
 
         return SampleTo.init(
             wp,
@@ -167,13 +167,13 @@ pub const Cube = struct {
     }
 
     pub fn sampleVolumeFromUvw(uvw: Vec4f, trafo: Trafo, importance_uv: Vec2f) SampleFrom {
-        const xyz = @as(Vec4f, @splat(2.0)) * (uvw - @as(Vec4f, @splat(0.5)));
+        const xyz = uvw - @as(Vec4f, @splat(0.5));
         const wp = trafo.objectToWorldPoint(xyz);
 
         const dir = math.smpl.sphereUniform(importance_uv);
 
-        const d = @as(Vec4f, @splat(2.0)) * trafo.scale();
-        const volume = d[0] * d[1] * d[2];
+        const scale = trafo.scale();
+        const volume = scale[0] * scale[1] * scale[2];
 
         return SampleFrom.init(
             wp,
@@ -187,8 +187,8 @@ pub const Cube = struct {
     }
 
     pub fn volumePdf(p: Vec4f, frag: *const Fragment) f32 {
-        const d = @as(Vec4f, @splat(2.0)) * frag.trafo.scale();
-        const volume = d[0] * d[1] * d[2];
+        const scale = frag.isec.trafo.scale();
+        const volume = scale[0] * scale[1] * scale[2];
 
         const sl = math.squaredDistance3(p, frag.p);
         return sl / volume;

@@ -12,6 +12,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const IndexedData = struct {
+    pub const Fragment = triangle.Fragment;
+
     const Triangle = packed struct {
         a: u32,
         b: u32,
@@ -42,7 +44,7 @@ pub const IndexedData = struct {
         self.num_triangles = num_triangles;
         self.num_vertices = num_vertices;
 
-        self.triangles = (try alloc.alignedAlloc(Triangle, 16, num_triangles)).ptr;
+        self.triangles = (try alloc.alignedAlloc(Triangle, .@"16", num_triangles)).ptr;
         self.positions = (try alloc.alloc(f32, num_vertices * 3 + 1)).ptr;
         self.frames = (try alloc.alloc(Vec4f, num_vertices)).ptr;
         self.uvs = (try alloc.alloc(Vec2f, num_vertices)).ptr;

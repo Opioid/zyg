@@ -1,4 +1,5 @@
 const Fragment = @import("../shape/intersection.zig").Fragment;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Scene = @import("../scene.zig").Scene;
 const Light = @import("../light/light.zig").Light;
 const CC = @import("../material/collision_coefficients.zig").CC;
@@ -11,6 +12,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Medium = struct {
+    trafo: Trafo,
     prop: u32,
     part: u32,
     ior: f32,
@@ -113,16 +115,28 @@ pub const Stack = struct {
     pub fn push(self: *Stack, frag: *const Fragment, cc: CC, ior: f32, priority: i8) void {
         const index = self.index;
         if (index < Num_entries - 1) {
-            self.m_stack[index] = .{ .prop = frag.prop, .part = frag.part, .ior = ior, .priority = priority };
+            self.m_stack[index] = .{
+                .trafo = frag.isec.trafo,
+                .prop = frag.prop,
+                .part = frag.part,
+                .ior = ior,
+                .priority = priority,
+            };
             self.cc_stack[index] = cc;
             self.index += 1;
         }
     }
 
-    pub fn pushVolumeLight(self: *Stack, light: Light) void {
+    pub fn pushVolumeLight(self: *Stack, light: Light, trafo: Trafo) void {
         const index = self.index;
         if (index < Num_entries - 1) {
-            self.m_stack[index] = .{ .prop = light.prop, .part = light.part, .ior = 1.0, .priority = 0 };
+            self.m_stack[index] = .{
+                .trafo = trafo,
+                .prop = light.prop,
+                .part = light.part,
+                .ior = 1.0,
+                .priority = 0,
+            };
             self.index += 1;
         }
     }

@@ -1,5 +1,5 @@
-pub const DetailNormal = @import("procedural_detail_normal.zig").DetailNormal;
 pub const Checker = @import("procedural_checker.zig").Checker;
+pub const DetailNormal = @import("procedural_detail_normal.zig").DetailNormal;
 pub const Max = @import("procedural_max.zig").Max;
 pub const Mix = @import("procedural_mix.zig").Mix;
 pub const Mul = @import("procedural_mul.zig").Mul;
@@ -81,12 +81,12 @@ pub const Procedural = struct {
         const data = texture.data.procedural.data;
 
         return switch (proc) {
-            .Checker => self.checkers.items[data].evaluate(rs, key, worker)[0],
+            .Checker => self.checkers.items[data].evaluate(rs, key, texture.uv_set, worker)[0],
             .DetailNormal => 0.0,
             .Max => self.maxes.items[data].evaluate1(rs, key, sampler, worker),
             .Mix => self.mixes.items[data].evaluate1(rs, key, sampler, worker),
             .Mul => self.muls.items[data].evaluate1(rs, key, sampler, worker),
-            .Noise => self.noises.items[data].evaluate1(rs, texture.uv_set),
+            .Noise => self.noises.items[data].evaluate1(rs, @splat(0.0), texture.uv_set),
         };
     }
 
@@ -97,17 +97,14 @@ pub const Procedural = struct {
 
         return switch (proc) {
             .Checker => {
-                const color = self.checkers.items[data].evaluate(rs, key, worker);
+                const color = self.checkers.items[data].evaluate(rs, key, texture.uv_set, worker);
                 return .{ color[0], color[1] };
             },
             .DetailNormal => self.detail_normals.items[data].evaluate(rs, key, sampler, worker),
             .Max => self.maxes.items[data].evaluate2(rs, key, sampler, worker),
             .Mix => self.mixes.items[data].evaluate2(rs, key, sampler, worker),
             .Mul => self.muls.items[data].evaluate2(rs, key, sampler, worker),
-            .Noise => {
-                const color = self.noises.items[data].evaluate3(rs, texture.uv_set);
-                return .{ color[0], color[1] };
-            },
+            .Noise => self.noises.items[data].evaluateNormalmap(rs, texture.uv_set, worker),
         };
     }
 
@@ -117,7 +114,7 @@ pub const Procedural = struct {
         const data = texture.data.procedural.data;
 
         return switch (proc) {
-            .Checker => self.checkers.items[data].evaluate(rs, key, worker),
+            .Checker => self.checkers.items[data].evaluate(rs, key, texture.uv_set, worker),
             .DetailNormal => @splat(0.0),
             .Max => self.maxes.items[data].evaluate3(rs, key, sampler, worker),
             .Mix => self.mixes.items[data].evaluate3(rs, key, sampler, worker),

@@ -86,7 +86,7 @@ pub const Integrator = struct {
         const material = medium.material(worker.scene);
 
         if (material.denseSSSOptimization()) {
-            integrateHomogeneousSSS(medium.prop, vertex, frag, sampler, worker);
+            integrateHomogeneousSSS(medium.prop, medium.trafo, vertex, frag, sampler, worker);
             return;
         }
 
@@ -98,7 +98,7 @@ pub const Integrator = struct {
         }
 
         const tray = if (material.heterogeneousVolume())
-            worker.scene.propTransformationAt(medium.prop, vertex.probe.time).worldToObjectRay(vertex.probe.ray)
+            medium.trafo.worldToObjectRay(vertex.probe.ray)
         else
             vertex.probe.ray;
 
@@ -125,14 +125,13 @@ pub const Integrator = struct {
         vertex.throughput *= result.tr;
     }
 
-    fn integrateHomogeneousSSS(prop: u32, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) void {
+    fn integrateHomogeneousSSS(prop: u32, trafo: Trafo, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) void {
         frag.event = .Abort;
 
         const cc = vertex.mediums.topCC();
         const g = cc.anisotropy();
 
         const shape = worker.scene.propShape(prop);
-        const trafo = worker.scene.propTransformationAt(prop, vertex.probe.time);
 
         const mu_t = cc.a + cc.s;
         const albedo = cc.s / mu_t;
@@ -176,8 +175,7 @@ pub const Integrator = struct {
 
             vertex.probe.ray.max_t = free_path;
 
-            const hit = shape.intersect(vertex.probe.ray, trafo);
-            if (Intersection.Null == hit.primitive) {
+            if (!shape.intersect(vertex.probe, trafo, &frag.isec)) {
                 const wil = sampleHg(g, sampler);
                 const frame = Frame.init(vertex.probe.ray.direction);
                 const wi = frame.frameToWorld(wil);
@@ -186,9 +184,7 @@ pub const Integrator = struct {
 
                 local_weight *= albedo;
             } else {
-                vertex.probe.ray.max_t = hit.t;
-                frag.isec = hit;
-                frag.trafo = trafo;
+                vertex.probe.ray.max_t = frag.isec.t;
                 frag.prop = prop;
 
                 shape.fragment(vertex.probe.ray, frag);

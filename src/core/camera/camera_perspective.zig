@@ -1,19 +1,20 @@
+const Base = @import("camera_base.zig").Base;
 const cs = @import("camera_sample.zig");
 const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Aperture = @import("aperture.zig").Aperture;
 const Shaper = @import("../rendering/shaper.zig").Shaper;
 const Prop = @import("../scene/prop/prop.zig").Prop;
-const Sampler = @import("../sampler/sampler.zig").Sampler;
 const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
 const Vertex = vt.Vertex;
-const Probe = Vertex.Probe;
 const RayDif = vt.RayDif;
 const ro = @import("../scene/ray_offset.zig");
 const Fragment = @import("../scene/shape/intersection.zig").Fragment;
+const Probe = @import("../scene/shape/probe.zig").Probe;
 const MediumStack = @import("../scene/prop/medium.zig").Stack;
 const Resources = @import("../resource/manager.zig").Manager;
+const Sampler = @import("../sampler/sampler.zig").Sampler;
 const tx = @import("../image/texture/texture_provider.zig");
 const img = @import("../image/image.zig");
 
@@ -40,18 +41,11 @@ pub const Perspective = struct {
 
     const Stereo = struct { ipd: f32 = 0.0 };
 
-    const Default_frame_time = Scene.Units_per_second / 60;
+    super: Base = .{},
 
-    entity: u32 = Prop.Null,
-
-    sample_spacing: f32 = undefined,
-
-    resolution: Vec2i = Vec2i{ 0, 0 },
-    crop: Vec4i = @splat(0),
-
-    left_top: [2]Vec4f = .{ @splat(0.0), @splat(0.0) },
-    d_x: [2]Vec4f = .{ @splat(0.0), @splat(0.0) },
-    d_y: [2]Vec4f = .{ @splat(0.0), @splat(0.0) },
+    left_top: [2]Vec4f = undefined,
+    d_x: [2]Vec4f = undefined,
+    d_y: [2]Vec4f = undefined,
     eye_offsets: [2]Vec4f = .{ @splat(0.0), @splat(0.0) },
 
     fov: f32 = 0.0,
@@ -61,11 +55,6 @@ pub const Perspective = struct {
 
     focus: Focus = .{},
     stereo: Stereo = .{},
-
-    mediums: MediumStack = undefined,
-
-    frame_step: u64 = Default_frame_time,
-    frame_duration: u64 = Default_frame_time,
 
     const Self = @This();
 
@@ -85,21 +74,10 @@ pub const Perspective = struct {
         return "";
     }
 
-    pub fn setResolution(self: *Self, resolution: Vec2i, crop: Vec4i) void {
-        self.resolution = resolution;
-
-        var cc: Vec4i = @max(crop, @as(Vec4i, @splat(0)));
-        cc[2] = @min(cc[2], resolution[0]);
-        cc[3] = @min(cc[3], resolution[1]);
-        cc[0] = @min(cc[0], cc[2]);
-        cc[1] = @min(cc[1], cc[3]);
-        self.crop = cc;
-    }
-
     pub fn update(self: *Self, time: u64, scene: *const Scene) void {
-        self.mediums.clear();
+        self.super.mediums.clear();
 
-        const fr: Vec2f = @floatFromInt(self.resolution);
+        const fr: Vec2f = @floatFromInt(self.super.resolution);
         const ratio = fr[1] / fr[0];
 
         const z = 1.0 / @tan(0.5 * self.fov);
@@ -162,13 +140,13 @@ pub const Perspective = struct {
             origin = self.eye_offsets[layer];
         }
 
-        const time = self.absoluteTime(frame, sample.time);
-        const trafo = scene.propTransformationAt(self.entity, time);
+        const time = self.super.absoluteTime(frame, sample.time);
+        const trafo = scene.propTransformationAt(self.super.entity, time);
 
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.RayMaxT), time, &self.mediums);
+        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.RayMaxT), time, &self.super.mediums);
     }
 
     pub fn sampleTo(
@@ -180,7 +158,7 @@ pub const Perspective = struct {
         sampler: *Sampler,
         scene: *const Scene,
     ) ?SampleTo {
-        const trafo = scene.propTransformationAt(self.entity, time);
+        const trafo = scene.propTransformationAt(self.super.entity, time);
 
         const po = trafo.worldToObjectPoint(p) - self.eye_offsets[layer];
 
@@ -243,7 +221,7 @@ pub const Perspective = struct {
     }
 
     pub fn calculateRayDifferential(self: *const Self, layer: u32, p: Vec4f, time: u64, scene: *const Scene) RayDif {
-        const trafo = scene.propTransformationAt(self.entity, time);
+        const trafo = scene.propTransformationAt(self.super.entity, time);
 
         var p_w: Vec4f = undefined;
         if (self.stereo.ipd > 0.0) {
@@ -257,7 +235,7 @@ pub const Perspective = struct {
         const d_x_w = trafo.objectToWorldVector(self.d_x[layer]);
         const d_y_w = trafo.objectToWorldVector(self.d_y[layer]);
 
-        const ss: Vec4f = @splat(self.sample_spacing);
+        const ss: Vec4f = @splat(self.super.sample_spacing);
 
         const x_dir_w = math.normalize3(dir_w + ss * d_x_w);
         const y_dir_w = math.normalize3(dir_w + ss * d_y_w);
@@ -270,28 +248,19 @@ pub const Perspective = struct {
         };
     }
 
-    pub fn absoluteTime(self: Self, frame: u32, frame_delta: f32) u64 {
-        const delta: f64 = @floatCast(frame_delta);
-        const duration: f64 = @floatFromInt(self.frame_duration);
-
-        const fdi: u64 = @intFromFloat(@round(delta * duration));
-
-        return @as(u64, frame) * self.frame_step + fdi;
-    }
-
     pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, scene: *const Scene, resources: *Resources) !void {
         var motion_blur = true;
 
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "frame_step", entry.key_ptr.*)) {
-                self.frame_step = Scene.absoluteTime(json.readFloat(f64, entry.value_ptr.*));
+                self.super.frame_step = Scene.absoluteTime(json.readFloat(f64, entry.value_ptr.*));
             } else if (std.mem.eql(u8, "frames_per_second", entry.key_ptr.*)) {
                 const fps = json.readFloat(f64, entry.value_ptr.*);
                 if (0.0 == fps) {
-                    self.frame_step = 0;
+                    self.super.frame_step = 0;
                 } else {
-                    self.frame_step = @as(u64, @intFromFloat(@round(@as(f64, @floatFromInt(Scene.Units_per_second)) / fps)));
+                    self.super.frame_step = @intFromFloat(@round(@as(f64, @floatFromInt(Scene.UnitsPerSecond)) / fps));
                 }
             } else if (std.mem.eql(u8, "motion_blur", entry.key_ptr.*)) {
                 motion_blur = json.readBool(entry.value_ptr.*);
@@ -342,13 +311,15 @@ pub const Perspective = struct {
             }
         }
 
-        self.frame_duration = if (motion_blur) self.frame_step else 0;
+        self.super.frame_duration = if (motion_blur) self.super.frame_step else 0;
     }
 
     fn setFocus(self: *Self, focus: Focus) void {
+        const resolution = self.super.resolution;
+
         self.focus = focus;
-        self.focus.point[0] *= @floatFromInt(self.resolution[0]);
-        self.focus.point[1] *= @floatFromInt(self.resolution[1]);
+        self.focus.point[0] *= @floatFromInt(resolution[0]);
+        self.focus.point[1] *= @floatFromInt(resolution[1]);
         self.focus_distance = focus.distance;
     }
 
@@ -358,7 +329,7 @@ pub const Perspective = struct {
                 left_top + d_x * @as(Vec4f, @splat(self.focus.point[0])) + d_y * @as(Vec4f, @splat(self.focus.point[1])),
             );
 
-            const trafo = scene.propTransformationAt(self.entity, time);
+            const trafo = scene.propTransformationAt(self.super.entity, time);
 
             var probe = Probe.init(
                 Ray.init(trafo.position, trafo.objectToWorldVector(direction), 0.0, ro.RayMaxT),

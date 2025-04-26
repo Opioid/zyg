@@ -21,6 +21,7 @@ pub const Float1Sparse = ti.TypedSparseImage(f32);
 pub const Float2 = ti.TypedImage(Vec2f);
 pub const Float3 = ti.TypedImage(Pack3f);
 pub const Float4 = ti.TypedImage(Pack4f);
+pub const testing = @import("test_image.zig");
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -44,20 +45,6 @@ pub const Swizzle = enum {
             .XYZW => 4,
         };
     }
-};
-
-pub const Type = enum {
-    Byte1,
-    Byte2,
-    Byte3,
-    Byte4,
-    Half1,
-    Half3,
-    Half4,
-    Float1,
-    Float2,
-    Float3,
-    Float4,
 };
 
 pub const Image = union(enum) {

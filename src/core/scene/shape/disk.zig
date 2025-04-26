@@ -23,44 +23,45 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Disk = struct {
-    pub fn intersect(ray: Ray, trafo: Trafo) Intersection {
+    pub fn intersect(ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
         const numer = math.dot3(normal, ray.origin) - d;
         const hit_t = numer / denom;
 
-        var hpoint = Intersection{};
-
         if (hit_t >= ray.min_t and ray.max_t >= hit_t) {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
-            const radius = trafo.scaleX();
+            const radius = 0.5 * trafo.scaleX();
 
             if (l <= radius * radius) {
                 const t = trafo.rotation.r[0];
                 const b = trafo.rotation.r[1];
 
                 const sk = k / @as(Vec4f, @splat(radius));
-                hpoint.u = -math.dot3(t, sk);
-                hpoint.v = -math.dot3(b, sk);
+                isec.u = -math.dot3(t, sk);
+                isec.v = -math.dot3(b, sk);
 
-                hpoint.t = hit_t;
-                hpoint.primitive = 0;
+                isec.t = hit_t;
+                isec.primitive = 0;
+                isec.prototype = Intersection.Null;
+                isec.trafo = trafo;
+                return true;
             }
         }
 
-        return hpoint;
+        return false;
     }
 
     pub fn fragment(ray: Ray, frag: *Fragment) void {
         const u = frag.isec.u;
         const v = frag.isec.v;
 
-        const n = frag.trafo.rotation.r[2];
-        const t = -frag.trafo.rotation.r[0];
-        const b = -frag.trafo.rotation.r[1];
+        const n = frag.isec.trafo.rotation.r[2];
+        const t = -frag.isec.trafo.rotation.r[0];
+        const b = -frag.isec.trafo.rotation.r[1];
 
         frag.p = ray.point(frag.isec.t);
         frag.t = t;
@@ -82,7 +83,7 @@ pub const Disk = struct {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
-            const radius = trafo.scaleX();
+            const radius = 0.5 * trafo.scaleX();
 
             if (l <= radius * radius) {
                 return true;
@@ -103,7 +104,7 @@ pub const Disk = struct {
             const p = ray.point(hit_t);
             const k = p - trafo.position;
             const l = math.dot3(k, k);
-            const radius = trafo.scaleX();
+            const radius = 0.5 * trafo.scaleX();
 
             if (l <= radius * radius) {
                 const t = trafo.rotation.r[0];
@@ -128,12 +129,9 @@ pub const Disk = struct {
     }
 
     pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, worker: *const Worker) Vec4f {
-        const hit = intersect(vertex.probe.ray, frag.trafo);
-        if (Intersection.Null == hit.primitive) {
+        if (!intersect(vertex.probe.ray, frag.isec.trafo, &frag.isec)) {
             return @splat(0.0);
         }
-
-        frag.isec = hit;
 
         fragment(vertex.probe.ray, frag);
 
@@ -236,7 +234,7 @@ pub const Disk = struct {
 
         const dsd = DiskSamplerData.init(lp);
 
-        const radius = trafo.scaleX();
+        const radius = 0.5 * trafo.scaleX();
 
         const eas0 = EquiAngularSampling.init(lp, @splat(0.0), dsd.yd, -radius, radius);
 
@@ -263,7 +261,7 @@ pub const Disk = struct {
             pdf_ *= eas1.sample(sampler.sample1D(), &x_coord);
 
             const l_direction = @as(Vec4f, @splat(x_coord)) * dsd.xd + @as(Vec4f, @splat(y_coord)) * dsd.yd - lp;
-            const axis = trafo.frameToWorldVector(l_direction);
+            const axis = trafo.objectToWorldNormal(l_direction);
             const ws = p + axis;
 
             var wn = trafo.rotation.r[2];
@@ -302,7 +300,7 @@ pub const Disk = struct {
         const num_samples = material.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
-        const radius = trafo.scaleX();
+        const radius = 0.5 * trafo.scaleX();
         const area = std.math.pi * (radius * radius);
 
         var current_sample: u32 = 0;
@@ -319,7 +317,7 @@ pub const Disk = struct {
             const uv2 = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
             const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
 
-            const k = @as(Vec4f, @splat(radius)) * trafo.rotation.transformVector(ls);
+            const k = @as(Vec4f, @splat(radius)) * trafo.objectToWorldNormal(ls);
             const l = math.dot3(k, k);
             if (l > radius * radius) {
                 continue;
@@ -373,12 +371,14 @@ pub const Disk = struct {
         uv: Vec2f,
         importance_uv: Vec2f,
     ) ?SampleFrom {
+        const radius = 0.5 * trafo.scaleX();
+
         const xy = math.smpl.diskConcentric(uv);
         const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
-        const ws = trafo.position + @as(Vec4f, @splat(trafo.scaleX())) * trafo.rotation.transformVector(ls);
+
+        const ws = trafo.position + @as(Vec4f, @splat(radius)) * trafo.objectToWorldNormal(ls);
         const uvw = Vec4f{ uv[0], uv[1], 0.0, 0.0 };
 
-        const radius = trafo.scaleX();
         const area = @as(f32, if (two_sided) 2.0 * std.math.pi else std.math.pi) * (radius * radius);
 
         var wn = trafo.rotation.r[2];
@@ -406,17 +406,17 @@ pub const Disk = struct {
     }
 
     pub fn pdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, split_threshold: f32, material: *const Material) f32 {
-        const lp = frag.trafo.worldToFramePoint(p);
+        const lp = frag.isec.trafo.worldToFramePoint(p);
 
         const dsd = DiskSamplerData.init(lp);
 
-        const radius = frag.trafo.scaleX();
+        const radius = 0.5 * frag.isec.trafo.scaleX();
 
         const max_t = frag.isec.t;
 
         const eas0 = EquiAngularSampling.init(lp, @splat(0.0), dsd.yd, -radius, radius);
 
-        const l_direction = frag.trafo.worldToFrameVector(dir);
+        const l_direction = frag.isec.trafo.worldToObjectNormal(dir);
         const l_point = lp + @as(Vec4f, @splat(max_t)) * l_direction;
 
         const y_coord = math.dot3(l_point, dsd.yd);
@@ -433,7 +433,7 @@ pub const Disk = struct {
         const x_coord = math.dot3(l_point, dsd.xd);
         pdf_ *= eas1.pdf(x_coord);
 
-        const c = @abs(math.dot3(frag.trafo.rotation.r[2], dir));
+        const c = @abs(math.dot3(frag.isec.trafo.rotation.r[2], dir));
 
         const sl = max_t * max_t;
 
@@ -448,9 +448,9 @@ pub const Disk = struct {
         split_threshold: f32,
         material: *const Material,
     ) f32 {
-        const c = @abs(math.dot3(frag.trafo.rotation.r[2], dir));
+        const c = @abs(math.dot3(frag.isec.trafo.rotation.r[2], dir));
 
-        const radius = frag.trafo.scaleX();
+        const radius = 0.5 * frag.isec.trafo.scaleX();
         const area = std.math.pi * (radius * radius);
 
         const sl = math.squaredDistance3(p, frag.p);

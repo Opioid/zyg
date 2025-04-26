@@ -3,7 +3,7 @@ const ImageSequence = @import("image_sequence.zig").ImageSequence;
 const img = @import("../image/image.zig");
 const Float4 = img.Float4;
 const AovClass = @import("../rendering/sensor/aov/aov_value.zig").Value.Class;
-const Camera = @import("../camera/perspective.zig").Perspective;
+const Camera = @import("../camera/camera.zig").Camera;
 
 const base = @import("base");
 const Vec4i = base.math.Vec4i;

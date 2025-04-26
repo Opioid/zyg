@@ -15,10 +15,11 @@ const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Volume = int.Volume;
+const DifferentialSurface = int.DifferentialSurface;
+const Probe = @import("probe.zig").Probe;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const DifferentialSurface = smpl.DifferentialSurface;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Vertex = @import("../vertex.zig").Vertex;
 const LightTreeBuilder = @import("../light/light_tree_builder.zig").Builder;
@@ -91,18 +92,11 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn complex(self: *const Shape) bool {
-        return switch (self.*) {
-            .CurveMesh, .TriangleMesh => true,
-            else => false,
-        };
-    }
-
     pub fn aabb(self: *const Shape) AABB {
         return switch (self.*) {
             .Canopy, .DistantSphere, .InfiniteSphere => math.aabb.Empty,
-            .Disk, .Rectangle => AABB.init(.{ -1.0, -1.0, 0.0, 0.0 }, .{ 1.0, 1.0, 0.0, 0.0 }),
-            .Cube, .Sphere => AABB.init(@splat(-1.0), @splat(1.0)),
+            .Disk, .Rectangle => AABB.init(.{ -0.5, -0.5, 0.0, 0.0 }, .{ 0.5, 0.5, 0.0, 0.0 }),
+            .Cube, .Sphere => AABB.init(@splat(-0.5), @splat(0.5)),
             inline .CurveMesh, .TriangleMesh => |*m| m.tree.aabb(),
         };
     }
@@ -125,46 +119,39 @@ pub const Shape = union(enum) {
     pub fn area(self: *const Shape, part: u32, scale: Vec4f) f32 {
         return switch (self.*) {
             .Canopy => 2.0 * std.math.pi,
-            .Cube => {
-                const d = @as(Vec4f, @splat(2.0)) * scale;
-                return 2.0 * (d[0] * d[1] + d[0] * d[2] + d[1] * d[2]);
-            },
+            .Cube => return 2.0 * (scale[0] * scale[1] + scale[0] * scale[2] + scale[1] * scale[2]),
             .CurveMesh => 0.0,
-            .Disk => std.math.pi * (scale[0] * scale[0]),
+            .Disk => std.math.pi * math.pow2(0.5 * scale[0]),
 
             // This calculates the solid angle, not the area!
             // I think it is what we actually need for the PDF, but results are extremely close
             .DistantSphere => DistantSphere.solidAngle(scale[0]),
 
             .InfiniteSphere => 4.0 * std.math.pi,
-            .Rectangle => 4.0 * scale[0] * scale[1],
-            .Sphere => (4.0 * std.math.pi) * (scale[0] * scale[0]),
-
+            .Rectangle => scale[0] * scale[1],
+            .Sphere => (4.0 * std.math.pi) * math.pow2(0.5 * scale[0]),
             .TriangleMesh => |m| m.area(part, scale),
         };
     }
 
     pub fn volume(self: *const Shape, scale: Vec4f) f32 {
         return switch (self.*) {
-            .Cube => {
-                const d = @as(Vec4f, @splat(2.0)) * scale;
-                return d[0] * d[1] * d[2];
-            },
+            .Cube => return scale[0] * scale[1] * scale[2],
             else => 0.0,
         };
     }
 
-    pub fn intersect(self: *const Shape, ray: Ray, trafo: Trafo) Intersection {
+    pub fn intersect(self: *const Shape, probe: Probe, trafo: Trafo, isec: *Intersection) bool {
         return switch (self.*) {
-            .Canopy => Canopy.intersect(ray, trafo),
-            .Cube => Cube.intersect(ray, trafo),
-            .CurveMesh => |m| m.intersect(ray, trafo),
-            .Disk => Disk.intersect(ray, trafo),
-            .DistantSphere => DistantSphere.intersect(ray, trafo),
-            .InfiniteSphere => InfiniteSphere.intersect(ray),
-            .Rectangle => Rectangle.intersect(ray, trafo),
-            .Sphere => Sphere.intersect(ray, trafo),
-            .TriangleMesh => |m| m.intersect(ray, trafo),
+            .Canopy => Canopy.intersect(probe.ray, trafo, isec),
+            .Cube => Cube.intersect(probe.ray, trafo, isec),
+            .CurveMesh => |m| m.intersect(probe.ray, trafo, isec),
+            .Disk => Disk.intersect(probe.ray, trafo, isec),
+            .DistantSphere => DistantSphere.intersect(probe.ray, trafo, isec),
+            .InfiniteSphere => InfiniteSphere.intersect(probe.ray, trafo, isec),
+            .Rectangle => Rectangle.intersect(probe.ray, trafo, isec),
+            .Sphere => Sphere.intersect(probe.ray, trafo, isec),
+            .TriangleMesh => |m| m.intersect(probe.ray, trafo, isec),
         };
     }
 
@@ -182,42 +169,30 @@ pub const Shape = union(enum) {
         }
     }
 
-    pub fn intersectP(self: *const Shape, ray: Ray, trafo: Trafo) bool {
+    pub fn intersectP(
+        self: *const Shape,
+        probe: Probe,
+        trafo: Trafo,
+        sampler: *Sampler,
+        worker: *Worker,
+    ) bool {
+        _ = sampler;
+        _ = worker;
+
         return switch (self.*) {
-            .Cube => Cube.intersectP(ray, trafo),
-            .CurveMesh => |m| m.intersectP(ray, trafo),
-            .Disk => Disk.intersectP(ray, trafo),
-            .Rectangle => Rectangle.intersectP(ray, trafo),
-            .Sphere => Sphere.intersectP(ray, trafo),
-            .TriangleMesh => |m| m.intersectP(ray, trafo),
+            .Cube => Cube.intersectP(probe.ray, trafo),
+            .CurveMesh => |m| m.intersectP(probe.ray, trafo),
+            .Disk => Disk.intersectP(probe.ray, trafo),
+            .Rectangle => Rectangle.intersectP(probe.ray, trafo),
+            .Sphere => Sphere.intersectP(probe.ray, trafo),
+            .TriangleMesh => |m| m.intersectP(probe.ray, trafo),
             else => false,
         };
     }
 
     pub fn visibility(
         self: *const Shape,
-        ray: Ray,
-        trafo: Trafo,
-        entity: u32,
-        sampler: *Sampler,
-        worker: *const Worker,
-        tr: *Vec4f,
-    ) bool {
-        return switch (self.*) {
-            .Cube => Cube.visibility(ray, trafo, entity, sampler, worker, tr),
-            .CurveMesh => |m| m.visibility(ray, trafo, tr),
-            .Disk => Disk.visibility(ray, trafo, entity, sampler, worker, tr),
-            .Rectangle => Rectangle.visibility(ray, trafo, entity, sampler, worker, tr),
-            .Sphere => Sphere.visibility(ray, trafo, entity, sampler, worker, tr),
-            .TriangleMesh => |m| m.visibility(ray, trafo, entity, sampler, worker, tr),
-            else => true,
-        };
-    }
-
-    pub fn transmittance(
-        self: *const Shape,
-        ray: Ray,
-        depth: u32,
+        probe: Probe,
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
@@ -225,17 +200,36 @@ pub const Shape = union(enum) {
         tr: *Vec4f,
     ) bool {
         return switch (self.*) {
-            .Cube => Cube.transmittance(ray, trafo, entity, depth, sampler, worker, tr),
-            .Sphere => Sphere.transmittance(ray, trafo, entity, depth, sampler, worker, tr),
-            .TriangleMesh => |m| m.transmittance(ray, trafo, entity, depth, sampler, worker, tr),
+            .Cube => Cube.visibility(probe.ray, trafo, entity, sampler, worker, tr),
+            .CurveMesh => |m| m.visibility(probe.ray, trafo, tr),
+            .Disk => Disk.visibility(probe.ray, trafo, entity, sampler, worker, tr),
+            .Rectangle => Rectangle.visibility(probe.ray, trafo, entity, sampler, worker, tr),
+            .Sphere => Sphere.visibility(probe.ray, trafo, entity, sampler, worker, tr),
+            .TriangleMesh => |m| m.visibility(probe.ray, trafo, entity, sampler, worker, tr),
+            else => true,
+        };
+    }
+
+    pub fn transmittance(
+        self: *const Shape,
+        probe: Probe,
+        trafo: Trafo,
+        entity: u32,
+        sampler: *Sampler,
+        worker: *Worker,
+        tr: *Vec4f,
+    ) bool {
+        return switch (self.*) {
+            .Cube => Cube.transmittance(probe, trafo, entity, sampler, worker, tr),
+            .Sphere => Sphere.transmittance(probe, trafo, entity, sampler, worker, tr),
+            .TriangleMesh => |m| m.transmittance(probe, trafo, entity, sampler, worker, tr),
             else => true,
         };
     }
 
     pub fn scatter(
         self: *const Shape,
-        ray: Ray,
-        depth: u32,
+        probe: Probe,
         trafo: Trafo,
         throughput: Vec4f,
         entity: u32,
@@ -243,9 +237,9 @@ pub const Shape = union(enum) {
         worker: *Worker,
     ) Volume {
         return switch (self.*) {
-            .Cube => Cube.scatter(ray, trafo, throughput, entity, depth, sampler, worker),
-            .Sphere => Sphere.scatter(ray, trafo, throughput, entity, depth, sampler, worker),
-            .TriangleMesh => |m| m.scatter(ray, trafo, throughput, entity, depth, sampler, worker),
+            .Cube => Cube.scatter(probe, trafo, throughput, entity, sampler, worker),
+            .Sphere => Sphere.scatter(probe, trafo, throughput, entity, sampler, worker),
+            .TriangleMesh => |m| m.scatter(probe, trafo, throughput, entity, sampler, worker),
             else => Volume.initPass(@splat(1.0)),
         };
     }
@@ -420,13 +414,13 @@ pub const Shape = union(enum) {
     ) f32 {
         return switch (self.*) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Cube, .CurveMesh => 0.0,
             .Disk => Disk.pdf(dir, p, frag, split_threshold, material),
-            .DistantSphere => DistantSphere.pdf(frag.trafo),
+            .DistantSphere => DistantSphere.pdf(frag.isec.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
-            .Rectangle => Rectangle.pdf(p, frag.trafo, split_threshold, material),
-            .Sphere => Sphere.pdf(p, frag.trafo, split_threshold, material),
+            .Rectangle => Rectangle.pdf(p, frag.isec.trafo, split_threshold, material),
+            .Sphere => Sphere.pdf(p, frag.isec.trafo, split_threshold, material),
             .TriangleMesh => |m| m.pdf(part, variant, dir, p, n, frag, total_sphere, split_threshold),
+            else => 0.0,
         };
     }
 
@@ -479,11 +473,14 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn differentialSurface(self: *const Shape, primitive: u32, trafo: Trafo) DifferentialSurface {
+    pub fn surfaceDifferential(self: *const Shape, primitive: u32, trafo: Trafo) DifferentialSurface {
         return switch (self.*) {
-            .Rectangle => Rectangle.differentialSurface(trafo),
-            .TriangleMesh => |*m| m.differentialSurface(primitive),
-            else => .{ .dpdu = .{ -2.0, 0.0, 0.0, 0.0 }, .dpdv = .{ 0.0, -2.0, 0.0, 0.0 } },
+            .Rectangle => Rectangle.surfaceDifferential(trafo),
+            .TriangleMesh => |*m| m.surfaceDifferential(primitive, trafo),
+            else => .{
+                .dpdu = @as(Vec4f, @splat(-trafo.scaleX())) * trafo.rotation.r[0],
+                .dpdv = @as(Vec4f, @splat(-trafo.scaleY())) * trafo.rotation.r[1],
+            },
         };
     }
 };

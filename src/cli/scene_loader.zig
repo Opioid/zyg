@@ -9,6 +9,7 @@ const Scene = scn.Scene;
 const Prop = scn.Prop;
 const Material = scn.Material;
 const Shape = scn.Shape;
+const Instancer = scn.Instancer;
 const resource = core.resource;
 const Resources = resource.Manager;
 const Take = core.tk.Take;
@@ -82,9 +83,9 @@ const KeyContext = struct {
 
 pub const Loader = struct {
     const Error = error{
-        OutOfMemory,
+        UndefinedType,
         UndefinedShape,
-    };
+    } || Allocator.Error;
 
     resources: *Resources,
 
@@ -226,10 +227,8 @@ pub const Loader = struct {
         local_materials: LocalMaterials,
         graph: *Graph,
     ) Error!void {
-        const scene = &graph.scene;
-
-        for (value.array.items) |entity| {
-            if (entity.object.get("file")) |file_node| {
+        for (value.array.items) |entity_value| {
+            if (entity_value.object.get("file")) |file_node| {
                 const filename = file_node.string;
                 self.loadFile(alloc, filename, "", parent_id, parent_trafo, animated, graph) catch |e| {
                     log.err("Loading scene \"{s}\": {}", .{ filename, e });
@@ -237,48 +236,104 @@ pub const Loader = struct {
                 continue;
             }
 
-            const type_node = entity.object.get("type") orelse continue;
-            const type_name = type_node.string;
+            const leaf = self.loadLeafEntity(alloc, entity_value, parent_id, parent_trafo, animated, local_materials, graph, false) catch continue;
 
-            var entity_id: u32 = Prop.Null;
-            var is_light = false;
-
-            if (std.mem.eql(u8, "Light", type_name)) {
-                entity_id = self.loadProp(alloc, entity, local_materials, graph, false, true) catch continue;
-                is_light = true;
-            } else if (std.mem.eql(u8, "Prop", type_name)) {
-                entity_id = self.loadProp(alloc, entity, local_materials, graph, true, false) catch continue;
-            } else if (std.mem.eql(u8, "Sky", type_name)) {
-                entity_id = loadSky(alloc, entity, graph) catch continue;
+            if (leaf.children_ptr) |children| {
+                try self.loadEntities(
+                    alloc,
+                    children.*,
+                    leaf.graph.graph_id,
+                    leaf.graph.world_trafo,
+                    leaf.graph.animated,
+                    local_materials,
+                    graph,
+                );
             }
 
-            var trafo = Transformation{
-                .position = @splat(0.0),
-                .scale = @splat(1.0),
-                .rotation = math.quaternion.identity,
-            };
-
-            var animation_ptr: ?*std.json.Value = null;
-            var children_ptr: ?*std.json.Value = null;
-            var visibility_ptr: ?*std.json.Value = null;
-            var shadow_catcher_ptr: ?*std.json.Value = null;
-
-            var iter = entity.object.iterator();
-            while (iter.next()) |entry| {
-                if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
-                    json.readTransformation(entry.value_ptr.*, &trafo);
-                } else if (std.mem.eql(u8, "animation", entry.key_ptr.*)) {
-                    animation_ptr = entry.value_ptr;
-                } else if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
-                    children_ptr = entry.value_ptr;
-                } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
-                    visibility_ptr = entry.value_ptr;
-                } else if (std.mem.eql(u8, "shadow_catcher", entry.key_ptr.*)) {
-                    shadow_catcher_ptr = entry.value_ptr;
-                }
+            if (leaf.is_scatterer) {
+                try self.loadScatterer(
+                    alloc,
+                    entity_value,
+                    leaf.graph.graph_id,
+                    leaf.graph.world_trafo,
+                    leaf.graph.animated,
+                    local_materials,
+                    graph,
+                );
             }
+        }
+    }
 
-            if (trafo.scale[1] <= 0.0 and trafo.scale[2] <= 2 and 1 == scene.propShape(entity_id).numParts()) {
+    const Leaf = struct {
+        entity_id: u32,
+        graph: Graph.TrafoResult,
+        children_ptr: ?*std.json.Value,
+        is_scatterer: bool,
+    };
+
+    fn loadLeafEntity(
+        self: *Loader,
+        alloc: Allocator,
+        value: std.json.Value,
+        parent_id: u32,
+        parent_trafo: Transformation,
+        animated: bool,
+        local_materials: LocalMaterials,
+        graph: *Graph,
+        prototype: bool,
+    ) !Leaf {
+        const type_node = value.object.get("type") orelse return Error.UndefinedType;
+        const type_name = type_node.string;
+
+        var entity_id: u32 = Prop.Null;
+        var is_light = false;
+        var is_scatterer = false;
+
+        if (std.mem.eql(u8, "Light", type_name)) {
+            entity_id = try self.loadProp(alloc, value, local_materials, graph, false, true, prototype);
+            is_light = true;
+        } else if (std.mem.eql(u8, "Prop", type_name)) {
+            entity_id = try self.loadProp(alloc, value, local_materials, graph, true, false, prototype);
+        } else if (std.mem.eql(u8, "Instancer", type_name)) {
+            entity_id = try self.loadInstancer(alloc, value, parent_id, parent_trafo, local_materials, graph, prototype);
+        } else if (std.mem.eql(u8, "Sky", type_name)) {
+            entity_id = try loadSky(alloc, value, graph);
+        } else if (std.mem.eql(u8, "Scatterer", type_name)) {
+            is_scatterer = true;
+        }
+
+        var trafo = Transformation{
+            .position = @splat(0.0),
+            .scale = @splat(1.0),
+            .rotation = math.quaternion.identity,
+        };
+
+        var animation_ptr: ?*std.json.Value = null;
+        var children_ptr: ?*std.json.Value = null;
+        var visibility_ptr: ?*std.json.Value = null;
+        var shadow_catcher_ptr: ?*std.json.Value = null;
+
+        var iter = value.object.iterator();
+        while (iter.next()) |entry| {
+            if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
+                json.readTransformation(entry.value_ptr.*, &trafo);
+            } else if (std.mem.eql(u8, "animation", entry.key_ptr.*)) {
+                animation_ptr = entry.value_ptr;
+            } else if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
+                children_ptr = entry.value_ptr;
+            } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
+                visibility_ptr = entry.value_ptr;
+            } else if (std.mem.eql(u8, "shadow_catcher", entry.key_ptr.*)) {
+                shadow_catcher_ptr = entry.value_ptr;
+            }
+        }
+
+        const scene = &graph.scene;
+
+        if (Prop.Null != entity_id) {
+            const prop = scene.prop(entity_id);
+
+            if (prop.volume() and !prop.instancer() and trafo.scale[1] <= 0.0 and trafo.scale[2] <= 2.0) {
                 const material = scene.propMaterial(entity_id, 0);
                 if (material.heterogeneousVolume()) {
                     if (material.usefulTexture()) |t| {
@@ -303,46 +358,41 @@ pub const Loader = struct {
                             }
                         }
 
-                        trafo.scale = @as(Vec4f, @splat(0.5)) * voxel_scale * @as(Vec4f, @floatFromInt(dimensions));
-                        trafo.position += trafo.scale + voxel_scale * @as(Vec4f, @floatFromInt(offset));
+                        trafo.scale = voxel_scale * @as(Vec4f, @floatFromInt(dimensions));
+                        trafo.position += (@as(Vec4f, @splat(0.5)) * trafo.scale) + voxel_scale * @as(Vec4f, @floatFromInt(offset));
                     }
                 }
             }
-
-            const graph_trafo = try graph.propSetTransformation(
-                alloc,
-                entity_id,
-                parent_id,
-                trafo,
-                parent_trafo,
-                animation_ptr,
-                animated,
-            );
-
-            if (visibility_ptr) |visibility| {
-                setVisibility(entity_id, visibility.*, scene);
-            }
-
-            if (shadow_catcher_ptr) |shadow_catcher| {
-                setShadowCatcher(entity_id, shadow_catcher.*, scene);
-            }
-
-            if (is_light and scene.prop(entity_id).visibleInReflection()) {
-                try scene.createLight(alloc, entity_id);
-            }
-
-            if (children_ptr) |children| {
-                try self.loadEntities(
-                    alloc,
-                    children.*,
-                    graph_trafo.graph_id,
-                    graph_trafo.world_trafo,
-                    graph_trafo.animated,
-                    local_materials,
-                    graph,
-                );
-            }
         }
+
+        const graph_trafo = try graph.propSetTransformation(
+            alloc,
+            entity_id,
+            parent_id,
+            trafo,
+            parent_trafo,
+            animation_ptr,
+            animated,
+        );
+
+        if (visibility_ptr) |visibility| {
+            setVisibility(entity_id, visibility.*, scene);
+        }
+
+        if (shadow_catcher_ptr) |shadow_catcher| {
+            setShadowCatcher(entity_id, shadow_catcher.*, scene);
+        }
+
+        if (is_light and scene.prop(entity_id).visibleInReflection()) {
+            try scene.createLight(alloc, entity_id);
+        }
+
+        return Leaf{
+            .entity_id = entity_id,
+            .graph = graph_trafo,
+            .children_ptr = children_ptr,
+            .is_scatterer = is_scatterer,
+        };
     }
 
     fn loadProp(
@@ -353,6 +403,7 @@ pub const Loader = struct {
         graph: *Graph,
         instancing: bool,
         unoccluding_default: bool,
+        prototype: bool,
     ) !u32 {
         const shape = if (value.object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
 
@@ -370,19 +421,231 @@ pub const Loader = struct {
             graph.materials.appendAssumeCapacity(self.fallback_material);
         }
 
-        if (instancing) {
+        if (instancing and !prototype) {
             const key = Key{ .shape = shape, .materials = graph.materials.items };
 
             if (self.instances.get(key)) |instance| {
                 return try scene.createPropInstance(alloc, instance);
             }
 
-            const entity = try scene.createProp(alloc, shape, graph.materials.items, false);
+            const entity = try scene.createPropShape(alloc, shape, graph.materials.items, false, prototype);
             try self.instances.put(alloc, try key.clone(alloc), entity);
             return entity;
         } else {
             const unoccluding = !json.readBoolMember(value, "occluding", !unoccluding_default);
-            return try scene.createProp(alloc, shape, graph.materials.items, unoccluding);
+            return try scene.createPropShape(alloc, shape, graph.materials.items, unoccluding, prototype);
+        }
+    }
+
+    fn loadInstancer(
+        self: *Loader,
+        alloc: Allocator,
+        value: std.json.Value,
+        parent_id: u32,
+        parent_trafo: Transformation,
+        local_materials: LocalMaterials,
+        graph: *Graph,
+        prototype: bool,
+    ) Error!u32 {
+        var prototypes: List(u32) = .empty;
+        defer prototypes.deinit(alloc);
+
+        var instances_ptr: ?*std.json.Value = null;
+
+        {
+            var iter = value.object.iterator();
+            while (iter.next()) |entry| {
+                if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {
+                    const proto_array = entry.value_ptr.array;
+                    prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
+
+                    for (proto_array.items) |proto_value| {
+                        const proto = self.loadLeafEntity(
+                            alloc,
+                            proto_value,
+                            parent_id,
+                            parent_trafo,
+                            false,
+                            local_materials,
+                            graph,
+                            true,
+                        ) catch
+                            continue;
+
+                        prototypes.appendAssumeCapacity(proto.entity_id);
+                    }
+                } else if (std.mem.eql(u8, "instances", entry.key_ptr.*)) {
+                    instances_ptr = entry.value_ptr;
+                }
+            }
+        }
+
+        if (instances_ptr) |instances_value| {
+            const proto_indices_value = instances_value.object.get("prototypes") orelse {
+                log.err("Scatterer: No protype indices", .{});
+                return Scene.Null;
+            };
+
+            const trafos_value = instances_value.object.get("transformations") orelse {
+                log.err("Scatterer: No protype transformations", .{});
+                return Scene.Null;
+            };
+
+            var instancer = try Instancer.init(alloc, @truncate(proto_indices_value.array.items.len));
+
+            var solids: List(u32) = .{};
+            var volumes: List(u32) = .{};
+
+            defer {
+                volumes.deinit(alloc);
+                solids.deinit(alloc);
+            }
+
+            for (proto_indices_value.array.items, trafos_value.array.items, 0..) |proto_index_value, trafo_value, i| {
+                var proto_index = json.readUInt(proto_index_value);
+                if (proto_index >= prototypes.items.len) {
+                    proto_index = 0;
+                }
+
+                var trafo = Transformation{
+                    .position = @splat(0.0),
+                    .scale = @splat(1.0),
+                    .rotation = math.quaternion.identity,
+                };
+
+                json.readTransformation(trafo_value, &trafo);
+
+                const proto_entity_id = prototypes.items[proto_index];
+
+                try instancer.allocateInstance(alloc, proto_entity_id);
+
+                const instance_id: u32 = @truncate(i);
+
+                instancer.space.setWorldTransformation(instance_id, trafo);
+
+                const po = graph.scene.prop(proto_entity_id);
+
+                if (po.solid()) {
+                    try solids.append(alloc, instance_id);
+                }
+
+                if (po.volume()) {
+                    try volumes.append(alloc, instance_id);
+                }
+            }
+
+            self.resources.commitAsync();
+
+            instancer.calculateWorldBounds(&graph.scene);
+
+            try graph.scene.bvh_builder.build(
+                alloc,
+                &instancer.solid_bvh,
+                solids.items,
+                instancer.space.aabbs.items,
+                self.resources.threads,
+            );
+
+            try graph.scene.bvh_builder.build(
+                alloc,
+                &instancer.volume_bvh,
+                volumes.items,
+                instancer.space.aabbs.items,
+                self.resources.threads,
+            );
+
+            const shape = try self.resources.instancers.store(alloc, Scene.Null, instancer);
+
+            return try graph.scene.createPropInstancer(alloc, shape, solids.items.len > 0, volumes.items.len > 0, prototype);
+        }
+
+        return Scene.Null;
+    }
+
+    fn loadScatterer(
+        self: *Loader,
+        alloc: Allocator,
+        value: std.json.Value,
+        parent_id: u32,
+        parent_trafo: Transformation,
+        animated: bool,
+        local_materials: LocalMaterials,
+        graph: *Graph,
+    ) !void {
+        var prototypes: List(u32) = .empty;
+        defer prototypes.deinit(alloc);
+
+        var instances_ptr: ?*std.json.Value = null;
+
+        {
+            var iter = value.object.iterator();
+            while (iter.next()) |entry| {
+                if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {
+                    const proto_array = entry.value_ptr.array;
+                    prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
+
+                    for (proto_array.items) |proto_value| {
+                        const proto = self.loadLeafEntity(
+                            alloc,
+                            proto_value,
+                            parent_id,
+                            parent_trafo,
+                            animated,
+                            local_materials,
+                            graph,
+                            true,
+                        ) catch
+                            continue;
+
+                        prototypes.appendAssumeCapacity(proto.entity_id);
+                    }
+                } else if (std.mem.eql(u8, "instances", entry.key_ptr.*)) {
+                    instances_ptr = entry.value_ptr;
+                }
+            }
+        }
+
+        if (instances_ptr) |instances_value| {
+            const scene = &graph.scene;
+
+            const proto_indices_value = instances_value.object.get("prototypes") orelse {
+                log.err("Scatterer: No protype indices", .{});
+                return;
+            };
+
+            const trafos_value = instances_value.object.get("transformations") orelse {
+                log.err("Scatterer: No protype transformations", .{});
+                return;
+            };
+
+            for (proto_indices_value.array.items, trafos_value.array.items) |proto_index_value, trafo_value| {
+                var proto_index = json.readUInt(proto_index_value);
+                if (proto_index >= prototypes.items.len) {
+                    proto_index = 0;
+                }
+
+                var trafo = Transformation{
+                    .position = @splat(0.0),
+                    .scale = @splat(1.0),
+                    .rotation = math.quaternion.identity,
+                };
+
+                json.readTransformation(trafo_value, &trafo);
+
+                const proto_entity_id = prototypes.items[proto_index];
+
+                const entity_id = try scene.createPropInstance(alloc, proto_entity_id);
+
+                _ = try graph.propSetTransformation(
+                    alloc,
+                    entity_id,
+                    parent_id,
+                    trafo,
+                    parent_trafo,
+                    null,
+                    animated,
+                );
+            }
         }
     }
 

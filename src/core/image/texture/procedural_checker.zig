@@ -1,4 +1,5 @@
 const ts = @import("texture_sampler.zig");
+const TexCoordMode = @import("texture.zig").Texture.TexCoordMode;
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
 const Worker = @import("../../rendering/worker.zig").Worker;
 
@@ -36,17 +37,20 @@ pub const Checker = struct {
         return checker;
     }
 
-    // https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
+    // https://iquilezles.org/articles/checkerfiltering/
+    // https://iquilezles.org/articles/morecheckerfiltering/
 
-    pub fn evaluate(self: Checker, rs: Renderstate, key: ts.Key, worker: *const Worker) Vec4f {
-        const dd = worker.screenspaceDifferential(rs);
+    pub fn evaluate(self: Checker, rs: Renderstate, key: ts.Key, uv_set: TexCoordMode, worker: *const Worker) Vec4f {
+        const dd = worker.screenspaceDifferential(rs, uv_set);
         const ddx: Vec2f = .{ dd[0], dd[1] };
         const ddy: Vec2f = .{ dd[2], dd[3] };
+
+        const uv = if (.Triplanar == uv_set) rs.triplanarUv() else rs.uv();
 
         const scale: Vec2f = @splat(self.scale);
 
         const t = checkersGrad(
-            scale * key.address.address2(rs.uv()),
+            scale * key.address.address2(uv),
             scale * ddx,
             scale * ddy,
         );
@@ -59,7 +63,10 @@ pub const Checker = struct {
         const w = math.max2(@abs(ddx), @abs(ddy)) + @as(Vec2f, @splat(0.0001));
 
         // analytical integral (box filter)
-        const i = (tri(uv + @as(Vec2f, @splat(0.5)) * w) - tri(uv - @as(Vec2f, @splat(0.5)) * w)) / w;
+        //   const i = (tri(uv + @as(Vec2f, @splat(0.5)) * w) - tri(uv - @as(Vec2f, @splat(0.5)) * w)) / w;
+
+        // analytical integral (triangle filter)
+        const i = (p(uv + w) - @as(Vec2f, @splat(2.0)) * p(uv) + p(uv - w)) / (w * w);
 
         // xor pattern
         return 0.5 - 0.5 * i[0] * i[1];
@@ -67,8 +74,12 @@ pub const Checker = struct {
 
     // triangular signal
     fn tri(x: Vec2f) Vec2f {
-        const hx = math.frac(x[0] * 0.5) - 0.5;
-        const hy = math.frac(x[1] * 0.5) - 0.5;
-        return .{ 1.0 - 2.0 * @abs(hx), 1.0 - 2.0 * @abs(hy) };
+        const h = math.frac(x * @as(Vec2f, @splat(0.5))) - @as(Vec2f, @splat(0.5));
+        return @as(Vec2f, @splat(1.0)) - @as(Vec2f, @splat(2.0)) * @abs(h);
+    }
+
+    fn p(x: Vec2f) Vec2f {
+        const h = math.frac(x * @as(Vec2f, @splat(0.5))) - @as(Vec2f, @splat(0.5));
+        return x * @as(Vec2f, @splat(0.5)) + h * (@as(Vec2f, @splat(1.0)) - @as(Vec2f, @splat(2.0)) * @abs(h));
     }
 };
