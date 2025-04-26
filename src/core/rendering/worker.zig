@@ -49,10 +49,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Worker = struct {
-    pub const Tile_dimensions = 16;
-    const Tile_area = Tile_dimensions * Tile_dimensions;
+    pub const TileDimensions = 16;
+    const TileArea = TileDimensions * TileDimensions;
 
-    const TileStack = TileStackN(Tile_area);
+    const TileStack = TileStackN(TileArea);
 
     const Step = 16;
 
@@ -153,8 +153,8 @@ pub const Worker = struct {
 
         var rng = &self.rng;
 
-        var old_mm = [_]Vec4f{@splat(0)} ** Tile_area;
-        var old_ss = [_]Vec4f{@splat(0)} ** Tile_area;
+        var old_mm = [_]Vec4f{@splat(0)} ** TileArea;
+        var old_ss = [_]Vec4f{@splat(0)} ** TileArea;
 
         var tile_stacks: [2]TileStack = undefined;
 
@@ -173,18 +173,18 @@ pub const Worker = struct {
             while (stack_a.pop(offset)) |tile| {
                 const y_back = tile[3];
                 var y = tile[1];
-                var yy = @rem(y, Tile_dimensions);
+                var yy = @rem(y, TileDimensions);
 
                 var tile_qm: f32 = 0.0;
 
                 while (y <= y_back) : (y += 1) {
                     const x_back = tile[2];
                     var x = tile[0];
-                    var xx = @rem(x, Tile_dimensions);
+                    var xx = @rem(x, TileDimensions);
                     const pixel_n: u32 = @intCast(y * r[0]);
 
                     while (x <= x_back) : (x += 1) {
-                        const ii: u32 = @intCast(yy * Tile_dimensions + xx);
+                        const ii: u32 = @intCast(yy * TileDimensions + xx);
                         xx += 1;
 
                         const pixel_id = pixel_n + @as(u32, @intCast(x));
@@ -246,13 +246,13 @@ pub const Worker = struct {
 
                 if (target_samples > s_end or (tile_qm > 0.0 and s_end < 64)) {
                     if (s_end == 128) {
-                        stack_b.pushQuartet(tile, offset, Tile_dimensions / 2 - 1);
+                        stack_b.pushQuartet(tile, offset, TileDimensions / 2 - 1);
                     } else if (s_end == 256) {
-                        stack_b.pushQuartet(tile, offset, Tile_dimensions / 4 - 1);
+                        stack_b.pushQuartet(tile, offset, TileDimensions / 4 - 1);
                     } else if (s_end == 512) {
-                        stack_b.pushQuartet(tile, offset, Tile_dimensions / 8 - 1);
+                        stack_b.pushQuartet(tile, offset, TileDimensions / 8 - 1);
                     } else if (s_end == 1024) {
-                        stack_b.pushQuartet(tile, offset, Tile_dimensions / 16 - 1);
+                        stack_b.pushQuartet(tile, offset, TileDimensions / 16 - 1);
                     } else {
                         stack_b.push(tile, offset);
                     }
