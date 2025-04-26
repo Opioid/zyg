@@ -85,7 +85,7 @@ pub const Loader = struct {
     const Error = error{
         UndefinedType,
         UndefinedShape,
-    };
+    } || Allocator.Error;
 
     resources: *Resources,
 
@@ -251,7 +251,7 @@ pub const Loader = struct {
             }
 
             if (leaf.is_scatterer) {
-                self.loadScatterer(
+                try self.loadScatterer(
                     alloc,
                     entity_value,
                     leaf.graph.graph_id,
@@ -295,7 +295,7 @@ pub const Loader = struct {
         } else if (std.mem.eql(u8, "Prop", type_name)) {
             entity_id = try self.loadProp(alloc, value, local_materials, graph, true, false, prototype);
         } else if (std.mem.eql(u8, "Instancer", type_name)) {
-            entity_id = self.loadInstancer(alloc, value, parent_id, parent_trafo, local_materials, graph, prototype);
+            entity_id = try self.loadInstancer(alloc, value, parent_id, parent_trafo, local_materials, graph, prototype);
         } else if (std.mem.eql(u8, "Sky", type_name)) {
             entity_id = try loadSky(alloc, value, graph);
         } else if (std.mem.eql(u8, "Scatterer", type_name)) {
@@ -446,7 +446,7 @@ pub const Loader = struct {
         local_materials: LocalMaterials,
         graph: *Graph,
         prototype: bool,
-    ) u32 {
+    ) Error!u32 {
         var prototypes: List(u32) = .empty;
         defer prototypes.deinit(alloc);
 
@@ -457,7 +457,7 @@ pub const Loader = struct {
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {
                     const proto_array = entry.value_ptr.array;
-                    prototypes = List(u32).initCapacity(alloc, proto_array.items.len) catch return Scene.Null;
+                    prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
 
                     for (proto_array.items) |proto_value| {
                         const proto = self.loadLeafEntity(
@@ -491,7 +491,7 @@ pub const Loader = struct {
                 return Scene.Null;
             };
 
-            var instancer = Instancer.init(alloc, @truncate(proto_indices_value.array.items.len)) catch return Scene.Null;
+            var instancer = try Instancer.init(alloc, @truncate(proto_indices_value.array.items.len));
 
             var solids: List(u32) = .{};
             var volumes: List(u32) = .{};
@@ -517,7 +517,7 @@ pub const Loader = struct {
 
                 const proto_entity_id = prototypes.items[proto_index];
 
-                instancer.allocateInstance(alloc, proto_entity_id) catch return Scene.Null;
+                try instancer.allocateInstance(alloc, proto_entity_id);
 
                 const instance_id: u32 = @truncate(i);
 
@@ -526,11 +526,11 @@ pub const Loader = struct {
                 const po = graph.scene.prop(proto_entity_id);
 
                 if (po.solid()) {
-                    solids.append(alloc, instance_id) catch return Scene.Null;
+                    try solids.append(alloc, instance_id);
                 }
 
                 if (po.volume()) {
-                    volumes.append(alloc, instance_id) catch return Scene.Null;
+                    try volumes.append(alloc, instance_id);
                 }
             }
 
@@ -538,25 +538,25 @@ pub const Loader = struct {
 
             instancer.calculateWorldBounds(&graph.scene);
 
-            graph.scene.bvh_builder.build(
+            try graph.scene.bvh_builder.build(
                 alloc,
                 &instancer.solid_bvh,
                 solids.items,
                 instancer.space.aabbs.items,
                 self.resources.threads,
-            ) catch return Scene.Null;
+            );
 
-            graph.scene.bvh_builder.build(
+            try graph.scene.bvh_builder.build(
                 alloc,
                 &instancer.volume_bvh,
                 volumes.items,
                 instancer.space.aabbs.items,
                 self.resources.threads,
-            ) catch return Scene.Null;
+            );
 
-            const shape = self.resources.instancers.store(alloc, Scene.Null, instancer) catch return Scene.Null;
+            const shape = try self.resources.instancers.store(alloc, Scene.Null, instancer);
 
-            return graph.scene.createPropInstancer(alloc, shape, solids.items.len > 0, volumes.items.len > 0, prototype) catch Scene.Null;
+            return try graph.scene.createPropInstancer(alloc, shape, solids.items.len > 0, volumes.items.len > 0, prototype);
         }
 
         return Scene.Null;
@@ -571,7 +571,7 @@ pub const Loader = struct {
         animated: bool,
         local_materials: LocalMaterials,
         graph: *Graph,
-    ) void {
+    ) !void {
         var prototypes: List(u32) = .empty;
         defer prototypes.deinit(alloc);
 
@@ -582,7 +582,7 @@ pub const Loader = struct {
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {
                     const proto_array = entry.value_ptr.array;
-                    prototypes = List(u32).initCapacity(alloc, proto_array.items.len) catch return;
+                    prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
 
                     for (proto_array.items) |proto_value| {
                         const proto = self.loadLeafEntity(
@@ -634,9 +634,9 @@ pub const Loader = struct {
 
                 const proto_entity_id = prototypes.items[proto_index];
 
-                const entity_id = scene.createPropInstance(alloc, proto_entity_id) catch continue;
+                const entity_id = try scene.createPropInstance(alloc, proto_entity_id);
 
-                _ = graph.propSetTransformation(
+                _ = try graph.propSetTransformation(
                     alloc,
                     entity_id,
                     parent_id,
@@ -644,7 +644,7 @@ pub const Loader = struct {
                     parent_trafo,
                     null,
                     animated,
-                ) catch continue;
+                );
             }
         }
     }
