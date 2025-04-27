@@ -406,19 +406,29 @@ pub const Disk = struct {
 
     pub fn sampleFrom(
         trafo: Trafo,
+        uv: Vec2f,
+        importance_uv: Vec2f,
         cos_a: f32,
         two_sided: bool,
         sampler: *Sampler,
-        uv: Vec2f,
-        importance_uv: Vec2f,
+        from_image: bool,
     ) ?SampleFrom {
+        var ls: Vec4f = undefined;
+
+        if (from_image) {
+            const xy = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
+            if (math.squaredLength2(xy) > 1.0) {
+                return null;
+            }
+
+            ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
+        } else {
+            const xy = math.smpl.diskConcentric(uv);
+            ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
+        }
+
         const radius = 0.5 * trafo.scaleX();
-
-        const xy = math.smpl.diskConcentric(uv);
-        const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
-
         const ws = trafo.position + @as(Vec4f, @splat(radius)) * trafo.objectToWorldNormal(ls);
-        const uvw = Vec4f{ uv[0], uv[1], 0.0, 0.0 };
 
         const area = @as(f32, if (two_sided) 2.0 * std.math.pi else std.math.pi) * (radius * radius);
 
@@ -442,6 +452,8 @@ pub const Disk = struct {
             wn = -wn;
             dir = -dir;
         }
+
+        const uvw = Vec4f{ uv[0], uv[1], 0.0, 0.0 };
 
         return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, pdf_);
     }

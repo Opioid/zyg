@@ -169,11 +169,11 @@ pub const Light = struct {
         const material = scene.propMaterial(self.prop, self.part);
         const shape = scene.propShape(self.prop);
         return shape.sampleTo(
-            self.part,
-            self.variant,
             p,
             n,
             trafo,
+            self.part,
+            self.variant,
             self.two_sided,
             total_sphere,
             split_threshold,
@@ -220,14 +220,14 @@ pub const Light = struct {
 
         const shape = scene.propShape(self.prop);
         return shape.sampleFrom(
+            trafo,
+            uv,
+            importance_uv,
             self.part,
             self.variant,
-            trafo,
             cos_a,
             self.two_sided,
             sampler,
-            uv,
-            importance_uv,
             bounds,
             false,
         );
@@ -250,14 +250,14 @@ pub const Light = struct {
 
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
         var result = shape.sampleFrom(
+            trafo,
+            .{ rs.uvw[0], rs.uvw[1] },
+            importance_uv,
             self.part,
             self.variant,
-            trafo,
             cos_a,
             self.two_sided,
             sampler,
-            .{ rs.uvw[0], rs.uvw[1] },
-            importance_uv,
             bounds,
             true,
         ) orelse return null;

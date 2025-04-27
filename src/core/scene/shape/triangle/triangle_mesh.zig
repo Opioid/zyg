@@ -368,10 +368,10 @@ pub const Mesh = struct {
 
     tree: Tree = .{},
 
-    num_parts: u32 = 0,
+    num_parts: u32,
     num_primitives: u32 = 0,
 
-    parts: [*]Part = undefined,
+    parts: [*]Part,
     primitive_mapping: [*]u32 = undefined,
 
     pub fn init(alloc: Allocator, num_parts: u32) !Mesh {
@@ -745,13 +745,13 @@ pub const Mesh = struct {
 
     pub fn sampleFrom(
         self: *const Mesh,
-        part_id: u32,
-        variant: u32,
         trafo: Trafo,
-        two_sided: bool,
-        sampler: *Sampler,
         uv: Vec2f,
         importance_uv: Vec2f,
+        part_id: u32,
+        variant: u32,
+        two_sided: bool,
+        sampler: *Sampler,
     ) ?SampleFrom {
         const r = sampler.sample1D();
 
