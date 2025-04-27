@@ -42,9 +42,9 @@ pub const PathtracerDL = struct {
             var sampler = worker.pickSampler(total_depth);
 
             var frag: Fragment = undefined;
-            _ = worker.nextEvent(&vertex, &frag, sampler);
+            worker.nextEvent(&vertex, &frag, sampler);
             if (.Abort == frag.event) {
-                continue;
+                break;
             }
 
             const energy = self.connectLight(&vertex, &frag, sampler, worker);
@@ -183,28 +183,30 @@ pub const PathtracerDL = struct {
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
 
-        if (frag.hit()) {
-            if (vertex.state.treat_as_singular or !Light.isLight(frag.lightId(worker.scene))) {
-                return frag.evaluateRadiance(p, wo, sampler, worker) orelse @splat(0.0);
-            }
-
-            return @splat(0.0);
-        }
-
         var energy: Vec4f = @splat(0.0);
 
-        var inf_frag: Fragment = undefined;
-        inf_frag.event = .Pass;
+        if (frag.hit()) {
+            if (vertex.state.treat_as_singular or !Light.isLight(frag.lightId(worker.scene))) {
+                energy += frag.evaluateRadiance(p, wo, sampler, worker) orelse @splat(0.0);
+            }
+        }
+
+        var light_frag: Fragment = undefined;
+        light_frag.event = .Pass;
+
+        if (vertex.state.treat_as_singular) {
+            energy += worker.emission(vertex, &light_frag, 0.0, sampler);
+        }
 
         for (worker.scene.infinite_props.items) |prop| {
-            if (!worker.propIntersect(prop, vertex.probe, &inf_frag)) {
+            if (!worker.propIntersect(prop, vertex.probe, &light_frag)) {
                 continue;
             }
 
-            if (vertex.state.treat_as_singular or !Light.isLight(inf_frag.lightId(worker.scene))) {
-                worker.propInterpolateFragment(prop, vertex.probe, &inf_frag);
+            if (vertex.state.treat_as_singular or !Light.isLight(light_frag.lightId(worker.scene))) {
+                worker.propInterpolateFragment(prop, vertex.probe, &light_frag);
 
-                energy += inf_frag.evaluateRadiance(p, wo, sampler, worker) orelse @splat(0.0);
+                energy += light_frag.evaluateRadiance(p, wo, sampler, worker) orelse @splat(0.0);
             }
         }
 

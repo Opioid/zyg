@@ -39,9 +39,9 @@ pub const Pathtracer = struct {
             var sampler = worker.pickSampler(total_depth);
 
             var frag: Fragment = undefined;
-            _ = worker.nextEvent(&vertex, &frag, sampler);
+            worker.nextEvent(&vertex, &frag, sampler);
             if (.Abort == frag.event) {
-                continue;
+                break;
             }
 
             const energy = self.connectLight(&vertex, &frag, sampler, worker);
@@ -121,11 +121,20 @@ pub const Pathtracer = struct {
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
 
+        var energy: Vec4f = @splat(0.0);
+
         if (frag.hit()) {
-            return frag.evaluateRadiance(p, wo, sampler, worker) orelse @splat(0.0);
+            energy += frag.evaluateRadiance(p, wo, sampler, worker) orelse @splat(0.0);
         }
 
-        var energy: Vec4f = @splat(0.0);
+        // Do this to avoid MIS calculation, which this integrator doesn't need
+        const treat_as_singular = vertex.state.treat_as_singular;
+        vertex.state.treat_as_singular = true;
+
+        var light_frag: Fragment = undefined;
+        light_frag.event = .Pass;
+
+        energy += worker.emission(vertex, &light_frag, 0.0, sampler);
 
         var inf_frag: Fragment = undefined;
         inf_frag.event = .Pass;
@@ -139,6 +148,8 @@ pub const Pathtracer = struct {
 
             energy += inf_frag.evaluateRadiance(p, wo, sampler, worker) orelse continue;
         }
+
+        vertex.state.treat_as_singular = treat_as_singular;
 
         return energy;
     }

@@ -49,7 +49,7 @@ pub const PathtracerMIS = struct {
                 var sampler = worker.pickSampler(total_depth);
 
                 var frag: Fragment = undefined;
-                _ = worker.nextEvent(vertex, &frag, sampler);
+                worker.nextEvent(vertex, &frag, sampler);
                 if (.Abort == frag.event) {
                     continue;
                 }
