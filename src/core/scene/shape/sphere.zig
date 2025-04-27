@@ -381,7 +381,7 @@ pub const Sphere = struct {
         const wn = math.normalize3(ws - trafo.position);
         const c = -math.dot3(wn, dir);
 
-        if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+        if (c < math.safe.DotMin or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
             return buffer[0..0];
         }
 

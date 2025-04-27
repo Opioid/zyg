@@ -127,20 +127,6 @@ pub const Stack = struct {
         }
     }
 
-    pub fn pushVolumeLight(self: *Stack, light: Light, trafo: Trafo) void {
-        const index = self.index;
-        if (index < Num_entries - 1) {
-            self.m_stack[index] = .{
-                .trafo = trafo,
-                .prop = light.prop,
-                .part = light.part,
-                .ior = 1.0,
-                .priority = 0,
-            };
-            self.index += 1;
-        }
-    }
-
     pub fn pop(self: *Stack) void {
         if (self.index > 0) {
             self.index -= 1;

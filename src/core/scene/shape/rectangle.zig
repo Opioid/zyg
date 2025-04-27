@@ -263,7 +263,7 @@ pub const Rectangle = struct {
             const diff_solid_angle_numer = area * @abs(lp[2]);
             const diff_solid_angle_denom = sqr_dist * @sqrt(sqr_dist);
 
-            return if (diff_solid_angle_numer > diff_solid_angle_denom * math.safe.Dot_min)
+            return if (diff_solid_angle_numer > diff_solid_angle_denom * math.safe.DotMin)
                 (1.0 / squad.S)
             else
                 (diff_solid_angle_denom / diff_solid_angle_numer);
@@ -306,7 +306,7 @@ pub const Rectangle = struct {
                     wn = -wn;
                 }
 
-                if (-math.dot3(wn, dir) < math.safe.Dot_min or 0.0 == squad.S or
+                if (-math.dot3(wn, dir) < math.safe.DotMin or 0.0 == squad.S or
                     (math.dot3(dir, n) <= 0.0 and !total_sphere))
                 {
                     continue;
@@ -346,7 +346,7 @@ pub const Rectangle = struct {
                 const dir = axis / @as(Vec4f, @splat(t));
                 const c = -math.dot3(wn, dir);
 
-                if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+                if (c < math.safe.DotMin or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
                     continue;
                 }
 
@@ -406,7 +406,7 @@ pub const Rectangle = struct {
             const dir = axis / @as(Vec4f, @splat(t));
             const c = -math.dot3(wn, dir);
 
-            if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+            if (c < math.safe.DotMin or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
                 continue;
             }
 

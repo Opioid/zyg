@@ -99,9 +99,6 @@ pub const Mapper = struct {
             ) orelse continue;
 
             const light = worker.scene.light(light_id);
-            if (light.volumetric()) {
-                vertex.mediums.pushVolumeLight(light, light_sample.trafo);
-            }
 
             while (vertex.probe.depth.surface <= self.settings.max_bounces) {
                 var sampler = &self.sampler;

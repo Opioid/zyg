@@ -724,7 +724,7 @@ pub const Mesh = struct {
                 sample_pdf = (s.pdf * biased_sl) / (n_dot_dir * tri_area);
             }
 
-            if (n_dot_dir < math.safe.Dot_min) {
+            if (n_dot_dir < math.safe.DotMin) {
                 continue;
             }
 

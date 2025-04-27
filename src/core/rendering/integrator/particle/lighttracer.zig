@@ -43,7 +43,7 @@ pub const Lighttracer = struct {
 
         var light_id: u32 = undefined;
         var light_sample: SampleFrom = undefined;
-        var vertex = generateLightVertex(
+        const vertex = generateLightVertex(
             frame,
             world_bounds,
             sampler,
@@ -53,9 +53,6 @@ pub const Lighttracer = struct {
         ) orelse return;
 
         const light = worker.scene.light(light_id);
-        if (light.volumetric()) {
-            vertex.mediums.pushVolumeLight(light, light_sample.trafo);
-        }
 
         self.integrate(vertex, worker, light, light_sample);
     }

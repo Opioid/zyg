@@ -283,7 +283,7 @@ pub const Disk = struct {
                 const dir = axis / @as(Vec4f, @splat(@sqrt(sl)));
                 const c = -math.dot3(wn, dir);
 
-                if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+                if (c < math.safe.DotMin or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
                     continue;
                 }
 
@@ -313,7 +313,7 @@ pub const Disk = struct {
                 const dir = axis / @as(Vec4f, @splat(t));
                 const c = -math.dot3(wn, dir);
 
-                if (c < math.safe.Dot_min) {
+                if (c < math.safe.DotMin) {
                     continue;
                 }
 
@@ -377,7 +377,7 @@ pub const Disk = struct {
             const dir = axis / @as(Vec4f, @splat(t));
             const c = -math.dot3(wn, dir);
 
-            if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+            if (c < math.safe.DotMin or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
                 continue;
             }
 
@@ -428,7 +428,7 @@ pub const Disk = struct {
         var dir_l: Vec4f = undefined;
         var pdf_: f32 = undefined;
 
-        if (cos_a < math.safe.Dot_min) {
+        if (cos_a < math.safe.DotMin) {
             dir_l = math.smpl.hemisphereCosine(importance_uv);
             pdf_ = 1.0 / (std.math.pi * area);
         } else {
