@@ -394,4 +394,13 @@ pub const Worker = struct {
 
         return .{ dudx, dvdx, dudy, dvdy };
     }
+
+    pub fn appriximateDpDxy(self: *const Worker, rs: Renderstate) [2]Vec4f {
+        _ = self;
+
+        return .{
+            @as(Vec4f, @splat(0.005)) * rs.t,
+            @as(Vec4f, @splat(-0.005)) * rs.b,
+        };
+    }
 };

@@ -40,7 +40,7 @@ pub const Noise = struct {
 
     const Self = @This();
 
-    pub fn evaluate1(self: Self, rs: Renderstate, uv_offset: Vec2f, uv_set: TexCoordMode) f32 {
+    pub fn evaluate1(self: Self, rs: Renderstate, offset: Vec4f, uv_set: TexCoordMode) f32 {
         const is_cellular = .Cellular == self.class;
         const att = self.attenuation;
 
@@ -52,12 +52,14 @@ pub const Noise = struct {
         if (.ObjectPos == uv_set) {
             var scale = self.scale;
 
-            const uvw = rs.trafo.worldToObjectPoint(rs.p);
+            const uvw = rs.trafo.worldToObjectPoint(rs.p - offset);
 
             for (0..self.levels) |_| {
                 const local_weight = std.math.pow(f32, amplitude, att);
 
-                value += perlin3D_1(uvw * scale) * local_weight;
+                const local = if (is_cellular) worley3D_1(uvw * scale, 1.0) else perlin3D_1(uvw * scale);
+
+                value += local * local_weight;
 
                 weight += local_weight;
                 amplitude *= 0.5;
@@ -66,6 +68,7 @@ pub const Noise = struct {
         } else {
             var scale: Vec2f = .{ self.scale[0], self.scale[1] };
 
+            const uv_offset = Vec2f{ offset[0], offset[1] };
             const uv = (if (.Triplanar == uv_set) rs.triplanarUv() else rs.uv()) - uv_offset;
 
             for (0..self.levels) |_| {
@@ -95,20 +98,35 @@ pub const Noise = struct {
     }
 
     pub fn evaluateNormalmap(self: Self, rs: Renderstate, uv_set: TexCoordMode, worker: *const Worker) Vec2f {
-        const dd = worker.screenspaceDifferential(rs, uv_set);
-        const ddx: Vec2f = .{ dd[0], dd[1] };
-        const ddy: Vec2f = .{ dd[2], dd[3] };
+        if (.ObjectPos == uv_set) {
+            const dpdx, const dpdy = worker.appriximateDpDxy(rs);
 
-        const center = self.evaluate1(rs, @splat(0.0), uv_set);
-        const left = self.evaluate1(rs, ddx, uv_set);
-        const top = self.evaluate1(rs, ddy, uv_set);
+            const center = self.evaluate1(rs, @splat(0.0), uv_set);
+            const left = self.evaluate1(rs, dpdx, uv_set);
+            const bottom = self.evaluate1(rs, dpdy, uv_set);
 
-        const nx = left - center;
-        const ny = top - center;
+            const nx = left - center;
+            const ny = center - bottom;
 
-        const n = math.normalize3(.{ nx, ny, math.length2(ddx + ddy), 0.0 });
+            const n = math.normalize3(.{ nx, ny, math.length3(dpdx + dpdy), 0.0 });
 
-        return .{ n[0], n[1] };
+            return .{ n[0], n[1] };
+        } else {
+            const dd = worker.screenspaceDifferential(rs, uv_set);
+            const ddx = Vec2f{ dd[0], dd[1] };
+            const ddy = Vec2f{ dd[2], dd[3] };
+
+            const center = self.evaluate1(rs, @splat(0.0), uv_set);
+            const left = self.evaluate1(rs, Vec4f{ ddx[0], ddx[1], 0.0, 0.0 }, uv_set);
+            const top = self.evaluate1(rs, Vec4f{ ddy[0], ddy[1], 0.0, 0.0 }, uv_set);
+
+            const nx = left - center;
+            const ny = top - center;
+
+            const n = math.normalize3(.{ nx, ny, math.length2(ddx + ddy), 0.0 });
+
+            return .{ n[0], n[1] };
+        }
     }
 
     pub fn evaluate3(self: Self, rs: Renderstate, uv_set: TexCoordMode) Vec4f {
@@ -122,8 +140,8 @@ pub const Noise = struct {
 
         const uv = fade(Vec2f, fp);
 
-        const P0: Vec4u = .{ P[0], P[0] +% 1, P[0], P[0] +% 1 };
-        const P1: Vec4u = .{ P[1], P[1], P[1] +% 1, P[1] +% 1 };
+        const P0: Vec4i = .{ P[0], P[0] +% 1, P[0], P[0] +% 1 };
+        const P1: Vec4i = .{ P[1], P[1], P[1] +% 1, P[1] +% 1 };
 
         const fp0: Vec4f = .{ fp[0], fp[0] - 1.0, fp[0], fp[0] - 1.0 };
         const fp1: Vec4f = .{ fp[1], fp[1], fp[1] - 1.0, fp[1] - 1.0 };
@@ -140,8 +158,8 @@ pub const Noise = struct {
 
         const uvw = fade(Vec4f, fp);
 
-        const P0: Vec4u = .{ P[0], P[0] + 1, P[0], P[0] + 1 };
-        const P1: Vec4u = .{ P[1], P[1], P[1] + 1, P[1] + 1 };
+        const P0: Vec4i = .{ P[0], P[0] + 1, P[0], P[0] + 1 };
+        const P1: Vec4i = .{ P[1], P[1], P[1] + 1, P[1] + 1 };
 
         const fp0: Vec4f = .{ fp[0], fp[0] - 1.0, fp[0], fp[0] - 1.0 };
         const fp1: Vec4f = .{ fp[1], fp[1], fp[1] - 1.0, fp[1] - 1.0 };
@@ -171,7 +189,7 @@ pub const Noise = struct {
             while (y <= 1) : (y += 1) {
                 const xy = Vec2i{ x, y };
 
-                const dist = worley_distance(localpos, xy, P, jitter);
+                const dist = worley_distance2(localpos, xy, P, jitter);
                 // const cellpos = worley_cell_position(xy, P, jitter) - localpos;
 
                 if (dist < min_dist) {
@@ -183,6 +201,32 @@ pub const Noise = struct {
 
         // Voronoi style
         // return cell_noise2_float(min_pos + p);
+
+        return min_dist;
+    }
+
+    fn worley3D_1(p: Vec4f, jitter: f32) f32 {
+        const localpos, const P = floorfrac3(p);
+
+        var min_dist: f32 = 1.0e6;
+
+        var x: i32 = -1;
+        while (x <= 1) : (x += 1) {
+            var y: i32 = -1;
+            while (y <= 1) : (y += 1) {
+                var z: i32 = -1;
+                while (z <= 1) : (z += 1) {
+                    const xyz = Vec4i{ x, y, z, 0 };
+
+                    const dist = worley_distance3(localpos, xyz, P, jitter);
+
+                    if (dist < min_dist) {
+                        min_dist = dist;
+                        // min_pos = cellpos;
+                    }
+                }
+            }
+        }
 
         return min_dist;
     }
@@ -202,7 +246,7 @@ pub const Noise = struct {
             while (y <= 1) : (y += 1) {
                 const xy = Vec2i{ x, y };
 
-                const dist = worley_distance(localpos, xy, P, jitter);
+                const dist = worley_distance2(localpos, xy, P, jitter);
                 // const cellpos = worley_cell_position(xy, P, jitter) - localpos;
 
                 if (dist < min_dist) {
@@ -242,21 +286,38 @@ pub const Noise = struct {
     //     return dot(diff, diff);
     // }
 
-    fn worley_distance(p: Vec2f, xy: Vec2i, offset: Vec2u, jitter: f32) f32 {
-        const cellpos = worley_cell_position(xy, offset, jitter);
+    fn worley_distance2(p: Vec2f, xy: Vec2i, offset: Vec2i, jitter: f32) f32 {
+        const cellpos = worley_cell_position2(xy, offset, jitter);
         const diff = cellpos - p;
 
         return math.dot2(diff, diff);
     }
 
-    fn worley_cell_position(xy: Vec2i, offset: Vec2u, jitter: f32) Vec2f {
-        var off = cell_noise2_vec(@floatFromInt(xy + @as(Vec2i, @intCast(offset))));
+    fn worley_distance3(p: Vec4f, xyz: Vec4i, offset: Vec4i, jitter: f32) f32 {
+        const cellpos = worley_cell_position3(xyz, offset, jitter);
+        const diff = cellpos - p;
+
+        return math.dot3(diff, diff);
+    }
+
+    fn worley_cell_position2(xy: Vec2i, offset: Vec2i, jitter: f32) Vec2f {
+        var off = cell_noise2_vec(@floatFromInt(xy + offset));
 
         off -= @splat(0.5);
         off *= @splat(jitter);
         off += @splat(0.5);
 
         return @as(Vec2f, @floatFromInt(xy)) + off;
+    }
+
+    fn worley_cell_position3(xyz: Vec4i, offset: Vec4i, jitter: f32) Vec4f {
+        var off = cell_noise3_vec(@floatFromInt(xyz + offset));
+
+        off -= @splat(0.5);
+        off *= @splat(jitter);
+        off += @splat(0.5);
+
+        return @as(Vec4f, @floatFromInt(xyz)) + off;
     }
 
     fn cell_noise2_float(p: Vec2f) f32 {
@@ -280,6 +341,20 @@ pub const Noise = struct {
         };
     }
 
+    fn cell_noise3_vec(p: Vec4f) Vec4f {
+        // integer part of float might be out of bounds for u32, but we don't care
+        @setRuntimeSafety(false);
+
+        const ip: Vec4i = @intFromFloat(@floor(p));
+
+        return .{
+            bits_to_01(hash4(ip[0], ip[1], ip[2], 0)),
+            bits_to_01(hash4(ip[0], ip[1], ip[2], 1)),
+            bits_to_01(hash4(ip[0], ip[1], ip[2], 2)),
+            0,
+        };
+    }
+
     fn bits_to_01(in: u32) f32 {
         // return @as(f32, @floatFromInt(bits)) / @as(f32, @floatFromInt(0xffffffff));
 
@@ -296,14 +371,14 @@ pub const Noise = struct {
         return .{ x - flx, @bitCast(@as(i32, @intFromFloat(flx))) };
     }
 
-    fn floorfrac2(v: Vec2f) struct { Vec2f, Vec2u } {
+    fn floorfrac2(v: Vec2f) struct { Vec2f, Vec2i } {
         const flv = @floor(v);
-        return .{ v - flv, @bitCast(@as(Vec2i, @intFromFloat(flv))) };
+        return .{ v - flv, @as(Vec2i, @intFromFloat(flv)) };
     }
 
-    fn floorfrac3(v: Vec4f) struct { Vec4f, Vec4u } {
+    fn floorfrac3(v: Vec4f) struct { Vec4f, Vec4i } {
         const flv = @floor(v);
-        return .{ v - flv, @bitCast(@as(Vec4i, @intFromFloat(flv))) };
+        return .{ v - flv, @as(Vec4i, @intFromFloat(flv)) };
     }
 
     // Perlin 'fade' function.
@@ -372,18 +447,18 @@ pub const Noise = struct {
         return if (b) -val else val;
     }
 
-    fn hash2(x: u32, y: u32) u32 {
+    fn hash2(x: i32, y: i32) u32 {
         const start_val: u32 = 0xdeadbeef + (2 << 2) + 13;
-        const a = start_val + x;
-        const b = start_val + y;
+        const a = start_val + @as(u32, @bitCast(x));
+        const b = start_val + @as(u32, @bitCast(y));
 
         return bjfinal(a, b, start_val);
     }
 
-    fn hash2v(x: Vec4u, y: Vec4u) Vec4u {
+    fn hash2v(x: Vec4i, y: Vec4i) Vec4u {
         const start_val: Vec4u = @splat(0xdeadbeef + (2 << 2) + 13);
-        const a = start_val +% x;
-        const b = start_val +% y;
+        const a = start_val +% @as(Vec4u, @bitCast(x));
+        const b = start_val +% @as(Vec4u, @bitCast(y));
 
         return bjfinal(a, b, start_val);
     }
@@ -397,13 +472,52 @@ pub const Noise = struct {
         return bjfinal(a, b, c);
     }
 
-    fn hash3v(x: Vec4u, y: Vec4u, z: Vec4u) [2]Vec4u {
+    fn hash4(x: i32, y: i32, z: i32, xx: i32) u32 {
+        const start_val: u32 = 0xdeadbeef + (4 << 2) + 13;
+
+        const a, const b, const c = bjmix(
+            start_val +% @as(u32, @bitCast(x)),
+            start_val +% @as(u32, @bitCast(y)),
+            start_val +% @as(u32, @bitCast(z)),
+        );
+
+        return bjfinal(a +% @as(u32, @bitCast(xx)), b, c);
+    }
+
+    fn hash3v(x: Vec4i, y: Vec4i, z: Vec4i) [2]Vec4u {
         const start_val: Vec4u = @splat(0xdeadbeef + (3 << 2) + 13);
-        const a = start_val + x;
-        const b = start_val + y;
-        const c = start_val + z;
+        const a = start_val +% @as(Vec4u, @bitCast(x));
+        const b = start_val +% @as(Vec4u, @bitCast(y));
+        const c = start_val +% @as(Vec4u, @bitCast(z));
 
         return .{ bjfinal(a, b, c), bjfinal(a, b, c + @as(Vec4u, @splat(1))) };
+    }
+
+    fn bjmix(a_in: u32, b_in: u32, c_in: u32) [3]u32 {
+        var a = a_in;
+        var b = b_in;
+        var c = c_in;
+
+        a -%= c;
+        a ^= std.math.rotl(u32, c, 4);
+        c +%= b;
+        b -%= a;
+        b ^= std.math.rotl(u32, a, 6);
+        a +%= c;
+        c -%= b;
+        c ^= std.math.rotl(u32, b, 8);
+        b +%= a;
+        a -%= c;
+        a ^= std.math.rotl(u32, c, 16);
+        c +%= b;
+        b -%= a;
+        b ^= std.math.rotl(u32, a, 19);
+        a +%= c;
+        c -%= b;
+        c ^= std.math.rotl(u32, b, 4);
+        b +%= a;
+
+        return .{ a, b, c };
     }
 
     // Mix up and combine the bits of a, b, and c (doesn't change them, but
@@ -427,6 +541,7 @@ pub const Noise = struct {
         b -%= std.math.rotl(@TypeOf(a_in), a, 14);
         c ^= b;
         c -%= std.math.rotl(@TypeOf(a_in), b, 24);
+
         return c;
     }
 
