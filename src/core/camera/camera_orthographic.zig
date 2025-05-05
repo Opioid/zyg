@@ -86,6 +86,15 @@ pub const Orthographic = struct {
         };
     }
 
+    pub fn minDirDifferential(self: *const Self) [2]Vec4f {
+        const d_x = self.d_x;
+        const d_y = self.d_y;
+
+        const ss: Vec4f = @splat(self.super.sample_spacing);
+
+        return .{ ss * d_x, ss * d_y };
+    }
+
     pub fn setParameters(self: *Self, value: std.json.Value) void {
         var motion_blur = true;
 

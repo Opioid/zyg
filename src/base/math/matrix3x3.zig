@@ -1,4 +1,5 @@
-const Vec4f = @import("vector4.zig").Vec4f;
+const math = @import("vector4.zig");
+const Vec4f = math.Vec4f;
 
 pub const Mat3x3 = struct {
     r: [3]Vec4f,
@@ -72,6 +73,26 @@ pub const Mat3x3 = struct {
             bt0 - bt1,
             ct0 + ct1,
             c + v[2] * v[2] * t,
+        );
+    }
+
+    // https://iquilezles.org/articles/noacos/
+
+    pub fn initRotationAlign(d: Vec4f, z: Vec4f) Mat3x3 {
+        const v = math.cross3(z, d);
+        const c = math.dot3(z, d);
+        const k = 1.0 / (1.0 + c);
+
+        return init9(
+            v[0] * v[0] * k + c,
+            v[1] * v[0] * k - v[2],
+            v[2] * v[0] * k + v[1],
+            v[0] * v[1] * k + v[2],
+            v[1] * v[1] * k + c,
+            v[2] * v[1] * k - v[0],
+            v[0] * v[2] * k - v[1],
+            v[1] * v[2] * k + v[0],
+            v[2] * v[2] * k + c,
         );
     }
 

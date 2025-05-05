@@ -99,14 +99,14 @@ pub const Noise = struct {
 
     pub fn evaluateNormalmap(self: Self, rs: Renderstate, uv_set: TexCoordMode, worker: *const Worker) Vec2f {
         if (.ObjectPos == uv_set) {
-            const dpdx, const dpdy = worker.appriximateDpDxy(rs);
+            const dpdx, const dpdy = worker.approximateDpDxy(rs);
 
             const center = self.evaluate1(rs, @splat(0.0), uv_set);
             const left = self.evaluate1(rs, dpdx, uv_set);
             const bottom = self.evaluate1(rs, dpdy, uv_set);
 
             const nx = left - center;
-            const ny = center - bottom;
+            const ny = bottom - center;
 
             const n = math.normalize3(.{ nx, ny, math.length3(dpdx + dpdy), 0.0 });
 
@@ -333,7 +333,7 @@ pub const Noise = struct {
         // integer part of float might be out of bounds for u32, but we don't care
         @setRuntimeSafety(false);
 
-        const ip: Vec2u = @intFromFloat(@floor(p));
+        const ip: Vec2i = @intFromFloat(@floor(p));
 
         return .{
             bits_to_01(hash3(ip[0], ip[1], 0)),
@@ -364,11 +364,6 @@ pub const Noise = struct {
         bits |= 0x3F800000;
 
         return @as(f32, @bitCast(bits)) - 1.0;
-    }
-
-    fn floorfrac(x: f32) struct { f32, u32 } {
-        const flx = @floor(x);
-        return .{ x - flx, @bitCast(@as(i32, @intFromFloat(flx))) };
     }
 
     fn floorfrac2(v: Vec2f) struct { Vec2f, Vec2i } {
@@ -463,11 +458,11 @@ pub const Noise = struct {
         return bjfinal(a, b, start_val);
     }
 
-    fn hash3(x: u32, y: u32, z: u32) u32 {
+    fn hash3(x: i32, y: i32, z: i32) u32 {
         const start_val: u32 = 0xdeadbeef + (3 << 2) + 13;
-        const a = start_val + x;
-        const b = start_val + y;
-        const c = start_val + z;
+        const a = start_val +% @as(u32, @bitCast(x));
+        const b = start_val +% @as(u32, @bitCast(y));
+        const c = start_val +% @as(u32, @bitCast(z));
 
         return bjfinal(a, b, c);
     }

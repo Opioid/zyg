@@ -245,6 +245,15 @@ pub const Perspective = struct {
         };
     }
 
+    pub fn minDirDifferential(self: *const Self, layer: u32) [2]Vec4f {
+        const d_x = self.d_x[layer];
+        const d_y = self.d_y[layer];
+
+        const ss: Vec4f = @splat(self.super.sample_spacing);
+
+        return .{ ss * d_x, ss * d_y };
+    }
+
     pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, scene: *const Scene, resources: *Resources) !void {
         var motion_blur = true;
 

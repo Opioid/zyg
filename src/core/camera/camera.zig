@@ -107,4 +107,11 @@ pub const Camera = union(enum) {
             .Perspective => |c| c.calculateRayDifferential(layer, p, time, scene),
         };
     }
+
+    pub fn minDirDifferential(self: *const Self, layer: u32) [2]Vec4f {
+        return switch (self.*) {
+            .Orthographic => |c| c.minDirDifferential(),
+            .Perspective => |c| c.minDirDifferential(layer),
+        };
+    }
 };

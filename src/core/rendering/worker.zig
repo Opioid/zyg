@@ -35,6 +35,7 @@ const aov = @import("sensor/aov/aov_value.zig");
 
 const base = @import("base");
 const math = base.math;
+const Mat3x3 = math.Mat3x3;
 const Vec2b = math.Vec2b;
 const Vec2i = math.Vec2i;
 const Vec2ul = math.Vec2ul;
@@ -395,12 +396,42 @@ pub const Worker = struct {
         return .{ dudx, dvdx, dudy, dvdy };
     }
 
-    pub fn appriximateDpDxy(self: *const Worker, rs: Renderstate) [2]Vec4f {
-        _ = self;
+    // Adapted from PBRT
+    // https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/cameras.h#L155
+    pub fn approximateDpDxy(self: *const Worker, rs: Renderstate) [2]Vec4f {
+        const Origin: Vec4f = comptime @splat(0.0);
+        const Z: Vec4f = comptime .{ 0.0, 0.0, 1.0, 0.0 };
+
+        const min_pos_differential_x: Vec4f = @splat(0.0);
+        const min_pos_differential_y: Vec4f = @splat(0.0);
+
+        const min_dir_differential_x, const min_dir_differential_y = self.camera.minDirDifferential(self.layer);
+
+        const trafo = self.scene.propTransformationAt(self.camera.super().entity, rs.time);
+
+        const p_o = trafo.worldToObjectPoint(rs.p);
+        const n_o = trafo.worldToObjectNormal(rs.geo_n);
+
+        const down_z_from_camera = Mat3x3.initRotationAlign(math.normalize3(p_o), Z);
+        const p_down_z = down_z_from_camera.transformVector(p_o);
+        const n_down_z = down_z_from_camera.transformVector(n_o);
+        const d = n_down_z[2] * p_down_z[2];
+
+        const x_ray = Ray.init(Origin + min_pos_differential_x, Z + min_dir_differential_x, 0.0, 1.0);
+        const tx = -(math.dot3(n_down_z, x_ray.origin) - d) / math.dot3(n_down_z, x_ray.direction);
+
+        const y_ray = Ray.init(Origin + min_pos_differential_y, Z + min_dir_differential_y, 0.0, 1.0);
+        const ty = -(math.dot3(n_down_z, y_ray.origin) - d) / math.dot3(n_down_z, y_ray.direction);
+
+        const px = x_ray.point(tx);
+        const py = y_ray.point(ty);
+
+        const dpdx = trafo.objectToWorldVector(down_z_from_camera.transformVectorTransposed(px - p_down_z));
+        const dpdy = trafo.objectToWorldVector(down_z_from_camera.transformVectorTransposed(py - p_down_z));
 
         return .{
-            @as(Vec4f, @splat(0.005)) * rs.t,
-            @as(Vec4f, @splat(-0.005)) * rs.b,
+            dpdx,
+            dpdy,
         };
     }
 };

@@ -25,7 +25,13 @@ pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampl
 
     var n: Vec4f = undefined;
 
-    if (.Triplanar == map.uv_set) {
+    if (.ObjectPos == map.uv_set) {
+        const t, const b = math.orthonormalBasis3(rs.n);
+
+        const frame: Frame = .{ .x = t, .y = b, .z = rs.n };
+
+        n = math.normalize3(frame.frameToWorld(nm));
+    } else if (.Triplanar == map.uv_set) {
         const wt = triplanarTangent(rs.n, rs.trafo);
 
         const bt = math.cross3(rs.n, wt);
@@ -107,7 +113,7 @@ pub fn triplanarDifferential(wn: Vec4f, trafo: Trafo) DifferentialSurface {
 
         return .{
             .dpdu = @as(Vec4f, @splat(sign * trafo.scaleX())) * trafo.rotation.r[0],
-            .dpdv = @as(Vec4f, @splat(-1.0 * trafo.scaleY())) * @abs(trafo.rotation.r[2]),
+            .dpdv = @as(Vec4f, @splat(-1.0 * trafo.scaleZ())) * @abs(trafo.rotation.r[2]),
         };
     } else {
         const sign = std.math.copysign(@as(f32, 1.0), n[2]);
