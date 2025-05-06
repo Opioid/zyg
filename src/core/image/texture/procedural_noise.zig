@@ -112,18 +112,19 @@ pub const Noise = struct {
 
             return .{ n[0], n[1] };
         } else {
-            const dd = worker.screenspaceDifferential(rs, uv_set);
-            const ddx = Vec2f{ dd[0], dd[1] };
-            const ddy = Vec2f{ dd[2], dd[3] };
+            const dd = @abs(worker.screenspaceDifferential(rs, uv_set));
+
+            const shift_x = dd[0] + dd[2];
+            const shift_y = dd[1] + dd[3];
 
             const center = self.evaluate1(rs, @splat(0.0), uv_set);
-            const left = self.evaluate1(rs, Vec4f{ ddx[0], ddx[1], 0.0, 0.0 }, uv_set);
-            const top = self.evaluate1(rs, Vec4f{ ddy[0], ddy[1], 0.0, 0.0 }, uv_set);
+            const left = self.evaluate1(rs, Vec4f{ shift_x, 0.0, 0.0, 0.0 }, uv_set);
+            const top = self.evaluate1(rs, Vec4f{ 0.0, shift_y, 0.0, 0.0 }, uv_set);
 
             const nx = left - center;
             const ny = top - center;
 
-            const n = math.normalize3(.{ nx, ny, math.length2(ddx + ddy), 0.0 });
+            const n = math.normalize3(.{ nx, ny, math.length2(.{ shift_x, shift_y }), 0.0 });
 
             return .{ n[0], n[1] };
         }
