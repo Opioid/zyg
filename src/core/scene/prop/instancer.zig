@@ -4,11 +4,11 @@ const Fragment = int.Fragment;
 const Intersection = int.Intersection;
 const Volume = int.Volume;
 const Probe = @import("../shape/probe.zig").Probe;
+const Context = @import("../context.zig").Context;
 const Scene = @import("../scene.zig").Scene;
 const Space = @import("../space.zig").Space;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
-const Worker = @import("../../rendering/worker.zig").Worker;
 
 const math = @import("base").math;
 const AABB = math.AABB;
@@ -84,15 +84,15 @@ pub const Instancer = struct {
         probe: Probe,
         trafo: Trafo,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
         tr: *Vec4f,
     ) bool {
         const local_probe = trafo.worldToObjectProbe(probe);
 
         if (Volumetric) {
-            return self.volume_bvh.visibilityIndexed(Volumetric, local_probe, self.prototypes.items.ptr, sampler, worker, &self.space, tr);
+            return self.volume_bvh.visibilityIndexed(Volumetric, local_probe, self.prototypes.items.ptr, sampler, context, &self.space, tr);
         } else {
-            return self.solid_bvh.visibilityIndexed(Volumetric, local_probe, self.prototypes.items.ptr, sampler, worker, &self.space, tr);
+            return self.solid_bvh.visibilityIndexed(Volumetric, local_probe, self.prototypes.items.ptr, sampler, context, &self.space, tr);
         }
     }
 
@@ -103,11 +103,11 @@ pub const Instancer = struct {
         isec: *Intersection,
         throughput: Vec4f,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
     ) Volume {
         var local_probe = trafo.worldToObjectProbe(probe);
 
-        const result = self.volume_bvh.scatterIndexed(&local_probe, self.prototypes.items.ptr, isec, throughput, sampler, worker, &self.space);
+        const result = self.volume_bvh.scatterIndexed(&local_probe, self.prototypes.items.ptr, isec, throughput, sampler, context, &self.space);
 
         if (.Absorb == result.event) {
             isec.trafo = trafo.transform(isec.trafo);

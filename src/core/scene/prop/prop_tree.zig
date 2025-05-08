@@ -1,4 +1,5 @@
 const Prop = @import("prop.zig").Prop;
+const Context = @import("../context.zig").Context;
 const Scene = @import("../scene.zig").Scene;
 const Space = @import("../space.zig").Space;
 const Vertex = @import("../vertex.zig").Vertex;
@@ -10,7 +11,6 @@ const Probe = @import("../shape/probe.zig").Probe;
 const Node = @import("../bvh/node.zig").Node;
 const NodeStack = @import("../bvh/node_stack.zig").NodeStack;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Worker = @import("../../rendering/worker.zig").Worker;
 
 const math = @import("base").math;
 const AABB = math.AABB;
@@ -185,7 +185,7 @@ pub const Tree = struct {
         comptime Volumetric: bool,
         probe: Probe,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
         tr: *Vec4f,
     ) bool {
         var stack = NodeStack{};
@@ -194,7 +194,7 @@ pub const Tree = struct {
 
         const nodes = self.nodes;
         const instances = self.indices;
-        const props = worker.scene.props.items.ptr;
+        const props = context.scene.props.items.ptr;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -204,7 +204,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (instances[start..end]) |p| {
-                    if (!props[p].visibility(Volumetric, p, p, probe, sampler, worker, &worker.scene.prop_space, tr)) {
+                    if (!props[p].visibility(Volumetric, p, p, probe, sampler, context, &context.scene.prop_space, tr)) {
                         return false;
                     }
                 }
@@ -243,7 +243,7 @@ pub const Tree = struct {
         probe: Probe,
         indices: [*]const u32,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
         space: *const Space,
         tr: *Vec4f,
     ) bool {
@@ -253,7 +253,7 @@ pub const Tree = struct {
 
         const nodes = self.nodes;
         const instances = self.indices;
-        const props = worker.scene.props.items.ptr;
+        const props = context.scene.props.items.ptr;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -264,7 +264,7 @@ pub const Tree = struct {
                 const end = start + num;
                 for (instances[start..end]) |i| {
                     const p = indices[i];
-                    if (!props[p].visibility(Volumetric, i, p, probe, sampler, worker, space, tr)) {
+                    if (!props[p].visibility(Volumetric, i, p, probe, sampler, context, space, tr)) {
                         return false;
                     }
                 }
@@ -303,7 +303,7 @@ pub const Tree = struct {
         frag: *Fragment,
         split_threshold: f32,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
     ) Vec4f {
         var stack = NodeStack{};
 
@@ -313,7 +313,7 @@ pub const Tree = struct {
 
         const nodes = self.nodes;
         const instances = self.indices;
-        const props = worker.scene.props.items.ptr;
+        const props = context.scene.props.items.ptr;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -323,7 +323,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (instances[start..end]) |p| {
-                    energy += props[p].emission(p, vertex, frag, split_threshold, sampler, worker);
+                    energy += props[p].emission(p, vertex, frag, split_threshold, sampler, context);
                 }
 
                 n = stack.pop();
@@ -354,7 +354,7 @@ pub const Tree = struct {
         return energy;
     }
 
-    pub fn scatter(self: Tree, probe: *Probe, frag: *Fragment, throughput: *Vec4f, sampler: *Sampler, worker: *Worker) void {
+    pub fn scatter(self: Tree, probe: *Probe, frag: *Fragment, throughput: *Vec4f, sampler: *Sampler, context: Context) void {
         var stack = NodeStack{};
 
         var result = Volume.initPass(@splat(1.0));
@@ -364,7 +364,7 @@ pub const Tree = struct {
 
         const nodes = self.nodes;
         const instances = self.indices;
-        const props = worker.scene.props.items.ptr;
+        const props = context.scene.props.items.ptr;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -374,7 +374,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (instances[start..end]) |p| {
-                    const lr = props[p].scatter(p, p, probe.*, &isec, throughput.*, sampler, worker, &worker.scene.prop_space);
+                    const lr = props[p].scatter(p, p, probe.*, &isec, throughput.*, sampler, context, &context.scene.prop_space);
 
                     if (.Pass != lr.event) {
                         probe.ray.max_t = lr.t;
@@ -434,7 +434,7 @@ pub const Tree = struct {
         isec: *Intersection,
         throughput: Vec4f,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
         space: *const Space,
     ) Volume {
         var stack = NodeStack{};
@@ -445,7 +445,7 @@ pub const Tree = struct {
 
         const nodes = self.nodes;
         const instances = self.indices;
-        const props = worker.scene.props.items.ptr;
+        const props = context.scene.props.items.ptr;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -457,7 +457,7 @@ pub const Tree = struct {
                 for (instances[start..end]) |i| {
                     const p = indices[i];
 
-                    const lr = props[p].scatter(i, p, probe.*, isec, throughput, sampler, worker, space);
+                    const lr = props[p].scatter(i, p, probe.*, isec, throughput, sampler, context, space);
 
                     if (.Pass != lr.event) {
                         probe.ray.max_t = lr.t;

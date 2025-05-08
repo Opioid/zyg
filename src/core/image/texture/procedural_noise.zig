@@ -1,8 +1,8 @@
 const ts = @import("texture_sampler.zig");
 const TexCoordMode = @import("texture.zig").Texture.TexCoordMode;
+const Context = @import("../../scene/context.zig").Context;
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
 const hlp = @import("../../scene/material/material_helper.zig");
-const Worker = @import("../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -97,9 +97,9 @@ pub const Noise = struct {
         return if (self.flags.invert) (1.0 - result) else result;
     }
 
-    pub fn evaluateNormalmap(self: Self, rs: Renderstate, uv_set: TexCoordMode, worker: *const Worker) Vec2f {
+    pub fn evaluateNormalmap(self: Self, rs: Renderstate, uv_set: TexCoordMode, context: Context) Vec2f {
         if (.ObjectPos == uv_set) {
-            const dpdx, const dpdy = worker.approximateDpDxy(rs);
+            const dpdx, const dpdy = context.approximateDpDxy(rs);
 
             const center = self.evaluate1(rs, @splat(0.0), uv_set);
             const left = self.evaluate1(rs, dpdx, uv_set);
@@ -112,7 +112,7 @@ pub const Noise = struct {
 
             return .{ n[0], n[1] };
         } else {
-            const dd = @abs(worker.screenspaceDifferential(rs, uv_set));
+            const dd = @abs(context.screenspaceDifferential(rs, uv_set));
 
             const shift_x = dd[0] + dd[2];
             const shift_y = dd[1] + dd[3];

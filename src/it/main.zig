@@ -3,7 +3,6 @@ const Operator = @import("operator.zig").Operator;
 
 const core = @import("core");
 const log = core.log;
-const rendering = core.rendering;
 const resource = core.resource;
 const scn = core.scn;
 const tk = core.tk;

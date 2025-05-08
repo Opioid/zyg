@@ -1,7 +1,7 @@
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const Context = @import("../../scene/context.zig").Context;
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
 const Scene = @import("../../scene/scene.zig").Scene;
-const Worker = @import("../../rendering/worker.zig").Worker;
 const Texture = @import("texture.zig").Texture;
 pub const AddressMode = @import("address_mode.zig").Mode;
 
@@ -49,31 +49,31 @@ pub fn sampleImage2D_1(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler,
     };
 }
 
-pub fn sample2D_1(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler, worker: *const Worker) f32 {
+pub fn sample2D_1(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler, context: Context) f32 {
     switch (texture.type) {
         .Uniform => return texture.uniform1(),
-        .Procedural => return worker.sampleProcedural2D_1(key, texture, rs, sampler),
+        .Procedural => return context.sampleProcedural2D_1(key, texture, rs, sampler),
         else => {
             const uv = if (.Triplanar == texture.uv_set) rs.triplanarUv() else rs.uv();
 
             return switch (key.filter) {
-                .Nearest => Nearest2D.sample_1(texture, uv, key.address, worker.scene),
-                .LinearStochastic => LinearStochastic2D.sample_1(texture, uv, key.address, sampler, worker.scene),
+                .Nearest => Nearest2D.sample_1(texture, uv, key.address, context.scene),
+                .LinearStochastic => LinearStochastic2D.sample_1(texture, uv, key.address, sampler, context.scene),
             };
         },
     }
 }
 
-pub fn sample2D_2(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Vec2f {
+pub fn sample2D_2(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler, context: Context) Vec2f {
     switch (texture.type) {
         .Uniform => return texture.uniform2(),
-        .Procedural => return worker.sampleProcedural2D_2(key, texture, rs, sampler),
+        .Procedural => return context.sampleProcedural2D_2(key, texture, rs, sampler),
         else => {
             const uv = if (.Triplanar == texture.uv_set) rs.triplanarUv() else rs.uv();
 
             return switch (key.filter) {
-                .Nearest => Nearest2D.sample_2(texture, uv, key.address, worker.scene),
-                .LinearStochastic => LinearStochastic2D.sample_2(texture, uv, key.address, sampler, worker.scene),
+                .Nearest => Nearest2D.sample_2(texture, uv, key.address, context.scene),
+                .LinearStochastic => LinearStochastic2D.sample_2(texture, uv, key.address, sampler, context.scene),
             };
         },
     }
@@ -86,32 +86,32 @@ pub fn sampleImage2D_3(key: Key, texture: Texture, uv: Vec2f, sampler: *Sampler,
     };
 }
 
-pub fn sample2D_3(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Vec4f {
+pub fn sample2D_3(key: Key, texture: Texture, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
     switch (texture.type) {
         .Uniform => return texture.uniform3(),
-        .Procedural => return worker.sampleProcedural2D_3(key, texture, rs, sampler),
+        .Procedural => return context.sampleProcedural2D_3(key, texture, rs, sampler),
         else => {
             const uv = if (.Triplanar == texture.uv_set) rs.triplanarUv() else rs.uv();
 
             return switch (key.filter) {
-                .Nearest => Nearest2D.sample_3(texture, uv, key.address, worker.scene),
-                .LinearStochastic => LinearStochastic2D.sample_3(texture, uv, key.address, sampler, worker.scene),
+                .Nearest => Nearest2D.sample_3(texture, uv, key.address, context.scene),
+                .LinearStochastic => LinearStochastic2D.sample_3(texture, uv, key.address, sampler, context.scene),
             };
         },
     }
 }
 
-pub fn sample3D_1(key: Key, texture: Texture, uvw: Vec4f, sampler: *Sampler, worker: *const Worker) f32 {
+pub fn sample3D_1(key: Key, texture: Texture, uvw: Vec4f, sampler: *Sampler, context: Context) f32 {
     return switch (key.filter) {
-        .Nearest => Nearest3D.sample_1(texture, uvw, key.address, worker.scene),
-        .LinearStochastic => LinearStochastic3D.sample_1(texture, uvw, key.address, sampler, worker.scene),
+        .Nearest => Nearest3D.sample_1(texture, uvw, key.address, context.scene),
+        .LinearStochastic => LinearStochastic3D.sample_1(texture, uvw, key.address, sampler, context.scene),
     };
 }
 
-pub fn sample3D_2(key: Key, texture: Texture, uvw: Vec4f, sampler: *Sampler, worker: *const Worker) Vec2f {
+pub fn sample3D_2(key: Key, texture: Texture, uvw: Vec4f, sampler: *Sampler, context: Context) Vec2f {
     return switch (key.filter) {
-        .Nearest => Nearest3D.sample_2(texture, uvw, key.address, worker.scene),
-        .LinearStochastic => LinearStochastic3D.sample_2(texture, uvw, key.address, sampler, worker.scene),
+        .Nearest => Nearest3D.sample_2(texture, uvw, key.address, context.scene),
+        .LinearStochastic => LinearStochastic3D.sample_2(texture, uvw, key.address, sampler, context.scene),
     };
 }
 

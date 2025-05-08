@@ -1,7 +1,7 @@
 const tracking = @import("tracking.zig");
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Probe = Vertex.Probe;
-const Worker = @import("../../worker.zig").Worker;
+const Context = @import("../../../scene/context.zig").Context;
 const int = @import("../../../scene/shape/intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
@@ -31,7 +31,7 @@ pub const Integrator = struct {
         prop: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
         tr: *Vec4f,
     ) bool {
         const d = ray.max_t;
@@ -41,7 +41,7 @@ pub const Integrator = struct {
         }
 
         if (material.volumetricTree()) |tree| {
-            return tree.transmittance(ray, material, prop, depth, sampler, worker, tr);
+            return tree.transmittance(ray, material, prop, depth, sampler, context, tr);
         }
 
         tr.* *= ccoef.attenuation3(cc.a + cc.s, d - ray.min_t);
@@ -56,7 +56,7 @@ pub const Integrator = struct {
         prop: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
     ) Volume {
         const d = ray.max_t;
 
@@ -70,30 +70,30 @@ pub const Integrator = struct {
         }
 
         if (material.volumetricTree()) |tree| {
-            return tree.scatter(ray, throughput, material, prop, depth, sampler, worker);
+            return tree.scatter(ray, throughput, material, prop, depth, sampler, context);
         }
 
         if (material.emissive()) {
-            const cce = material.collisionCoefficientsEmission(@splat(0.0), cc, sampler, worker);
+            const cce = material.collisionCoefficientsEmission(@splat(0.0), cc, sampler, context);
             return tracking.trackingEmission(ray, cce, throughput, sampler);
         }
 
         return tracking.tracking(ray, cc, throughput, sampler);
     }
 
-    pub fn integrate(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) void {
+    pub fn integrate(vertex: *Vertex, frag: *Fragment, sampler: *Sampler, context: Context) void {
         const medium = vertex.mediums.top();
-        const material = medium.material(worker.scene);
+        const material = medium.material(context.scene);
 
         if (material.denseSSSOptimization()) {
-            integrateHomogeneousSSS(medium.prop, medium.trafo, vertex, frag, sampler, worker);
+            integrateHomogeneousSSS(medium.prop, medium.trafo, vertex, frag, sampler, context);
             return;
         }
 
         const ray_max_t = vertex.probe.ray.max_t;
-        const limit = worker.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse ray_max_t;
+        const limit = context.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse ray_max_t;
         vertex.probe.ray.max_t = math.min(ro.offsetF(limit), ray_max_t);
-        if (!worker.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
+        if (!context.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
             return;
         }
 
@@ -110,7 +110,7 @@ pub const Integrator = struct {
             medium.prop,
             vertex.probe.depth.volume,
             sampler,
-            worker,
+            context,
         );
 
         if (.Pass != result.event) {
@@ -125,13 +125,13 @@ pub const Integrator = struct {
         vertex.throughput *= result.tr;
     }
 
-    fn integrateHomogeneousSSS(prop: u32, trafo: Trafo, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, worker: *Worker) void {
+    fn integrateHomogeneousSSS(prop: u32, trafo: Trafo, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, context: Context) void {
         frag.event = .Abort;
 
         const cc = vertex.mediums.topCC();
         const g = cc.anisotropy();
 
-        const shape = worker.scene.propShape(prop);
+        const shape = context.scene.propShape(prop);
 
         const mu_t = cc.a + cc.s;
         const albedo = cc.s / mu_t;

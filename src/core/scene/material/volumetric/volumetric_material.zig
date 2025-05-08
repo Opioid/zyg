@@ -7,8 +7,8 @@ const CC = ccoef.CC;
 const CCE = ccoef.CCE;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
+const Context = @import("../../context.zig").Context;
 const Scene = @import("../../scene.zig").Scene;
-const Worker = @import("../../../rendering/worker.zig").Worker;
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -222,7 +222,7 @@ pub const Material = struct {
         return (1.0 - g) / (1.0 - gs);
     }
 
-    pub fn evaluateRadiance(self: *const Material, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Vec4f {
+    pub fn evaluateRadiance(self: *const Material, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
         if (self.density_map.isUniform()) {
             return self.average_emission;
         }
@@ -232,17 +232,17 @@ pub const Material = struct {
         const uvw = rs.uvw;
 
         const emission = if (!self.emittance.emission_map.isUniform())
-            self.blackbody.eval(ts.sample3D_1(key, self.emittance.emission_map, uvw, sampler, worker))
+            self.blackbody.eval(ts.sample3D_1(key, self.emittance.emission_map, uvw, sampler, context))
         else
             self.emittance.value;
 
         const norm_emission = self.a_norm * emission;
 
         if (2 == self.density_map.numChannels()) {
-            const d = ts.sample3D_2(key, self.density_map, uvw, sampler, worker);
+            const d = ts.sample3D_2(key, self.density_map, uvw, sampler, context);
             return @as(Vec4f, @splat(d[0] * d[1])) * norm_emission;
         } else {
-            const d = ts.sample3D_1(key, self.density_map, uvw, sampler, worker);
+            const d = ts.sample3D_1(key, self.density_map, uvw, sampler, context);
             return @as(Vec4f, @splat(d)) * norm_emission;
         }
     }
@@ -264,29 +264,29 @@ pub const Material = struct {
         return 1.0;
     }
 
-    pub fn density(self: *const Material, uvw: Vec4f, sampler: *Sampler, worker: *const Worker) f32 {
+    pub fn density(self: *const Material, uvw: Vec4f, sampler: *Sampler, context: Context) f32 {
         if (!self.density_map.isUniform()) {
-            return ts.sample3D_1(self.super.sampler_key, self.density_map, uvw, sampler, worker);
+            return ts.sample3D_1(self.super.sampler_key, self.density_map, uvw, sampler, context);
         }
 
         return 1.0;
     }
 
-    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, worker: *const Worker) CCE {
+    pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, context: Context) CCE {
         if (!self.density_map.isUniform() and !self.emittance.emission_map.isUniform()) {
             const key = self.super.sampler_key;
 
-            const t = ts.sample3D_1(key, self.emittance.emission_map, uvw, sampler, worker);
+            const t = ts.sample3D_1(key, self.emittance.emission_map, uvw, sampler, context);
             const e = self.blackbody.eval(t);
 
             if (2 == self.density_map.numChannels()) {
-                const d = ts.sample3D_2(key, self.density_map, uvw, sampler, worker);
+                const d = ts.sample3D_2(key, self.density_map, uvw, sampler, context);
                 return .{
                     .cc = cc.scaled(@splat(d[0])),
                     .e = @as(Vec4f, @splat(d[1])) * e,
                 };
             } else {
-                const d: Vec4f = @splat(ts.sample3D_1(key, self.density_map, uvw, sampler, worker));
+                const d: Vec4f = @splat(ts.sample3D_1(key, self.density_map, uvw, sampler, context));
                 return .{
                     .cc = cc.scaled(d),
                     .e = d * e,
@@ -294,7 +294,7 @@ pub const Material = struct {
             }
         }
 
-        const d = self.density(uvw, sampler, worker);
+        const d = self.density(uvw, sampler, context);
         return .{
             .cc = cc.scaled(@splat(d)),
             .e = self.emittance.value,

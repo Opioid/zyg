@@ -8,8 +8,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const Scene = @import("../scene.zig").Scene;
-const Worker = @import("../../rendering/worker.zig").Worker;
+const Context = @import("../context.zig").Context;
 const ro = @import("../ray_offset.zig");
 
 const base = @import("base");
@@ -68,10 +67,10 @@ pub const Cube = struct {
         return aabb.intersect(local_ray);
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
         _ = entity;
         _ = sampler;
-        _ = worker;
+        _ = context;
         _ = tr;
 
         if (intersectP(ray, trafo)) {
@@ -86,7 +85,7 @@ pub const Cube = struct {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
         tr: *Vec4f,
     ) bool {
         var local_ray = trafo.worldToObjectRay(probe.ray);
@@ -99,8 +98,8 @@ pub const Cube = struct {
 
         local_ray.setMinMaxT(hit_t[0], hit_t[1]);
 
-        const material = worker.scene.propMaterial(entity, 0);
-        return worker.propTransmittance(local_ray, material, entity, probe.depth.volume, sampler, tr);
+        const material = context.scene.propMaterial(entity, 0);
+        return context.propTransmittance(local_ray, material, entity, probe.depth.volume, sampler, tr);
     }
 
     pub fn scatter(
@@ -109,7 +108,7 @@ pub const Cube = struct {
         throughput: Vec4f,
         entity: u32,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
     ) Volume {
         var local_ray = trafo.worldToObjectRay(probe.ray);
 
@@ -121,8 +120,8 @@ pub const Cube = struct {
 
         local_ray.setMinMaxT(hit_t[0], hit_t[1]);
 
-        const material = worker.scene.propMaterial(entity, 0);
-        return worker.propScatter(local_ray, throughput, material, entity, probe.depth.volume, sampler);
+        const material = context.scene.propMaterial(entity, 0);
+        return context.propScatter(local_ray, throughput, material, entity, probe.depth.volume, sampler);
     }
 
     pub fn sampleVolumeTo(p: Vec4f, trafo: Trafo, sampler: *Sampler) SampleTo {

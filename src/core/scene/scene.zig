@@ -1,3 +1,4 @@
+const Context = @import("context.zig").Context;
 const Space = @import("space.zig").Space;
 pub const Prop = @import("prop/prop.zig").Prop;
 const PropBvh = @import("prop/prop_tree.zig").Tree;
@@ -23,7 +24,6 @@ const Sampler = @import("../sampler/sampler.zig").Sampler;
 pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
 const Filesystem = @import("../file/system.zig").System;
-const Worker = @import("../rendering/worker.zig").Worker;
 const hlp = @import("../rendering/integrator/helper.zig");
 
 const base = @import("base");
@@ -250,9 +250,9 @@ pub const Scene = struct {
         return self.solid_bvh.intersect(probe, frag, self);
     }
 
-    pub fn visibility(self: *const Scene, probe: Probe, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
-        if (self.solid_bvh.visibility(false, probe, sampler, worker, tr)) {
-            return self.volume_bvh.visibility(true, probe, sampler, worker, tr);
+    pub fn visibility(self: *const Scene, probe: Probe, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
+        if (self.solid_bvh.visibility(false, probe, sampler, context, tr)) {
+            return self.volume_bvh.visibility(true, probe, sampler, context, tr);
         }
 
         return false;
@@ -264,7 +264,7 @@ pub const Scene = struct {
         frag: *Fragment,
         throughput: *Vec4f,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
     ) void {
         if (0 == self.volume_bvh.num_nodes) {
             frag.event = .Pass;
@@ -272,7 +272,7 @@ pub const Scene = struct {
             return;
         }
 
-        self.volume_bvh.scatter(probe, frag, throughput, sampler, worker);
+        self.volume_bvh.scatter(probe, frag, throughput, sampler, context);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {

@@ -2,7 +2,7 @@ const Renderstate = @import("../renderstate.zig").Renderstate;
 const ts = @import("../../image/texture/texture_sampler.zig");
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Worker = @import("../../rendering/worker.zig").Worker;
+const Context = @import("../context.zig").Context;
 const DifferentialSurface = @import("../shape/intersection.zig").DifferentialSurface;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 
@@ -17,9 +17,9 @@ fn gramSchmidt(v: Vec4f, w: Vec4f) Vec4f {
     return v - @as(Vec4f, @splat(math.dot3(v, w))) * w;
 }
 
-pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampler: *Sampler, worker: *const Worker) Vec4f {
+pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, key: ts.Key, sampler: *Sampler, context: Context) Vec4f {
     // Reconstruct normal from normal texture
-    const nmxy = ts.sample2D_2(key, map, rs, sampler, worker);
+    const nmxy = ts.sample2D_2(key, map, rs, sampler, context);
     const nmz = @sqrt(math.max(1.0 - math.dot2(nmxy, nmxy), 0.01));
     const nm = Vec4f{ nmxy[0], nmxy[1], nmz, 0.0 };
 

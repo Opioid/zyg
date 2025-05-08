@@ -2,9 +2,9 @@ const Texture = @import("../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const ts = @import("../../image/texture/texture_sampler.zig");
 const Renderstate = @import("../renderstate.zig").Renderstate;
+const Context = @import("../context.zig").Context;
 const Scene = @import("../scene.zig").Scene;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
-const Worker = @import("../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -76,7 +76,7 @@ pub const Emittance = struct {
         rs: Renderstate,
         key: ts.Key,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
     ) Vec4f {
         var pf: f32 = 1.0;
         if (self.profile.isImage()) {
@@ -89,17 +89,17 @@ pub const Emittance = struct {
             const o = math.smpl.octEncode(lwi);
             const ouv = (o + @as(Vec2f, @splat(1.0))) * @as(Vec2f, @splat(0.5));
 
-            pf = ts.sampleImage2D_1(profile_key, self.profile, ouv, sampler, worker.scene);
+            pf = ts.sampleImage2D_1(profile_key, self.profile, ouv, sampler, context.scene);
         }
 
         if (-math.dot3(wi, rs.trafo.rotation.r[2]) < self.cos_a) {
             return @splat(0.0);
         }
 
-        const intensity = self.value * ts.sample2D_3(key, self.emission_map, rs, sampler, worker);
+        const intensity = self.value * ts.sample2D_3(key, self.emission_map, rs, sampler, context);
 
         if (self.quantity == .Intensity) {
-            const area = worker.scene.propShape(rs.prop).area(rs.part, rs.trafo.scale());
+            const area = context.scene.propShape(rs.prop).area(rs.part, rs.trafo.scale());
             return @as(Vec4f, @splat(pf / area)) * intensity;
         }
 

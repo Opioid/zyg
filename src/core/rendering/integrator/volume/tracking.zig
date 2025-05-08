@@ -1,6 +1,6 @@
+const Context = @import("../../../scene/context.zig").Context;
 const Trafo = @import("../../../scene/composed_transformation.zig").ComposedTransformation;
 const Volume = @import("../../../scene/shape/intersection.zig").Volume;
-const Worker = @import("../../../rendering/worker.zig").Worker;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const hlp = @import("../../../rendering/integrator/helper.zig");
 const ro = @import("../../../scene/ray_offset.zig");
@@ -33,7 +33,7 @@ pub fn trackingTransmitted(
     cc: CC,
     material: *const Material,
     sampler: *Sampler,
-    worker: *const Worker,
+    context: Context,
 ) bool {
     const minorant_mu_t = cm[0];
     const majorant_mu_t = cm[1];
@@ -64,7 +64,7 @@ pub fn trackingTransmitted(
         }
 
         const uvw = ray.point(t);
-        const mu = material.collisionCoefficients3D(uvw, cc, sampler, worker);
+        const mu = material.collisionCoefficients3D(uvw, cc, sampler, context);
 
         const mu_t = (mu.a + mu.s) - @as(Vec4f, @splat(minorant_mu_t));
         const mu_n = @as(Vec4f, @splat(mt)) - mu_t;
@@ -184,7 +184,7 @@ pub fn trackingHetero(
     w: Vec4f,
     throughput: Vec4f,
     sampler: *Sampler,
-    worker: *const Worker,
+    context: Context,
 ) Volume {
     const mt = cm[1];
     if (mt < Min_mt) {
@@ -203,7 +203,7 @@ pub fn trackingHetero(
         }
 
         const uvw = ray.point(t);
-        const mu = material.collisionCoefficients3D(uvw, cc, sampler, worker);
+        const mu = material.collisionCoefficients3D(uvw, cc, sampler, context);
 
         const mu_t = mu.a + mu.s;
         const mu_n = @as(Vec4f, @splat(mt)) - mu_t;
@@ -239,7 +239,7 @@ pub fn trackingHeteroEmission(
     w: Vec4f,
     throughput: Vec4f,
     sampler: *Sampler,
-    worker: *const Worker,
+    context: Context,
 ) Volume {
     const mt = cm[1];
     if (mt < Min_mt) {
@@ -258,7 +258,7 @@ pub fn trackingHeteroEmission(
         }
 
         const uvw = ray.point(t);
-        const cce = material.collisionCoefficientsEmission(uvw, cc, sampler, worker);
+        const cce = material.collisionCoefficientsEmission(uvw, cc, sampler, context);
         const mu = cce.cc;
 
         const mu_t = mu.a + mu.s;
@@ -299,8 +299,8 @@ pub fn trackingHeteroEmission(
     }
 }
 
-pub fn objectToTextureRay(ray: Ray, entity: u32, worker: *const Worker) Ray {
-    const aabb = worker.scene.propShape(entity).aabb();
+pub fn objectToTextureRay(ray: Ray, entity: u32, context: Context) Ray {
+    const aabb = context.scene.propShape(entity).aabb();
 
     const iextent = @as(Vec4f, @splat(1.0)) / aabb.extent();
     const origin = (ray.origin - aabb.bounds[0]) * iextent;

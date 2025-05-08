@@ -1,10 +1,10 @@
 const Photon = @import("photon.zig").Photon;
 const Grid = @import("photon_grid.zig").Grid;
+const Context = @import("../../../../scene/context.zig").Context;
 const Scene = @import("../../../../scene/scene.zig").Scene;
 const Fragment = @import("../../../../scene/shape/intersection.zig").Fragment;
 const MaterialSample = @import("../../../../scene/material/material_sample.zig").Sample;
 const Sampler = @import("../../../../sampler/sampler.zig").Sampler;
-const Worker = @import("../../../../rendering/worker.zig").Worker;
 
 const base = @import("base");
 const math = base.math;
@@ -86,9 +86,9 @@ pub const Map = struct {
         frag: *const Fragment,
         sample: *const MaterialSample,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
     ) Vec4f {
-        return self.grid.li2(frag, sample, sampler, worker);
+        return self.grid.li2(frag, sample, sampler, context);
     }
 
     fn calculateAabb(self: *Self, num_photons: u32, threads: *Threads) AABB {

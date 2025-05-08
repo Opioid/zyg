@@ -6,8 +6,8 @@ pub const Mul = @import("procedural_mul.zig").Mul;
 pub const Noise = @import("procedural_noise.zig").Noise;
 const Texture = @import("texture.zig").Texture;
 const ts = @import("texture_sampler.zig");
+const Context = @import("../../scene/context.zig").Context;
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
-const Worker = @import("../../rendering/worker.zig").Worker;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -75,50 +75,50 @@ pub const Procedural = struct {
         return id;
     }
 
-    pub fn sample2D_1(self: Procedural, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler, worker: *const Worker) f32 {
+    pub fn sample2D_1(self: Procedural, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler, context: Context) f32 {
         const proc: Type = @enumFromInt(texture.data.procedural.id);
 
         const data = texture.data.procedural.data;
 
         return switch (proc) {
-            .Checker => self.checkers.items[data].evaluate(rs, key, texture.uv_set, worker)[0],
+            .Checker => self.checkers.items[data].evaluate(rs, key, texture.uv_set, context)[0],
             .DetailNormal => 0.0,
-            .Max => self.maxes.items[data].evaluate1(rs, key, sampler, worker),
-            .Mix => self.mixes.items[data].evaluate1(rs, key, sampler, worker),
-            .Mul => self.muls.items[data].evaluate1(rs, key, sampler, worker),
+            .Max => self.maxes.items[data].evaluate1(rs, key, sampler, context),
+            .Mix => self.mixes.items[data].evaluate1(rs, key, sampler, context),
+            .Mul => self.muls.items[data].evaluate1(rs, key, sampler, context),
             .Noise => self.noises.items[data].evaluate1(rs, @splat(0.0), texture.uv_set),
         };
     }
 
-    pub fn sample2D_2(self: Procedural, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Vec2f {
+    pub fn sample2D_2(self: Procedural, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler, context: Context) Vec2f {
         const proc: Type = @enumFromInt(texture.data.procedural.id);
 
         const data = texture.data.procedural.data;
 
         return switch (proc) {
             .Checker => {
-                const color = self.checkers.items[data].evaluate(rs, key, texture.uv_set, worker);
+                const color = self.checkers.items[data].evaluate(rs, key, texture.uv_set, context);
                 return .{ color[0], color[1] };
             },
-            .DetailNormal => self.detail_normals.items[data].evaluate(rs, key, sampler, worker),
-            .Max => self.maxes.items[data].evaluate2(rs, key, sampler, worker),
-            .Mix => self.mixes.items[data].evaluate2(rs, key, sampler, worker),
-            .Mul => self.muls.items[data].evaluate2(rs, key, sampler, worker),
-            .Noise => self.noises.items[data].evaluateNormalmap(rs, texture.uv_set, worker),
+            .DetailNormal => self.detail_normals.items[data].evaluate(rs, key, sampler, context),
+            .Max => self.maxes.items[data].evaluate2(rs, key, sampler, context),
+            .Mix => self.mixes.items[data].evaluate2(rs, key, sampler, context),
+            .Mul => self.muls.items[data].evaluate2(rs, key, sampler, context),
+            .Noise => self.noises.items[data].evaluateNormalmap(rs, texture.uv_set, context),
         };
     }
 
-    pub fn sample2D_3(self: Procedural, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Vec4f {
+    pub fn sample2D_3(self: Procedural, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
         const proc: Type = @enumFromInt(texture.data.procedural.id);
 
         const data = texture.data.procedural.data;
 
         return switch (proc) {
-            .Checker => self.checkers.items[data].evaluate(rs, key, texture.uv_set, worker),
+            .Checker => self.checkers.items[data].evaluate(rs, key, texture.uv_set, context),
             .DetailNormal => @splat(0.0),
-            .Max => self.maxes.items[data].evaluate3(rs, key, sampler, worker),
-            .Mix => self.mixes.items[data].evaluate3(rs, key, sampler, worker),
-            .Mul => self.muls.items[data].evaluate3(rs, key, sampler, worker),
+            .Max => self.maxes.items[data].evaluate3(rs, key, sampler, context),
+            .Mix => self.mixes.items[data].evaluate3(rs, key, sampler, context),
+            .Mul => self.muls.items[data].evaluate3(rs, key, sampler, context),
             .Noise => self.noises.items[data].evaluate3(rs, texture.uv_set),
         };
     }
