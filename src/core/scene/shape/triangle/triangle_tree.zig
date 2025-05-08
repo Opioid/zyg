@@ -226,7 +226,7 @@ pub const Tree = struct {
         entity: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         const material = worker.scene.propMaterial(entity, 0);
@@ -354,7 +354,7 @@ pub const Tree = struct {
         entity: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
     ) Volume {
         const material = worker.scene.propMaterial(entity, 0);
         const data = self.data;

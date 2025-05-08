@@ -78,7 +78,15 @@ pub const Instancer = struct {
         return false;
     }
 
-    pub fn visibility(self: *const Self, comptime Volumetric: bool, probe: Probe, trafo: Trafo, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
+    pub fn visibility(
+        self: *const Self,
+        comptime Volumetric: bool,
+        probe: Probe,
+        trafo: Trafo,
+        sampler: *Sampler,
+        worker: *const Worker,
+        tr: *Vec4f,
+    ) bool {
         const local_probe = trafo.worldToObjectProbe(probe);
 
         if (Volumetric) {
@@ -95,7 +103,7 @@ pub const Instancer = struct {
         isec: *Intersection,
         throughput: Vec4f,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
     ) Volume {
         var local_probe = trafo.worldToObjectProbe(probe);
 

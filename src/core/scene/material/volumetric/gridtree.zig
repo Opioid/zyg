@@ -111,7 +111,7 @@ pub const Gridtree = struct {
         prop: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         const d = ray.max_t;
@@ -145,7 +145,7 @@ pub const Gridtree = struct {
         prop: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
     ) Volume {
         const d = ray.max_t;
 

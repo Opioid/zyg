@@ -33,7 +33,7 @@ pub fn trackingTransmitted(
     cc: CC,
     material: *const Material,
     sampler: *Sampler,
-    worker: *Worker,
+    worker: *const Worker,
 ) bool {
     const minorant_mu_t = cm[0];
     const majorant_mu_t = cm[1];
@@ -53,13 +53,11 @@ pub fn trackingTransmitted(
         return true;
     }
 
-    var rng = &worker.rng;
-
     // Transmittance of the residual medium
     const d = ray.max_t;
     var t = ray.min_t;
     while (true) {
-        const r0 = rng.randomFloat();
+        const r0 = sampler.sample1D();
         t -= @log(1.0 - r0) / mt;
         if (t > d) {
             return true;
@@ -122,7 +120,7 @@ pub fn tracking(ray: Ray, mu: CC, throughput: Vec4f, sampler: *Sampler) Volume {
     }
 }
 
-pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Volume {
+pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, sampler: *Sampler) Volume {
     const mu = cce.cc;
     const mu_t = mu.a + mu.s;
     const mt = math.hmax3(mu_t);
@@ -133,8 +131,8 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Volume
     const d = ray.max_t;
     var t = ray.min_t;
     while (true) {
-        const r0 = rng.randomFloat();
-        t -= @log(1.0 - r0) / mt;
+        const r = sampler.sample2D();
+        t -= @log(1.0 - r[0]) / mt;
         if (t > d) {
             return Volume.initPass(w);
         }
@@ -153,8 +151,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Volume
         const ps = ms * c;
         const pn = mn * c;
 
-        const r1 = rng.randomFloat();
-        if (r1 < pa) {
+        if (r[1] < pa) {
             const wa = mu.a / @as(Vec4f, @splat(mt * pa));
             return .{
                 .li = w * wa * cce.e,
@@ -164,7 +161,7 @@ pub fn trackingEmission(ray: Ray, cce: CCE, throughput: Vec4f, rng: *RNG) Volume
             };
         }
 
-        if (r1 <= 1.0 - pn and ps > 0.0) {
+        if (r[1] <= 1.0 - pn and ps > 0.0) {
             const ws = mu.s / @as(Vec4f, @splat(mt * ps));
             return .{
                 .li = @splat(0.0),
@@ -187,22 +184,20 @@ pub fn trackingHetero(
     w: Vec4f,
     throughput: Vec4f,
     sampler: *Sampler,
-    worker: *Worker,
+    worker: *const Worker,
 ) Volume {
     const mt = cm[1];
     if (mt < Min_mt) {
         return Volume.initPass(w);
     }
 
-    var rng = &worker.rng;
-
     var lw = w;
 
     const d = ray.max_t;
     var t = ray.min_t;
     while (true) {
-        const r0 = rng.randomFloat();
-        t -= @log(1.0 - r0) / mt;
+        const r = sampler.sample2D();
+        t -= @log(1.0 - r[0]) / mt;
         if (t > d) {
             return Volume.initPass(lw);
         }
@@ -221,8 +216,7 @@ pub fn trackingHetero(
         const ps = ms * c;
         const pn = mn * c;
 
-        const r1 = rng.randomFloat();
-        if (r1 <= 1.0 - pn and ps > 0.0) {
+        if (r[1] <= 1.0 - pn and ps > 0.0) {
             const ws = mu.s / @as(Vec4f, @splat(mt * ps));
             return .{
                 .li = @splat(0.0),
@@ -245,22 +239,20 @@ pub fn trackingHeteroEmission(
     w: Vec4f,
     throughput: Vec4f,
     sampler: *Sampler,
-    worker: *Worker,
+    worker: *const Worker,
 ) Volume {
     const mt = cm[1];
     if (mt < Min_mt) {
         return Volume.initPass(w);
     }
 
-    var rng = &worker.rng;
-
     var lw = w;
 
     const d = ray.max_t;
     var t = ray.min_t;
     while (true) {
-        const r0 = rng.randomFloat();
-        t -= @log(1.0 - r0) / mt;
+        const r = sampler.sample2D();
+        t -= @log(1.0 - r[0]) / mt;
         if (t > d) {
             return Volume.initPass(lw);
         }
@@ -282,8 +274,7 @@ pub fn trackingHeteroEmission(
         const ps = ms * c;
         const pn = mn * c;
 
-        const r1 = rng.randomFloat();
-        if (r1 < pa) {
+        if (r[1] < pa) {
             const wa = mu.a / @as(Vec4f, @splat(mt * pa));
             return .{
                 .li = w * wa * cce.e,
@@ -293,7 +284,7 @@ pub fn trackingHeteroEmission(
             };
         }
 
-        if (r1 <= 1.0 - pn and ps > 0.0) {
+        if (r[1] <= 1.0 - pn and ps > 0.0) {
             const ws = mu.s / @as(Vec4f, @splat(mt * ps));
             return .{
                 .li = @splat(0.0),

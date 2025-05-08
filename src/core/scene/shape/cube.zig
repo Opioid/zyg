@@ -86,7 +86,7 @@ pub const Cube = struct {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         var local_ray = trafo.worldToObjectRay(probe.ray);
@@ -109,7 +109,7 @@ pub const Cube = struct {
         throughput: Vec4f,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
     ) Volume {
         var local_ray = trafo.worldToObjectRay(probe.ray);
 

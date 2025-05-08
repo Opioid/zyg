@@ -31,7 +31,7 @@ pub const Integrator = struct {
         prop: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         const d = ray.max_t;
@@ -56,7 +56,7 @@ pub const Integrator = struct {
         prop: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
     ) Volume {
         const d = ray.max_t;
 
@@ -75,7 +75,7 @@ pub const Integrator = struct {
 
         if (material.emissive()) {
             const cce = material.collisionCoefficientsEmission(@splat(0.0), cc, sampler, worker);
-            return tracking.trackingEmission(ray, cce, throughput, &worker.rng);
+            return tracking.trackingEmission(ray, cce, throughput, sampler);
         }
 
         return tracking.tracking(ray, cc, throughput, sampler);

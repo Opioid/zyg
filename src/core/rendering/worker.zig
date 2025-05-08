@@ -4,25 +4,18 @@ const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
 const Vertex = vt.Vertex;
 const RayDif = vt.RayDif;
-const rst = @import("../scene/renderstate.zig");
-const Renderstate = rst.Renderstate;
-const CausticsResolve = rst.CausticsResolve;
-const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
+const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Probe = @import("../scene/shape/probe.zig").Probe;
-const MediumStack = @import("../scene/prop/medium.zig").Stack;
 const Material = @import("../scene/material/material.zig").Material;
 const MaterialSample = @import("../scene/material/material_sample.zig").Sample;
 const hlp = @import("../scene/material/material_helper.zig");
-const IoR = @import("../scene/material/sample_base.zig").IoR;
 const ro = @import("../scene/ray_offset.zig");
 const int = @import("../scene/shape/intersection.zig");
 const Fragment = int.Fragment;
 const Volume = int.Volume;
 const DifferentialSurface = int.DifferentialSurface;
-const Shape = @import("../scene/shape/shape.zig").Shape;
 const Texture = @import("../image/texture/texture.zig").Texture;
 const ts = @import("../image/texture/texture_sampler.zig");
-const LightTree = @import("../scene/light/light_tree.zig").Tree;
 const smpl = @import("../sampler/sampler.zig");
 const Sampler = smpl.Sampler;
 const surface = @import("integrator/surface/integrator.zig");
@@ -67,12 +60,14 @@ pub const Worker = struct {
 
     layer: u32 = undefined,
 
-    pub fn deinit(self: *Worker, alloc: Allocator) void {
+    const Self = @This();
+
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         self.photon_mapper.deinit(alloc);
     }
 
     pub fn configure(
-        self: *Worker,
+        self: *Self,
         alloc: Allocator,
         sensor: *Sensor,
         scene: *Scene,
@@ -106,7 +101,7 @@ pub const Worker = struct {
     }
 
     pub fn render(
-        self: *Worker,
+        self: *Self,
         frame: u32,
         tile: Vec4i,
         iteration: u32,
@@ -170,7 +165,7 @@ pub const Worker = struct {
         }
     }
 
-    pub fn particles(self: *Worker, frame: u32, offset: u64, range: Vec2ul) void {
+    pub fn particles(self: *Self, frame: u32, offset: u64, range: Vec2ul) void {
         var rng = &self.rng;
         rng.start(0, offset);
 
@@ -185,7 +180,7 @@ pub const Worker = struct {
         }
     }
 
-    pub fn bakePhotons(self: *Worker, begin: u32, end: u32, frame: u32, iteration: u32) u32 {
+    pub fn bakePhotons(self: *Self, begin: u32, end: u32, frame: u32, iteration: u32) u32 {
         if (self.photon_map) |pm| {
             return self.photon_mapper.bake(pm, begin, end, frame, iteration, self);
         }
@@ -193,7 +188,7 @@ pub const Worker = struct {
         return 0;
     }
 
-    pub fn photonLi(self: *const Worker, frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
+    pub fn photonLi(self: *const Self, frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler) Vec4f {
         if (self.photon_map) |pm| {
             return pm.li(frag, sample, sampler, self);
         }
@@ -201,7 +196,7 @@ pub const Worker = struct {
         return @splat(0.0);
     }
 
-    pub inline fn pickSampler(self: *Worker, bounce: u32) *Sampler {
+    pub inline fn pickSampler(self: *Self, bounce: u32) *Sampler {
         if (bounce < 3) {
             return &self.samplers[0];
         }
@@ -209,7 +204,7 @@ pub const Worker = struct {
         return &self.samplers[1];
     }
 
-    pub fn commonAOV(self: *Worker, vertex: *const Vertex, frag: *const Fragment, mat_sample: *const MaterialSample) void {
+    pub fn commonAOV(self: *Self, vertex: *const Vertex, frag: *const Fragment, mat_sample: *const MaterialSample) void {
         const primary_ray = vertex.state.primary_ray;
 
         if (primary_ray and self.aov.activeClass(.Albedo) and mat_sample.canEvaluate()) {
@@ -240,11 +235,11 @@ pub const Worker = struct {
         }
     }
 
-    pub fn visibility(self: *Worker, probe: Probe, sampler: *Sampler, tr: *Vec4f) bool {
+    pub fn visibility(self: *const Self, probe: Probe, sampler: *Sampler, tr: *Vec4f) bool {
         return self.scene.visibility(probe, sampler, self, tr);
     }
 
-    pub fn nextEvent(self: *Worker, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) void {
+    pub fn nextEvent(self: *Self, vertex: *Vertex, frag: *Fragment, sampler: *Sampler) void {
         if (!vertex.mediums.empty()) {
             VolumeIntegrator.integrate(vertex, frag, sampler, self);
             return;
@@ -261,12 +256,12 @@ pub const Worker = struct {
         self.scene.scatter(&vertex.probe, frag, &vertex.throughput, sampler, self);
     }
 
-    pub fn emission(self: *const Worker, vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler) Vec4f {
+    pub fn emission(self: *const Self, vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler) Vec4f {
         return self.scene.unoccluding_bvh.emission(vertex, frag, split_threshold, sampler, self);
     }
 
     pub fn propTransmittance(
-        self: *Worker,
+        self: *const Self,
         ray: Ray,
         material: *const Material,
         entity: u32,
@@ -279,7 +274,7 @@ pub const Worker = struct {
     }
 
     pub fn propScatter(
-        self: *Worker,
+        self: *const Self,
         ray: Ray,
         throughput: Vec4f,
         material: *const Material,
@@ -291,7 +286,7 @@ pub const Worker = struct {
         return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: *const Worker, entity: u32, probe: Probe, frag: *Fragment) bool {
+    pub fn propIntersect(self: *const Self, entity: u32, probe: Probe, frag: *Fragment) bool {
         if (self.scene.prop(entity).intersect(entity, probe, &frag.isec, self.scene, &self.scene.prop_space)) {
             frag.prop = entity;
             return true;
@@ -300,11 +295,11 @@ pub const Worker = struct {
         return false;
     }
 
-    pub fn propInterpolateFragment(self: *const Worker, entity: u32, probe: Probe, frag: *Fragment) void {
+    pub fn propInterpolateFragment(self: *const Self, entity: u32, probe: Probe, frag: *Fragment) void {
         self.scene.propShape(entity).fragment(probe.ray, frag);
     }
 
-    pub fn intersectAndResolveMask(self: *Worker, probe: *Probe, frag: *Fragment, sampler: *Sampler) bool {
+    pub fn intersectAndResolveMask(self: *const Self, probe: *Probe, frag: *Fragment, sampler: *Sampler) bool {
         while (true) {
             if (!self.scene.intersect(probe, frag)) {
                 return false;
@@ -323,23 +318,23 @@ pub const Worker = struct {
         return true;
     }
 
-    pub fn sampleProcedural2D_1(self: *const Worker, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {
+    pub fn sampleProcedural2D_1(self: *const Self, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {
         return self.scene.procedural.sample2D_1(key, texture, rs, sampler, self);
     }
 
-    pub fn sampleProcedural2D_2(self: *const Worker, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec2f {
+    pub fn sampleProcedural2D_2(self: *const Self, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec2f {
         return self.scene.procedural.sample2D_2(key, texture, rs, sampler, self);
     }
 
-    pub fn sampleProcedural2D_3(self: *const Worker, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec4f {
+    pub fn sampleProcedural2D_3(self: *const Self, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec4f {
         return self.scene.procedural.sample2D_3(key, texture, rs, sampler, self);
     }
 
-    pub fn absoluteTime(self: *const Worker, frame: u32, frame_delta: f32) u64 {
+    pub fn absoluteTime(self: *const Self, frame: u32, frame_delta: f32) u64 {
         return self.camera.super().absoluteTime(frame, frame_delta);
     }
 
-    pub fn screenspaceDifferential(self: *const Worker, rs: Renderstate, texcoord: Texture.TexCoordMode) Vec4f {
+    pub fn screenspaceDifferential(self: *const Self, rs: Renderstate, texcoord: Texture.TexCoordMode) Vec4f {
         const rd = self.camera.calculateRayDifferential(self.layer, rs.p, rs.time, self.scene);
 
         const ds: DifferentialSurface =
@@ -398,7 +393,7 @@ pub const Worker = struct {
 
     // Adapted from PBRT
     // https://github.com/mmp/pbrt-v4/blob/f140d7cba5dc7b941f9346d6b7d1476a05c28c37/src/pbrt/cameras.h#L155
-    pub fn approximateDpDxy(self: *const Worker, rs: Renderstate) [2]Vec4f {
+    pub fn approximateDpDxy(self: *const Self, rs: Renderstate) [2]Vec4f {
         const Origin: Vec4f = comptime @splat(0.0);
         const Z: Vec4f = comptime .{ 0.0, 0.0, 1.0, 0.0 };
 

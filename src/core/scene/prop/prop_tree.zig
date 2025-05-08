@@ -185,7 +185,7 @@ pub const Tree = struct {
         comptime Volumetric: bool,
         probe: Probe,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         var stack = NodeStack{};
@@ -243,7 +243,7 @@ pub const Tree = struct {
         probe: Probe,
         indices: [*]const u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         space: *const Space,
         tr: *Vec4f,
     ) bool {
@@ -434,7 +434,7 @@ pub const Tree = struct {
         isec: *Intersection,
         throughput: Vec4f,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         space: *const Space,
     ) Volume {
         var stack = NodeStack{};

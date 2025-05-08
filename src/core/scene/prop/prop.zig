@@ -193,7 +193,7 @@ pub const Prop = struct {
         prototype: u32,
         probe: Probe,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         space: *const Space,
         tr: *Vec4f,
     ) bool {
@@ -220,7 +220,7 @@ pub const Prop = struct {
             } else if (properties.evaluate_visibility) {
                 return shape.visibility(probe, trafo, prototype, sampler, worker, tr);
             } else {
-                return !shape.intersectP(probe, trafo, sampler, worker);
+                return !shape.intersectP(probe, trafo);
             }
         }
     }
@@ -261,7 +261,7 @@ pub const Prop = struct {
         isec: *Intersection,
         throughput: Vec4f,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         space: *const Space,
     ) int.Volume {
         const properties = self.properties;

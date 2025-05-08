@@ -169,16 +169,7 @@ pub const Shape = union(enum) {
         }
     }
 
-    pub fn intersectP(
-        self: *const Shape,
-        probe: Probe,
-        trafo: Trafo,
-        sampler: *Sampler,
-        worker: *Worker,
-    ) bool {
-        _ = sampler;
-        _ = worker;
-
+    pub fn intersectP(self: *const Shape, probe: Probe, trafo: Trafo) bool {
         return switch (self.*) {
             .Cube => Cube.intersectP(probe.ray, trafo),
             .CurveMesh => |m| m.intersectP(probe.ray, trafo),
@@ -196,7 +187,7 @@ pub const Shape = union(enum) {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         return switch (self.*) {
@@ -216,7 +207,7 @@ pub const Shape = union(enum) {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         return switch (self.*) {
@@ -234,7 +225,7 @@ pub const Shape = union(enum) {
         throughput: Vec4f,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
     ) Volume {
         return switch (self.*) {
             .Cube => Cube.scatter(probe, trafo, throughput, entity, sampler, worker),

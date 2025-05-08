@@ -490,7 +490,7 @@ pub const Mesh = struct {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         const tray = trafo.worldToObjectRay(probe.ray);
@@ -516,7 +516,7 @@ pub const Mesh = struct {
         throughput: Vec4f,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
     ) Volume {
         const tray = trafo.worldToObjectRay(probe.ray);
         return self.tree.scatter(tray, trafo, throughput, entity, probe.depth.volume, sampler, worker);

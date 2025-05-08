@@ -178,7 +178,7 @@ pub const Sphere = struct {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
         tr: *Vec4f,
     ) bool {
         const ray = probe.ray;
@@ -237,7 +237,7 @@ pub const Sphere = struct {
         throughput: Vec4f,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        worker: *const Worker,
     ) Volume {
         const ray = probe.ray;
 
