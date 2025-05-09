@@ -83,10 +83,12 @@ pub const Prop = struct {
         self.properties.visible_in_camera = in_camera;
         self.properties.visible_in_reflection = in_reflection;
         self.properties.shadow_catcher_light = shadow_catcher_light;
+        self.properties.visible_in_shadow = if (self.properties.shadow_catcher) false else in_reflection;
     }
 
     pub fn setShadowCatcher(self: *Prop) void {
         self.properties.shadow_catcher = true;
+        self.properties.visible_in_shadow = false;
     }
 
     pub fn configureShape(self: *Prop, resource: u32, materials: []const u32, unocc: bool, scene: *const Scene) void {
@@ -128,7 +130,6 @@ pub const Prop = struct {
         self.properties.volume = volumetric;
 
         self.properties.unoccluding = unocc and shape_inst.finite() and pure_emissive;
-        self.properties.visible_in_shadow = if (self.properties.shadow_catcher) false else self.properties.visible_in_reflection;
     }
 
     pub fn configureIntancer(self: *Prop, resource: u32, solidb: bool, volumetric: bool) void {

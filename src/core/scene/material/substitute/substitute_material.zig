@@ -156,7 +156,7 @@ pub const Material = struct {
 
         const thickness = self.thickness;
         if (thickness > 0.0) {
-            result.setTranslucency(color, thickness, attenuation_distance, self.transparency);
+            result.setTranslucency(thickness, self.transparency);
         }
 
         if (coating_thickness > 0.0) {
