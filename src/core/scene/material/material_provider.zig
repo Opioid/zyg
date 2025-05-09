@@ -297,6 +297,8 @@ pub const Provider = struct {
                 material.super.setTwoSided(json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
                 material.thickness = json.readFloat(f32, entry.value_ptr.*);
+            } else if (std.mem.eql(u8, "thickness_scale", entry.key_ptr.*)) {
+                material.thickness_scale = readValue(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "attenuation_distance", entry.key_ptr.*)) {
                 material.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "volumetric_anisotropy", entry.key_ptr.*)) {
