@@ -692,7 +692,7 @@ pub const Grid = struct {
             return material.collisionCoefficients3D(uvw, cc, sampler, context).s;
         }
 
-        return material.collisionCoefficients2D(sample).s;
+        return sample.collisionCoefficients().s;
     }
 };
 

@@ -23,8 +23,9 @@ pub const Sample = struct {
 
     coating: Coating = .{},
 
+    cc: ccoef.CC,
+
     f0: Vec4f,
-    absorption_coef: Vec4f = undefined,
 
     ior: IoR,
 
@@ -36,12 +37,14 @@ pub const Sample = struct {
         rs: Renderstate,
         wo: Vec4f,
         albedo: Vec4f,
+        attenuation_color: Vec4f,
         alpha: Vec2f,
         ior: f32,
         ior_outer: f32,
         ior_medium: f32,
         metallic: f32,
-        volumetric: bool,
+        attenuation_distance: f32,
+        volumetric_anisotropy: f32,
         priority: i8,
     ) Sample {
         const color = @as(Vec4f, @splat(1.0 - metallic)) * albedo;
@@ -49,12 +52,16 @@ pub const Sample = struct {
 
         var super = Base.init(rs, wo, color, reg_alpha, priority);
         super.properties.can_evaluate = ior != ior_medium;
+
+        const volumetric = attenuation_distance > 0.0;
+
         super.properties.volumetric = volumetric;
 
         const f0 = fresnel.Schlick.IorToF0(ior, ior_outer);
 
         return .{
             .super = super,
+            .cc = if (volumetric) ccoef.attenuation(attenuation_color, color, attenuation_distance, volumetric_anisotropy) else undefined,
             .f0 = math.lerp(@as(Vec4f, @splat(f0)), albedo, @as(Vec4f, @splat(metallic))),
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
             .metallic = metallic,
@@ -66,7 +73,7 @@ pub const Sample = struct {
         self.super.properties.translucent = true;
         self.super.properties.volumetric = false;
         self.thickness = thickness;
-        self.absorption_coef = ccoef.attenuationCoefficient(color, attenuation_distance);
+        self.cc.a = ccoef.attenuationCoefficient(color, attenuation_distance);
         self.opacity = 1.0 - transparency;
     }
 
@@ -105,7 +112,7 @@ pub const Sample = struct {
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
 
                 const approx_dist = th / n_dot_wi;
-                const attenuation = ccoef.attenuation3(self.absorption_coef, approx_dist);
+                const attenuation = ccoef.attenuation3(self.cc.a, approx_dist);
 
                 const pdf = n_dot_wi * ((1.0 - op) * math.pi_inv);
 
@@ -184,7 +191,7 @@ pub const Sample = struct {
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
 
                 const approx_dist = th / n_dot_wi;
-                const attenuation = ccoef.attenuation3(self.absorption_coef, approx_dist);
+                const attenuation = ccoef.attenuation3(self.cc.a, approx_dist);
 
                 result.wi = -result.wi;
                 result.reflection *= @as(Vec4f, @splat(tr * n_dot_wi * (1.0 - f))) * attenuation;

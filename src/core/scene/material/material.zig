@@ -161,21 +161,9 @@ pub const Material = union(enum) {
     pub fn collisionCoefficients(self: *const Material) CC {
         return switch (self.*) {
             .Glass => |*m| .{ .a = m.absorption, .s = @splat(0.0) },
-            inline .Substitute, .Volumetric => |*m| m.cc,
+            inline .Volumetric => |*m| m.cc,
             else => undefined,
         };
-    }
-
-    pub fn collisionCoefficients2D(self: *const Material, mat_sample: *const Sample) CC {
-        const sup = self.super();
-        const cc = self.collisionCoefficients();
-
-        if (sup.properties.color_map) {
-            const color = mat_sample.super().albedo;
-            return ccoef.scattering(cc.a, color, cc.anisotropy());
-        }
-
-        return cc;
     }
 
     pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, context: Context) CC {

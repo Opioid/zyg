@@ -41,10 +41,10 @@ pub fn testSize() void {
     testType(mdm.Medium, "Medium", 80);
     testType(mdm.Stack, "MediumStack", 464);
     testType(mt.Material, "Material", 352);
-    testType(mt.Substitute, "SubstituteMaterial", 336);
+    testType(mt.Substitute, "SubstituteMaterial", 320);
     testType(mt.Hair, "HairMaterial", 112);
     testType(mt.Sample, "MaterialSample", 288);
-    testType(mtsmpl.Substitute, "SubstituteSample", 240);
+    testType(mtsmpl.Substitute, "SubstituteSample", 256);
     testType(mtsmpl.Hair, "HairSample", 272);
     testType(Texture, "Texture", 16);
     testType(SamplerKey, "SamplerKey", 3);

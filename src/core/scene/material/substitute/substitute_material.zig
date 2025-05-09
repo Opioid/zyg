@@ -45,11 +45,12 @@ pub const Material = struct {
 
     coating_absorption_coef: Vec4f = @splat(0.0),
     flakes_color: Vec4f = @splat(0.8),
+    attenuation_color: Vec4f = @splat(0.0),
 
-    cc: CC = undefined,
     attenuation_distance: f32 = 0.0,
     ior: f32 = 1.46,
     anisotropy: f32 = 0.0,
+    volumetric_anisotropy: f32 = 0.0,
     thickness: f32 = 0.0,
     transparency: f32 = 0.0,
     coating_thickness: f32 = 0.0,
@@ -69,43 +70,17 @@ pub const Material = struct {
         const thickness = self.thickness;
         const transparent = thickness > 0.0;
         const attenuation_distance = self.attenuation_distance;
+
+        properties.scattering_volume = (!transparent and attenuation_distance > 0.0) and (!self.color.isUniform() or math.anyGreaterZero3(self.color.uniform3()));
+
         properties.two_sided = properties.two_sided or transparent;
         self.transparency = if (transparent) @exp(-thickness * (1.0 / attenuation_distance)) else 0.0;
 
         properties.dense_sss_optimization = attenuation_distance <= 0.1 and properties.scattering_volume;
-
-        // This doesn't make a difference for shading, but is intended for the Albedo AOV...
-        if (properties.dense_sss_optimization and self.color.isUniform()) {
-            const cc = self.cc;
-
-            const mu_t = cc.a + cc.s;
-            const albedo = cc.s / mu_t;
-            self.color = Texture.initUniform3(albedo);
-        }
     }
 
-    pub fn setVolumetric(
-        self: *Material,
-        attenuation_color: Vec4f,
-        subsurface_color: Vec4f,
-        distance: f32,
-        anisotropy: f32,
-    ) void {
-        const aniso = math.clamp(anisotropy, -0.999, 0.999);
-        const cc = ccoef.attenuation(attenuation_color, subsurface_color, distance, aniso);
-
-        self.cc = cc;
-        self.attenuation_distance = distance;
-        self.super.properties.scattering_volume = math.anyGreaterZero3(cc.s);
-    }
-
-    pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {
-        const rad = self.emittance.averageRadiance(area);
-        if (!self.emittance.emission_map.isUniform()) {
-            return rad * self.emittance.emission_map.average_3(scene);
-        }
-
-        return rad;
+    pub fn setVolumetricAnisotropy(self: *Material, anisotropy: f32) void {
+        self.volumetric_anisotropy = math.clamp(anisotropy, -0.999, 0.999);
     }
 
     pub fn setCoatingAttenuation(self: *Material, color: Vec4f, distance: f32) void {
@@ -124,9 +99,18 @@ pub const Material = struct {
         self.flakes_res = math.max(4.0, @ceil(@sqrt(N / K)));
     }
 
+    pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {
+        const rad = self.emittance.averageRadiance(area);
+        if (!self.emittance.emission_map.isUniform()) {
+            return rad * self.emittance.emission_map.average_3(scene);
+        }
+
+        return rad;
+    }
+
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, context: Context) Sample {
         if (rs.volumeScatter()) {
-            const g = self.cc.anisotropy();
+            const g = self.volumetric_anisotropy;
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
         }
 
@@ -152,12 +136,14 @@ pub const Material = struct {
             rs,
             wo,
             color,
+            self.attenuation_color,
             alpha,
             ior,
             ior_outer,
             rs.ior,
             metallic,
-            attenuation_distance > 0.0,
+            attenuation_distance,
+            self.volumetric_anisotropy,
             self.super.priority,
         );
 
