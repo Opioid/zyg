@@ -66,6 +66,14 @@ pub const Instancer = struct {
         return total;
     }
 
+    pub fn solid(self: Self) bool {
+        return self.solid_bvh.num_nodes > 0;
+    }
+
+    pub fn volume(self: Self) bool {
+        return self.volume_bvh.num_nodes > 0;
+    }
+
     pub fn intersect(self: *const Self, probe: Probe, trafo: Trafo, isec: *Intersection, scene: *const Scene) bool {
         var local_probe = trafo.worldToObjectProbe(probe);
 

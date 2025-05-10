@@ -318,10 +318,12 @@ pub const Scene = struct {
         return p;
     }
 
-    pub fn createPropInstancer(self: *Scene, alloc: Allocator, shape_id: u32, solid: bool, volume: bool, prototype: bool) !u32 {
+    pub fn createPropInstancer(self: *Scene, alloc: Allocator, shape_id: u32, prototype: bool) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configureIntancer(shape_id, solid, volume);
+        const instancer_inst = self.instancer(shape_id);
+
+        self.props.items[p].configureIntancer(shape_id, instancer_inst.solid(), instancer_inst.volume());
 
         if (!prototype) {
             try self.classifyProp(alloc, p);
