@@ -1,7 +1,9 @@
 const Options = @import("options.zig").Options;
-const Graph = @import("scene_graph.zig").Graph;
-const SceneLoader = @import("scene_loader.zig").Loader;
 const TakeLoader = @import("take_loader.zig");
+
+const util = @import("util");
+const Graph = util.SceneGraph;
+const SceneLoader = util.SceneLoader;
 
 const core = @import("core");
 const log = core.log;

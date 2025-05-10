@@ -1,4 +1,4 @@
-const Graph = @import("scene_graph.zig").Graph;
+const Graph = @import("util").SceneGraph;
 
 const core = @import("core");
 const cam = core.camera;

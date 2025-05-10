@@ -12,6 +12,7 @@ const LightTreeBuilder = @import("light/light_tree_builder.zig").Builder;
 const int = @import("shape/intersection.zig");
 const Fragment = int.Fragment;
 const Volume = int.Volume;
+pub const ro = @import("ray_offset.zig");
 pub const Material = @import("material/material.zig").Material;
 pub const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
