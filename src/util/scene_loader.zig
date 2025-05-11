@@ -236,7 +236,16 @@ pub const Loader = struct {
                 continue;
             }
 
-            const leaf = self.loadLeafEntity(alloc, entity_value, parent_id, parent_trafo, animated, local_materials, graph, false) catch continue;
+            const leaf = self.loadLeafEntity(
+                alloc,
+                entity_value,
+                parent_id,
+                parent_trafo,
+                animated,
+                local_materials,
+                graph,
+                false,
+            ) catch continue;
 
             if (leaf.children_ptr) |children| {
                 try self.loadEntities(

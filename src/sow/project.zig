@@ -1,0 +1,49 @@
+const math = @import("base").math;
+const Distribution1D = math.Distribution1D;
+const Mat4x4 = math.Mat4x4;
+const Vec2u = math.Vec2u;
+
+const std = @import("std");
+const Allocator = @import("std").mem.Allocator;
+
+pub const Prototype = struct {
+    shape_file: []u8,
+    materials: [][]u8,
+
+    pub fn deinit(self: *Prototype, alloc: Allocator) void {
+        for (self.materials) |m| {
+            alloc.free(m);
+        }
+
+        alloc.free(self.materials);
+        alloc.free(self.shape_file);
+    }
+};
+
+pub const Instance = struct {
+    prototype: u32,
+    transformation: Mat4x4,
+};
+
+pub const Project = struct {
+    scene_filename: []u8 = &.{},
+
+    prototypes: []Prototype = &.{},
+
+    prototype_distribution: Distribution1D = .{},
+
+    grid: Vec2u = @splat(1),
+
+    const Self = @This();
+
+    pub fn deinit(self: *Self, alloc: Allocator) void {
+        self.prototype_distribution.deinit(alloc);
+
+        for (self.prototypes) |*p| {
+            p.deinit(alloc);
+        }
+
+        alloc.free(self.prototypes);
+        alloc.free(self.scene_filename);
+    }
+};

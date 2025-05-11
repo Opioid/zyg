@@ -1,27 +1,9 @@
-const math = @import("base").math;
-const Mat4x4 = math.Mat4x4;
+const prj = @import("project.zig");
+const Instance = prj.Instance;
+const Prototype = prj.Prototype;
 
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
-
-pub const Prototype = struct {
-    shape_file: []u8,
-    materials: [][]u8,
-
-    pub fn deinit(self: *Prototype, alloc: Allocator) void {
-        for (self.materials) |m| {
-            alloc.free(m);
-        }
-
-        alloc.free(self.materials);
-        alloc.free(self.shape_file);
-    }
-};
-
-pub const Instance = struct {
-    prototype: u32,
-    transformation: Mat4x4,
-};
 
 pub const Exporter = struct {
     pub fn write(

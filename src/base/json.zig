@@ -1,4 +1,5 @@
 const math = @import("math/math.zig");
+const Vec2u = math.Vec2u;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
@@ -65,6 +66,13 @@ pub fn readVec2f(value: Value) Vec2f {
     return .{
         readFloat(f32, value.array.items[0]),
         readFloat(f32, value.array.items[1]),
+    };
+}
+
+pub fn readVec2u(value: Value) Vec2u {
+    return .{
+        @truncate(@as(u64, @bitCast(value.array.items[0].integer))),
+        @truncate(@as(u64, @bitCast(value.array.items[1].integer))),
     };
 }
 
