@@ -119,6 +119,9 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(sow);
 
     // run zyg
+    const run_exe = b.addRunArtifact(cli);
+    run_exe.step.dependOn(b.getInstallStep());
+    run_exe.setCwd(b.path("system"));
 
     const run_step = b.step("run", "Run the application");
     run_step.dependOn(&run_exe.step);
@@ -190,5 +193,25 @@ pub fn build(b: *std.Build) void {
     //         "2.0",
     //     });
     // }
+
     // run sow
+    // const run_exe = b.addRunArtifact(sow);
+    // run_exe.step.dependOn(b.getInstallStep());
+    // run_exe.setCwd(b.path("system"));
+
+    // const run_step = b.step("run", "Run the application");
+    // run_step.dependOn(&run_exe.step);
+
+    // if (b.args) |args| {
+    //     run_exe.addArgs(args);
+    // } else {
+    //     run_exe.addArgs(&[_][]const u8{
+    //         "-i",
+    //         "sow/bamboo.json",
+    //         "-o",
+    //         "../data/models/plants/bamboo/bamboo.instancer",
+    //         "-t",
+    //         "-1",
+    //     });
+    // }
 }

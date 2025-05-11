@@ -7,6 +7,8 @@ const ReadStream = core.file.ReadStream;
 
 const base = @import("base");
 const json = base.json;
+const math = base.math;
+const Vec2f = math.Vec2f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -65,6 +67,8 @@ fn loadPrototypes(alloc: Allocator, value: std.json.Value, project: *Project) !v
 fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, weight: *f32) !void {
     var w: f32 = 1.0;
 
+    var scale_range: Vec2f = @splat(1.0);
+
     var iter = value.object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "shape", entry.key_ptr.*)) {
@@ -76,10 +80,14 @@ fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, 
             for (mat_array.items, 0..) |material, i| {
                 prototype.materials[i] = try alloc.dupe(u8, material.string);
             }
+        } else if (std.mem.eql(u8, "scale_range", entry.key_ptr.*)) {
+            scale_range = json.readVec2f(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "weight", entry.key_ptr.*)) {
             w = json.readFloat(f32, entry.value_ptr.*);
         }
     }
+
+    prototype.scale_range = scale_range;
 
     weight.* = w;
 }

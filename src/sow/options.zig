@@ -4,6 +4,8 @@ const Allocator = std.mem.Allocator;
 pub const Options = struct {
     project: []u8 = &.{},
 
+    output: []u8 = &.{},
+
     mounts: std.ArrayListUnmanaged([]u8) = .empty,
 
     threads: i32 = 0,
@@ -16,6 +18,7 @@ pub const Options = struct {
         self.mounts.deinit(alloc);
 
         alloc.free(self.project);
+        alloc.free(self.output);
     }
 
     pub fn parse(alloc: Allocator, args: std.process.ArgIterator) !Options {
@@ -71,6 +74,9 @@ pub const Options = struct {
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
             alloc.free(self.project);
             self.project = try alloc.dupe(u8, parameter);
+        } else if (std.mem.eql(u8, "output", command) or std.mem.eql(u8, "o", command)) {
+            alloc.free(self.output);
+            self.output = try alloc.dupe(u8, parameter);
         } else if (std.mem.eql(u8, "mount", command) or std.mem.eql(u8, "m", command)) {
             try self.mounts.append(alloc, try alloc.dupe(u8, parameter));
         } else if (std.mem.eql(u8, "threads", command) or std.mem.eql(u8, "t", command)) {

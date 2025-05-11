@@ -54,10 +54,6 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    // try core.ggx_integrate.integrate(alloc, &threads);
-    // try core.rainbow_integrate.integrate(alloc);
-    // try core.image.testing.write_reference_normal_map(alloc, "reference_normal.png");
-
     var graph = try Graph.init(alloc);
     defer graph.deinit(alloc);
 
@@ -134,14 +130,14 @@ pub fn main() !void {
             const r = sampler.sample4D();
             const z_jitter = 2.0 * r[0] - 1.0;
             const x_jitter = 2.0 * r[1] - 1.0;
-            const scale_jitter = 2.0 * r[2] - 1.0;
+            const scale_r = r[2];
             const rotation_r = r[3];
             const mask_p = sampler.sample1D();
 
-            const selected_prototype = project.prototype_distribution.sample(sampler.sample1D());
+            const selected_prototype_id = project.prototype_distribution.sample(sampler.sample1D());
 
-            const z_pos = region.bounds[0][2] + (@as(f32, @floatFromInt(y)) + 0.4 * z_jitter) * (extent[2] / fgrid[1]);
             const x_pos = region.bounds[0][0] + (@as(f32, @floatFromInt(x)) + 0.4 * x_jitter) * (extent[0] / fgrid[0]);
+            const z_pos = region.bounds[0][2] + (@as(f32, @floatFromInt(y)) + 0.4 * z_jitter) * (extent[2] / fgrid[1]);
 
             vertex.probe = Probe.init(
                 Ray.init(.{ x_pos, region.bounds[1][1] + 1.0, z_pos, 0.0 }, .{ 0.0, -1.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
@@ -149,7 +145,6 @@ pub fn main() !void {
             );
 
             var frag: Fragment = undefined;
-
             if (!graph.scene.intersect(&vertex.probe, &frag)) {
                 continue;
             }
@@ -162,17 +157,19 @@ pub fn main() !void {
                 continue;
             }
 
+            const prototype = project.prototypes[selected_prototype_id];
+
             const trafo: Transformation = .{
                 .position = frag.p,
-                .scale = @splat(1.0 + 0.05 * scale_jitter),
-                .rotation = math.quaternion.initRotationY(2.0 * std.math.pi * rotation_r),
+                .scale = @splat(math.lerp(prototype.scale_range[0], prototype.scale_range[1], scale_r)),
+                .rotation = math.quaternion.initRotationY((2.0 * std.math.pi) * rotation_r),
             };
 
-            try instances.append(alloc, .{ .prototype = selected_prototype, .transformation = trafo.toMat4x4() });
+            try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = trafo.toMat4x4() });
         }
     }
 
-    try exp.Exporter.write(alloc, "test.json", project.prototypes, instances.items);
+    try exp.Exporter.write(alloc, options.output, project.prototypes, instances.items);
 }
 
 fn createOrthoCamera(alloc: Allocator, graph: *Graph) !core.camera.Orthographic {

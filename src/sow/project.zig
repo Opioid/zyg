@@ -2,6 +2,7 @@ const math = @import("base").math;
 const Distribution1D = math.Distribution1D;
 const Mat4x4 = math.Mat4x4;
 const Vec2u = math.Vec2u;
+const Vec2f = math.Vec2f;
 
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
@@ -9,6 +10,8 @@ const Allocator = @import("std").mem.Allocator;
 pub const Prototype = struct {
     shape_file: []u8,
     materials: [][]u8,
+
+    scale_range: Vec2f,
 
     pub fn deinit(self: *Prototype, alloc: Allocator) void {
         for (self.materials) |m| {
