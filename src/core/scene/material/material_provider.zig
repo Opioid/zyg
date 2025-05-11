@@ -282,7 +282,7 @@ pub const Provider = struct {
                 material.color = Texture.initUniform3(fresnel.conductor(eta_k[0], eta_k[1], 1.0));
                 material.metallic = Texture.initUniform1(1.0);
             } else if (std.mem.eql(u8, "attenuation_color", entry.key_ptr.*)) {
-                material.attenuation_color = json.readColor(entry.value_ptr.*);
+                material.attenuation_color = readValue(alloc, entry.value_ptr.*, .Color, self.tex, resources);
             } else if (std.mem.eql(u8, "anisotropy_rotation", entry.key_ptr.*)) {
                 material.rotation = readValue(alloc, entry.value_ptr.*, .Roughness, self.tex, resources);
             } else if (std.mem.eql(u8, "anisotropy", entry.key_ptr.*)) {

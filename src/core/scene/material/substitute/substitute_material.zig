@@ -39,6 +39,7 @@ pub const Material = struct {
     metallic: Texture = Texture.initUniform1(0.0),
     rotation: Texture = Texture.initUniform1(0.0),
     translucency: Texture = Texture.initUniform1(0.0),
+    attenuation_color: Texture = Texture.initUniform3(@splat(0.0)),
     coating_normal_map: Texture = .{},
     coating_scale: Texture = Texture.initUniform1(1.0),
     coating_roughness: Texture = Texture.initUniform1(0.2),
@@ -46,7 +47,6 @@ pub const Material = struct {
 
     coating_absorption_coef: Vec4f = @splat(0.0),
     flakes_color: Vec4f = @splat(0.8),
-    attenuation_color: Vec4f = @splat(0.0),
 
     attenuation_distance: f32 = 0.0,
     ior: f32 = 1.46,
@@ -124,6 +124,7 @@ pub const Material = struct {
         const ior = self.ior;
         const ior_outer = if (coating_thickness > 0.0) coating_ior else rs.ior;
         const attenuation_distance = self.attenuation_distance;
+        const attenuation_color = ts.sample2D_3(key, self.attenuation_color, rs, sampler, context);
 
         const translucency = ts.sample2D_1(key, self.translucency, rs, sampler, context);
 
@@ -131,7 +132,7 @@ pub const Material = struct {
             rs,
             wo,
             color,
-            self.attenuation_color,
+            attenuation_color,
             alpha,
             ior,
             ior_outer,
