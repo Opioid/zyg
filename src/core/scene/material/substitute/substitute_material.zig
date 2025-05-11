@@ -38,7 +38,7 @@ pub const Material = struct {
     roughness: Texture = Texture.initUniform1(0.8),
     metallic: Texture = Texture.initUniform1(0.0),
     rotation: Texture = Texture.initUniform1(0.0),
-    thickness_scale: Texture = Texture.initUniform1(1.0),
+    translucency: Texture = Texture.initUniform1(0.0),
     coating_normal_map: Texture = .{},
     coating_scale: Texture = Texture.initUniform1(1.0),
     coating_roughness: Texture = Texture.initUniform1(0.2),
@@ -52,7 +52,6 @@ pub const Material = struct {
     ior: f32 = 1.46,
     anisotropy: f32 = 0.0,
     volumetric_anisotropy: f32 = 0.0,
-    thickness: f32 = 0.0,
     coating_thickness: f32 = 0.0,
     coating_ior: f32 = 1.5,
     flakes_alpha: f32 = 0.01,
@@ -67,14 +66,9 @@ pub const Material = struct {
         properties.emission_image_map = self.emittance.emission_map.isImage();
         properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= ggx.MinRoughness;
 
-        const thickness = self.thickness;
-        const transparent = thickness > 0.0;
         const attenuation_distance = self.attenuation_distance;
 
-        properties.scattering_volume = (!transparent and attenuation_distance > 0.0) and (!self.color.isUniform() or math.anyGreaterZero3(self.color.uniform3()));
-
-        properties.two_sided = properties.two_sided or transparent;
-
+        properties.scattering_volume = attenuation_distance > 0.0 and (!self.color.isUniform() or math.anyGreaterZero3(self.color.uniform3()));
         properties.dense_sss_optimization = attenuation_distance <= 0.1 and properties.scattering_volume;
     }
 
@@ -131,6 +125,8 @@ pub const Material = struct {
         const ior_outer = if (coating_thickness > 0.0) coating_ior else rs.ior;
         const attenuation_distance = self.attenuation_distance;
 
+        const translucency = ts.sample2D_1(key, self.translucency, rs, sampler, context);
+
         var result = Surface.init(
             rs,
             wo,
@@ -143,6 +139,7 @@ pub const Material = struct {
             metallic,
             attenuation_distance,
             self.volumetric_anisotropy,
+            translucency,
             self.super.priority,
         );
 
@@ -151,14 +148,6 @@ pub const Material = struct {
             result.super.frame = Frame.init(n);
         } else {
             result.super.frame = .{ .x = rs.t, .y = rs.b, .z = rs.n };
-        }
-
-        const thickness = self.thickness;
-        if (thickness > 0.0) {
-            const scale = ts.sample2D_1(key, self.thickness_scale, rs, sampler, context);
-            const scaled_thickness = scale * thickness;
-            const transparency = @exp(-scaled_thickness * (1.0 / attenuation_distance));
-            result.setTranslucency(scaled_thickness, transparency);
         }
 
         if (coating_thickness > 0.0) {

@@ -30,8 +30,7 @@ pub const Sample = struct {
     ior: IoR,
 
     metallic: f32,
-    opacity: f32 = 1.0,
-    thickness: f32,
+    opacity: f32,
 
     pub fn init(
         rs: Renderstate,
@@ -45,16 +44,17 @@ pub const Sample = struct {
         metallic: f32,
         attenuation_distance: f32,
         volumetric_anisotropy: f32,
+        translucency: f32,
         priority: i8,
     ) Sample {
         const color = @as(Vec4f, @splat(1.0 - metallic)) * albedo;
         const reg_alpha = rs.regularizeAlpha(alpha);
+        const translucent = translucency > 0.0;
+        const volumetric = attenuation_distance > 0.0 and !translucent;
 
         var super = Base.init(rs, wo, color, reg_alpha, priority);
         super.properties.can_evaluate = ior != ior_medium;
-
-        const volumetric = attenuation_distance > 0.0;
-
+        super.properties.translucent = translucent;
         super.properties.volumetric = volumetric;
 
         const f0 = fresnel.Schlick.IorToF0(ior, ior_outer);
@@ -65,15 +65,8 @@ pub const Sample = struct {
             .f0 = math.lerp(@as(Vec4f, @splat(f0)), albedo, @as(Vec4f, @splat(metallic))),
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
             .metallic = metallic,
-            .thickness = 0.0,
+            .opacity = 1.0 - (0.5 * translucency),
         };
-    }
-
-    pub fn setTranslucency(self: *Sample, thickness: f32, transparency: f32) void {
-        self.super.properties.translucent = true;
-        self.super.properties.volumetric = false;
-        self.thickness = thickness;
-        self.opacity = 1.0 - transparency;
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32) bxdf.Result {
@@ -100,8 +93,7 @@ pub const Sample = struct {
         const wo = self.super.wo;
 
         const op = self.opacity;
-        const th = self.thickness;
-        const translucent = th > 0.0;
+        const translucent = op < 1.0;
 
         if (translucent) {
             if (!self.super.sameHemisphere(wi)) {
@@ -110,12 +102,9 @@ pub const Sample = struct {
 
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
 
-                const approx_dist = th / n_dot_wi;
-                const attenuation = ccoef.attenuation3(self.cc.a + self.cc.s, approx_dist);
-
                 const pdf = n_dot_wi * ((1.0 - op) * math.pi_inv);
 
-                return bxdf.Result.init(@as(Vec4f, @splat(pdf * (1.0 - f))) * (attenuation * self.super.albedo), pdf);
+                return bxdf.Result.init(@as(Vec4f, @splat(pdf * (1.0 - f))) * self.super.albedo, pdf);
             }
         } else if (!self.super.sameHemisphere(wo)) {
             return bxdf.Result.empty();
@@ -170,39 +159,31 @@ pub const Sample = struct {
             return buffer[0..1];
         }
 
-        const th = self.thickness;
-        if (th > 0.0) {
+        const op = self.opacity;
+        const translucent = op < 1.0;
+
+        if (translucent) {
             var result = &buffer[0];
 
             result.split_weight = 1.0;
             result.wavelength = 0.0;
 
-            const op = self.opacity;
             const tr = 1.0 - op;
 
             const s3 = sampler.sample3D();
             const p = s3[0];
-            if (p < tr) {
+            if (p <= tr) {
                 const frame = self.super.frame;
                 const n_dot_wi = diffuse.Lambert.reflect(self.super.albedo, frame, sampler, result);
                 const n_dot_wo = frame.clampAbsNdot(self.super.wo);
 
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
 
-                const approx_dist = th / n_dot_wi;
-                const attenuation = ccoef.attenuation3(self.cc.a + self.cc.s, approx_dist);
-
                 result.wi = -result.wi;
-                result.reflection *= @as(Vec4f, @splat(tr * n_dot_wi * (1.0 - f))) * attenuation;
+                result.reflection *= @as(Vec4f, @splat(tr * n_dot_wi * (1.0 - f)));
                 result.pdf *= tr;
             } else {
-                const xi = Vec2f{ s3[1], s3[2] };
-
-                if (p < tr + 0.5 * op) {
-                    _ = self.diffuseSample(0.5, xi, result);
-                } else {
-                    _ = self.glossSample(0.5, xi, result);
-                }
+                self.baseSample(sampler, result);
 
                 result.pdf *= op;
             }
@@ -431,7 +412,7 @@ pub const Sample = struct {
     }
 
     fn diffuseFresnelHack(n_dot_wi: f32, n_dot_wo: f32, f0: f32) f32 {
-        return fresnel.schlick1(math.min(n_dot_wi, n_dot_wo), f0);
+        return fresnel.schlick1(math.max(n_dot_wi, n_dot_wo), f0);
     }
 
     fn volumetricEvaluate(self: *const Sample, wi: Vec4f, max_splits: u32) bxdf.Result {
