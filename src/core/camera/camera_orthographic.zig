@@ -66,7 +66,11 @@ pub const Orthographic = struct {
     pub fn calculateRayDifferential(self: *const Self, p: Vec4f, time: u64, scene: *const Scene) RayDif {
         const trafo = scene.prop_space.transformationAt(self.super.entity, time, scene.current_time_start);
 
-        const p_w = trafo.position;
+        const n = trafo.rotation.r[2];
+        const d = math.dot3(n, trafo.position);
+        const hit_t = -(math.dot3(n, p) - d);
+
+        const p_w = p + @as(Vec4f, @splat(hit_t)) * n;
 
         const dir_w = math.normalize3(p - p_w);
 
@@ -75,14 +79,11 @@ pub const Orthographic = struct {
 
         const ss: Vec4f = @splat(self.super.sample_spacing);
 
-        const x_dir_w = math.normalize3(dir_w + ss * d_x_w);
-        const y_dir_w = math.normalize3(dir_w + ss * d_y_w);
-
         return .{
-            .x_origin = p_w,
-            .x_direction = x_dir_w,
-            .y_origin = p_w,
-            .y_direction = y_dir_w,
+            .x_origin = p_w + ss * d_x_w,
+            .x_direction = dir_w,
+            .y_origin = p_w + ss * d_y_w,
+            .y_direction = dir_w,
         };
     }
 
