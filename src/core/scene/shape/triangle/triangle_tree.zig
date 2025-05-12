@@ -1,9 +1,9 @@
 pub const IndexedData = @import("triangle_indexed_data.zig").IndexedData;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
-const Vertex = @import("../../vertex.zig").Vertex;
+const Context = @import("../../context.zig").Context;
 const Scene = @import("../../scene.zig").Scene;
+const Vertex = @import("../../vertex.zig").Vertex;
 const ro = @import("../../ray_offset.zig");
-const Worker = @import("../../../rendering/worker.zig").Worker;
 const Node = @import("../../bvh/node.zig").Node;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
@@ -155,7 +155,7 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, entity: u32, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
+    pub fn visibility(self: Tree, ray: Ray, entity: u32, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -175,14 +175,14 @@ pub const Tree = struct {
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
                         const itri = self.data.indexTriangle(i);
-                        const material = worker.scene.propMaterial(entity, itri.part);
+                        const material = context.scene.propMaterial(entity, itri.part);
 
                         if (material.evaluateVisibility()) {
                             rs.geo_n = self.data.normal(itri);
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
                             rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                            if (!material.visibility(ray_dir, rs, sampler, worker, tr)) {
+                            if (!material.visibility(ray_dir, rs, sampler, context, tr)) {
                                 return false;
                             }
                         } else {
@@ -226,10 +226,10 @@ pub const Tree = struct {
         entity: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
         tr: *Vec4f,
     ) bool {
-        const material = worker.scene.propMaterial(entity, 0);
+        const material = context.scene.propMaterial(entity, 0);
         const data = self.data;
         const RayMaxT = ray.max_t;
 
@@ -248,7 +248,7 @@ pub const Tree = struct {
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.max_t = math.min(isec.t, RayMaxT);
 
-                if (!worker.propTransmittance(tray, material, entity, depth, sampler, tr)) {
+                if (!context.propTransmittance(tray, material, entity, depth, sampler, tr)) {
                     return false;
                 }
             }
@@ -271,7 +271,7 @@ pub const Tree = struct {
         frag: *Fragment,
         split_threshold: f32,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
     ) Vec4f {
         var stack = NodeStack{};
         var n: u32 = 0;
@@ -311,8 +311,8 @@ pub const Tree = struct {
 
                         frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                        if (frag.evaluateRadiance(shading_p, wo, sampler, worker)) |local_energy| {
-                            const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, frag, split_threshold));
+                        if (frag.evaluateRadiance(shading_p, wo, sampler, context)) |local_energy| {
+                            const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
                             energy += weight * local_energy;
                         }
                     }
@@ -354,9 +354,9 @@ pub const Tree = struct {
         entity: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
     ) Volume {
-        const material = worker.scene.propMaterial(entity, 0);
+        const material = context.scene.propMaterial(entity, 0);
         const data = self.data;
         const RayMaxT = ray.max_t;
 
@@ -377,7 +377,7 @@ pub const Tree = struct {
             if (math.dot3(n, ray.direction) > 0.0) {
                 tray.max_t = math.min(isec.t, RayMaxT);
 
-                var result = worker.propScatter(tray, throughput, material, entity, depth, sampler);
+                var result = context.propScatter(tray, throughput, material, entity, depth, sampler);
 
                 tr *= result.tr;
 

@@ -1,7 +1,7 @@
-const Worker = @import("../../rendering/worker.zig").Worker;
+const Context = @import("../context.zig").Context;
+const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Renderstate = @import("../renderstate.zig").Renderstate;
-const Scene = @import("../scene.zig").Scene;
 const Prop = @import("../prop/prop.zig").Prop;
 const Shape = @import("../shape/shape.zig").Shape;
 const Vertex = @import("../vertex.zig").Vertex;
@@ -114,8 +114,8 @@ pub const Light = struct {
         };
     }
 
-    pub fn evaluateTo(self: Light, p: Vec4f, trafo: Trafo, sample: SampleTo, sampler: *Sampler, worker: *const Worker) Vec4f {
-        const material = worker.scene.propMaterial(self.prop, self.part);
+    pub fn evaluateTo(self: Light, p: Vec4f, trafo: Trafo, sample: SampleTo, sampler: *Sampler, context: Context) Vec4f {
+        const material = context.scene.propMaterial(self.prop, self.part);
 
         var rs: Renderstate = undefined;
         rs.trafo = trafo;
@@ -125,11 +125,11 @@ pub const Light = struct {
         rs.prop = self.prop;
         rs.part = self.part;
 
-        return material.evaluateRadiance(sample.wi, rs, sampler, worker);
+        return material.evaluateRadiance(sample.wi, rs, sampler, context);
     }
 
-    pub fn evaluateFrom(self: Light, p: Vec4f, sample: SampleFrom, sampler: *Sampler, worker: *const Worker) Vec4f {
-        const material = worker.scene.propMaterial(self.prop, self.part);
+    pub fn evaluateFrom(self: Light, p: Vec4f, sample: SampleFrom, sampler: *Sampler, context: Context) Vec4f {
+        const material = context.scene.propMaterial(self.prop, self.part);
 
         var rs: Renderstate = undefined;
         rs.trafo = sample.trafo;
@@ -139,7 +139,7 @@ pub const Light = struct {
         rs.prop = self.prop;
         rs.part = self.part;
 
-        return material.evaluateRadiance(-sample.dir, rs, sampler, worker);
+        return material.evaluateRadiance(-sample.dir, rs, sampler, context);
     }
 
     pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {
@@ -169,11 +169,11 @@ pub const Light = struct {
         const material = scene.propMaterial(self.prop, self.part);
         const shape = scene.propShape(self.prop);
         return shape.sampleTo(
-            self.part,
-            self.variant,
             p,
             n,
             trafo,
+            self.part,
+            self.variant,
             self.two_sided,
             total_sphere,
             split_threshold,
@@ -220,14 +220,14 @@ pub const Light = struct {
 
         const shape = scene.propShape(self.prop);
         return shape.sampleFrom(
+            trafo,
+            uv,
+            importance_uv,
             self.part,
             self.variant,
-            trafo,
             cos_a,
             self.two_sided,
             sampler,
-            uv,
-            importance_uv,
             bounds,
             false,
         );
@@ -250,14 +250,14 @@ pub const Light = struct {
 
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
         var result = shape.sampleFrom(
+            trafo,
+            .{ rs.uvw[0], rs.uvw[1] },
+            importance_uv,
             self.part,
             self.variant,
-            trafo,
             cos_a,
             self.two_sided,
             sampler,
-            .{ rs.uvw[0], rs.uvw[1] },
-            importance_uv,
             bounds,
             true,
         ) orelse return null;

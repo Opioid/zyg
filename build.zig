@@ -33,6 +33,13 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const sow = b.addExecutable(.{
+        .name = "sow",
+        .root_source_file = b.path("src/sow/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     cli.addIncludePath(b.path("thirdparty/include"));
     cli.addIncludePath(b.path("src/cli"));
     capi.addIncludePath(b.path("thirdparty/include"));
@@ -52,6 +59,7 @@ pub fn build(b: *std.Build) void {
     for (csources) |source| {
         cli.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
         capi.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
+        sow.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
     }
 
     cli.addCSourceFile(.{ .file = b.path("src/cli/any_key.c"), .flags = &cflags });
@@ -69,13 +77,24 @@ pub fn build(b: *std.Build) void {
 
     core.addIncludePath(b.path("thirdparty/include"));
 
+    const util = b.createModule(.{
+        .root_source_file = b.path("src/util/util.zig"),
+        .imports = &.{
+            .{ .name = "base", .module = base },
+            .{ .name = "core", .module = core },
+        },
+    });
+
+    // CLI/zyg
     cli.root_module.addImport("base", base);
     cli.root_module.addImport("core", core);
+    cli.root_module.addImport("util", util);
 
     cli.linkLibC();
     cli.root_module.strip = true;
     b.installArtifact(cli);
 
+    // C-API
     capi.root_module.addImport("base", base);
     capi.root_module.addImport("core", core);
 
@@ -83,6 +102,7 @@ pub fn build(b: *std.Build) void {
     capi.root_module.strip = true;
     b.installArtifact(capi);
 
+    // it
     it.root_module.addImport("base", base);
     it.root_module.addImport("core", core);
 
@@ -90,6 +110,15 @@ pub fn build(b: *std.Build) void {
     it.root_module.strip = true;
     b.installArtifact(it);
 
+    // sow
+    sow.root_module.addImport("base", base);
+    sow.root_module.addImport("core", core);
+    sow.root_module.addImport("util", util);
+
+    sow.root_module.strip = true;
+    b.installArtifact(sow);
+
+    // run zyg
     const run_exe = b.addRunArtifact(cli);
     run_exe.step.dependOn(b.getInstallStep());
     run_exe.setCwd(b.path("system"));
@@ -105,11 +134,11 @@ pub fn build(b: *std.Build) void {
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            //"takes/cornell.take",
+            "takes/cornell.take",
             //"takes/cornell_nd.take",
             //"takes/curve_test.take",
             //"takes/imrod.take",
-            "takes/instancer.take",
+            //"takes/instancer.take",
             //"takes/model_test.take",
             //"takes/nme.take",
             //"takes/furnace_test.take",
@@ -143,6 +172,7 @@ pub fn build(b: *std.Build) void {
         });
     }
 
+    // run it
     // const run_exe = b.addRunArtifact(it);
     // run_exe.step.dependOn(b.getInstallStep());
     // run_exe.setCwd(b.path("system"));
@@ -163,6 +193,27 @@ pub fn build(b: *std.Build) void {
     //         "-1",
     //         "--denoise",
     //         "2.0",
+    //     });
+    // }
+
+    // run sow
+    // const run_exe = b.addRunArtifact(sow);
+    // run_exe.step.dependOn(b.getInstallStep());
+    // run_exe.setCwd(b.path("system"));
+
+    // const run_step = b.step("run", "Run the application");
+    // run_step.dependOn(&run_exe.step);
+
+    // if (b.args) |args| {
+    //     run_exe.addArgs(args);
+    // } else {
+    //     run_exe.addArgs(&[_][]const u8{
+    //         "-i",
+    //         "sow/bamboo.json",
+    //         "-o",
+    //         "../data/models/plants/bamboo/bamboo.instancer",
+    //         "-t",
+    //         "-1",
     //     });
     // }
 }

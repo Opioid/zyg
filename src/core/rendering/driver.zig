@@ -171,7 +171,7 @@ pub const Driver = struct {
         camera.update(start, self.scene);
 
         for (self.workers) |*w| {
-            w.camera = camera;
+            w.context.camera = camera;
         }
 
         if (progressive) {
@@ -325,7 +325,7 @@ pub const Driver = struct {
         const num_expected_samples = self.view.num_samples_per_pixel;
         const qm_threshold = self.view.qm_threshold;
 
-        self.workers[id].layer = self.layer_id;
+        self.workers[id].context.layer = self.layer_id;
 
         while (self.tiles.pop()) |tile| {
             self.workers[id].render(self.frame, tile, iteration, num_samples, num_expected_samples, qm_threshold);
@@ -380,7 +380,7 @@ pub const Driver = struct {
 
         // Just pick one layer for now
         // It should just be used for differential estimation...
-        self.workers[id].layer = 0;
+        self.workers[id].context.layer = 0;
 
         while (self.ranges.pop()) |range| {
             self.workers[id].particles(self.frame, @as(u64, range.it), range.range);

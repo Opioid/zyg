@@ -1,3 +1,4 @@
+const Context = @import("../context.zig").Context;
 const Scene = @import("../scene.zig").Scene;
 const Space = @import("../space.zig").Space;
 const Vertex = @import("../vertex.zig").Vertex;
@@ -8,7 +9,6 @@ const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Probe = @import("../shape/probe.zig").Probe;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
-const Worker = @import("../../rendering/worker.zig").Worker;
 
 const math = @import("base").math;
 const AABB = math.AABB;
@@ -83,10 +83,12 @@ pub const Prop = struct {
         self.properties.visible_in_camera = in_camera;
         self.properties.visible_in_reflection = in_reflection;
         self.properties.shadow_catcher_light = shadow_catcher_light;
+        self.properties.visible_in_shadow = if (self.properties.shadow_catcher) false else in_reflection;
     }
 
     pub fn setShadowCatcher(self: *Prop) void {
         self.properties.shadow_catcher = true;
+        self.properties.visible_in_shadow = false;
     }
 
     pub fn configureShape(self: *Prop, resource: u32, materials: []const u32, unocc: bool, scene: *const Scene) void {
@@ -128,7 +130,6 @@ pub const Prop = struct {
         self.properties.volume = volumetric;
 
         self.properties.unoccluding = unocc and shape_inst.finite() and pure_emissive;
-        self.properties.visible_in_shadow = if (self.properties.shadow_catcher) false else self.properties.visible_in_reflection;
     }
 
     pub fn configureIntancer(self: *Prop, resource: u32, solidb: bool, volumetric: bool) void {
@@ -193,12 +194,12 @@ pub const Prop = struct {
         prototype: u32,
         probe: Probe,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
         space: *const Space,
         tr: *Vec4f,
     ) bool {
         const properties = self.properties;
-        const scene = worker.scene;
+        const scene = context.scene;
 
         if (!properties.visible_in_shadow) {
             return true;
@@ -211,16 +212,16 @@ pub const Prop = struct {
         const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.current_time_start, properties.static);
 
         if (properties.instancer) {
-            return scene.instancer(self.resource).visibility(Volumetric, probe, trafo, sampler, worker, tr);
+            return scene.instancer(self.resource).visibility(Volumetric, probe, trafo, sampler, context, tr);
         } else {
             const shape = scene.shape(self.resource);
 
             if (Volumetric) {
-                return shape.transmittance(probe, trafo, prototype, sampler, worker, tr);
+                return shape.transmittance(probe, trafo, prototype, sampler, context, tr);
             } else if (properties.evaluate_visibility) {
-                return shape.visibility(probe, trafo, prototype, sampler, worker, tr);
+                return shape.visibility(probe, trafo, prototype, sampler, context, tr);
             } else {
-                return !shape.intersectP(probe, trafo, sampler, worker);
+                return !shape.intersectP(probe, trafo);
             }
         }
     }
@@ -232,10 +233,10 @@ pub const Prop = struct {
         frag: *Fragment,
         split_threshold: f32,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
     ) Vec4f {
         const properties = self.properties;
-        const scene = worker.scene;
+        const scene = context.scene;
 
         if (!properties.visible(vertex.probe.depth.surface)) {
             return @splat(0.0);
@@ -250,7 +251,7 @@ pub const Prop = struct {
         frag.isec.trafo = trafo;
         frag.prop = entity;
 
-        return scene.shape(self.resource).emission(vertex, frag, split_threshold, sampler, worker);
+        return scene.shape(self.resource).emission(vertex, frag, split_threshold, sampler, context);
     }
 
     pub fn scatter(
@@ -261,11 +262,11 @@ pub const Prop = struct {
         isec: *Intersection,
         throughput: Vec4f,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
         space: *const Space,
     ) int.Volume {
         const properties = self.properties;
-        const scene = worker.scene;
+        const scene = context.scene;
 
         if (!space.intersectAABB(entity, probe.ray)) {
             return int.Volume.initPass(@splat(1.0));
@@ -274,9 +275,9 @@ pub const Prop = struct {
         const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.current_time_start, properties.static);
 
         if (properties.instancer) {
-            return scene.instancer(self.resource).scatter(probe, trafo, isec, throughput, sampler, worker);
+            return scene.instancer(self.resource).scatter(probe, trafo, isec, throughput, sampler, context);
         } else {
-            const result = scene.shape(self.resource).scatter(probe, trafo, throughput, prototype, sampler, worker);
+            const result = scene.shape(self.resource).scatter(probe, trafo, throughput, prototype, sampler, context);
 
             isec.prototype = Intersection.Null;
 

@@ -1,4 +1,9 @@
+pub const Context = @import("context.zig").Context;
+pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
+const Renderstate = @import("renderstate.zig").Renderstate;
+pub const ro = @import("ray_offset.zig");
 const Space = @import("space.zig").Space;
+pub const Vertex = @import("vertex.zig").Vertex;
 pub const Prop = @import("prop/prop.zig").Prop;
 const PropBvh = @import("prop/prop_tree.zig").Tree;
 const PropBvhBuilder = @import("prop/prop_tree_builder.zig").Builder;
@@ -14,16 +19,12 @@ const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
 pub const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
-const Renderstate = @import("renderstate.zig").Renderstate;
-const Vertex = @import("vertex.zig").Vertex;
 const Probe = @import("shape/probe.zig").Probe;
 const Image = @import("../image/image.zig").Image;
 const Procedural = @import("../image/texture/procedural.zig").Procedural;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
-pub const Transformation = @import("composed_transformation.zig").ComposedTransformation;
 const Sky = @import("../sky/sky.zig").Sky;
 const Filesystem = @import("../file/system.zig").System;
-const Worker = @import("../rendering/worker.zig").Worker;
 const hlp = @import("../rendering/integrator/helper.zig");
 
 const base = @import("base");
@@ -250,9 +251,9 @@ pub const Scene = struct {
         return self.solid_bvh.intersect(probe, frag, self);
     }
 
-    pub fn visibility(self: *const Scene, probe: Probe, sampler: *Sampler, worker: *Worker, tr: *Vec4f) bool {
-        if (self.solid_bvh.visibility(false, probe, sampler, worker, tr)) {
-            return self.volume_bvh.visibility(true, probe, sampler, worker, tr);
+    pub fn visibility(self: *const Scene, probe: Probe, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
+        if (self.solid_bvh.visibility(false, probe, sampler, context, tr)) {
+            return self.volume_bvh.visibility(true, probe, sampler, context, tr);
         }
 
         return false;
@@ -264,7 +265,7 @@ pub const Scene = struct {
         frag: *Fragment,
         throughput: *Vec4f,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
     ) void {
         if (0 == self.volume_bvh.num_nodes) {
             frag.event = .Pass;
@@ -272,7 +273,7 @@ pub const Scene = struct {
             return;
         }
 
-        self.volume_bvh.scatter(probe, frag, throughput, sampler, worker);
+        self.volume_bvh.scatter(probe, frag, throughput, sampler, context);
     }
 
     pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {
@@ -307,7 +308,8 @@ pub const Scene = struct {
 
         var i: u32 = 0;
         while (i < num_parts) : (i += 1) {
-            try self.material_ids.append(alloc, materials[shape_inst.partIdToMaterialId(i)]);
+            const material_id = if (materials.len > 0) materials[shape_inst.partIdToMaterialId(i)] else 0;
+            try self.material_ids.append(alloc, material_id);
             try self.light_ids.append(alloc, Null);
         }
 
@@ -318,10 +320,12 @@ pub const Scene = struct {
         return p;
     }
 
-    pub fn createPropInstancer(self: *Scene, alloc: Allocator, shape_id: u32, solid: bool, volume: bool, prototype: bool) !u32 {
+    pub fn createPropInstancer(self: *Scene, alloc: Allocator, shape_id: u32, prototype: bool) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configureIntancer(shape_id, solid, volume);
+        const instancer_inst = self.instancer(shape_id);
+
+        self.props.items[p].configureIntancer(shape_id, instancer_inst.solid(), instancer_inst.volume());
 
         if (!prototype) {
             try self.classifyProp(alloc, p);

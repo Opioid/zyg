@@ -1,12 +1,13 @@
 const Sky = @import("sky.zig").Sky;
 const Base = @import("../scene/material/material_base.zig").Base;
 const Sample = @import("../scene/material/light/light_sample.zig").Sample;
+const Context = @import("../scene/context.zig").Context;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const Resources = @import("../resource/manager.zig").Manager;
-const Worker = @import("../rendering/worker.zig").Worker;
+
 const ts = @import("../image/texture/texture_sampler.zig");
 const Texture = @import("../image/texture/texture.zig").Texture;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
@@ -113,7 +114,7 @@ pub const Material = struct {
             const d = self.emission_map.description(scene).dimensions;
             const height: u32 = @intCast(d[1]);
 
-            var context = Context{
+            var context = EvalContext{
                 .shape = shape,
                 .image = scene.imagePtr(self.emission_map.data.image.id),
                 .dimensions = .{ d[0], d[1] },
@@ -126,7 +127,7 @@ pub const Material = struct {
 
             defer alloc.free(context.averages);
 
-            const num = threads.runRange(&context, Context.calculate, 0, height, 0);
+            const num = threads.runRange(&context, EvalContext.calculate, 0, height, 0);
             for (context.averages[0..num]) |a| {
                 avg += a;
             }
@@ -155,10 +156,10 @@ pub const Material = struct {
         wi: Vec4f,
         rs: Renderstate,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
     ) Vec4f {
         if (!self.emission_map.isUniform()) {
-            return ts.sample2D_3(self.super.sampler_key, self.emission_map, rs, sampler, worker);
+            return ts.sample2D_3(self.super.sampler_key, self.emission_map, rs, sampler, context);
         }
 
         return self.sun_radiance.eval(sunV(rs.trafo.rotation, wi));
@@ -185,7 +186,7 @@ pub const Material = struct {
     }
 };
 
-const Context = struct {
+const EvalContext = struct {
     shape: *const Shape,
     image: *const img.Image,
     dimensions: Vec2i,
@@ -194,7 +195,7 @@ const Context = struct {
     alloc: Allocator,
 
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-        const self: *Context = @ptrCast(context);
+        const self: *EvalContext = @ptrCast(context);
 
         const d = self.dimensions;
 

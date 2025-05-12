@@ -5,11 +5,11 @@ const int = @import("intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Worker = @import("../../rendering/worker.zig").Worker;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Material = @import("../material/material.zig").Material;
+const Context = @import("../context.zig").Context;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
 
@@ -23,6 +23,8 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Disk = struct {
+    const UseEquiAngularSampling = true;
+
     pub fn intersect(ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
@@ -93,7 +95,7 @@ pub const Disk = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
         const normal = trafo.rotation.r[2];
         const d = math.dot3(normal, trafo.position);
         const denom = -math.dot3(normal, ray.direction);
@@ -121,14 +123,14 @@ pub const Disk = struct {
                 rs.geo_n = normal;
                 rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                return worker.scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, worker, tr);
+                return context.scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, context, tr);
             }
         }
 
         return true;
     }
 
-    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, worker: *const Worker) Vec4f {
+    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, context: Context) Vec4f {
         if (!intersect(vertex.probe.ray, frag.isec.trafo, &frag.isec)) {
             return @splat(0.0);
         }
@@ -138,9 +140,9 @@ pub const Disk = struct {
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
 
-        const energy = frag.evaluateRadiance(p, wo, sampler, worker) orelse return @splat(0.0);
+        const energy = frag.evaluateRadiance(p, wo, sampler, context) orelse return @splat(0.0);
 
-        const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, frag, split_threshold));
+        const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
 
         return energy * weight;
     }
@@ -177,7 +179,7 @@ pub const Disk = struct {
             const scale_sqr = math.squaredLength3((origin + @as(Vec4f, @splat(offset)) * direction) - source);
             const scale = @sqrt(scale_sqr);
 
-            const inv_scale = 1.0 / scale;
+            const inv_scale = if (0.0 == scale) 0.0 else 1.0 / scale;
             const angle_min = std.math.atan((min_t - offset) * inv_scale);
             const angle_max = std.math.atan((max_t - offset) * inv_scale);
             const angle_extent = angle_max - angle_min;
@@ -230,60 +232,99 @@ pub const Disk = struct {
         const num_samples = material.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
-        const lp = trafo.worldToFramePoint(p);
-
-        const dsd = DiskSamplerData.init(lp);
-
         const radius = 0.5 * trafo.scaleX();
 
-        const eas0 = EquiAngularSampling.init(lp, @splat(0.0), dsd.yd, -radius, radius);
+        if (UseEquiAngularSampling) {
+            const lp = trafo.worldToFramePoint(p);
 
-        var current_sample: u32 = 0;
-        for (0..num_samples) |_| {
-            const r2 = sampler.sample2D();
-            const xy = math.smpl.diskConcentric(r2);
+            const dsd = DiskSamplerData.init(lp);
 
-            var u = xy[0];
-            var pdf_ = @sqrt(1.0 - u * u) / (0.25 * std.math.pi);
-            u = (u + 1.0) * 0.5;
-
-            var y_coord: f32 = undefined;
-            pdf_ *= eas0.sample(u, &y_coord);
-
-            const x_chord = @sqrt(radius * radius - y_coord * y_coord);
-            if (0.0 == x_chord) {
-                continue;
+            const eas0 = EquiAngularSampling.init(lp, @splat(0.0), dsd.yd, -radius, radius);
+            if (0.0 == eas0.angle_extent) {
+                return buffer[0..0];
             }
 
-            const eas1 = EquiAngularSampling.init(lp, @as(Vec4f, @splat(y_coord)) * dsd.yd, dsd.xd, -x_chord, x_chord);
+            var current_sample: u32 = 0;
+            for (0..num_samples) |_| {
+                const r2 = sampler.sample2D();
+                const xy = math.smpl.diskConcentric(r2);
 
-            var x_coord: f32 = undefined;
-            pdf_ *= eas1.sample(sampler.sample1D(), &x_coord);
+                var u = xy[0];
+                var pdf_ = @sqrt(1.0 - u * u) / (0.25 * std.math.pi);
+                u = (u + 1.0) * 0.5;
 
-            const l_direction = @as(Vec4f, @splat(x_coord)) * dsd.xd + @as(Vec4f, @splat(y_coord)) * dsd.yd - lp;
-            const axis = trafo.objectToWorldNormal(l_direction);
-            const ws = p + axis;
+                var y_coord: f32 = undefined;
+                pdf_ *= eas0.sample(u, &y_coord);
 
-            var wn = trafo.rotation.r[2];
+                const x_chord = @sqrt(radius * radius - y_coord * y_coord);
+                if (0.0 == x_chord) {
+                    continue;
+                }
 
-            if (two_sided and math.dot3(wn, ws - p) > 0.0) {
-                wn = -wn;
+                const eas1 = EquiAngularSampling.init(lp, @as(Vec4f, @splat(y_coord)) * dsd.yd, dsd.xd, -x_chord, x_chord);
+                if (0.0 == eas1.angle_extent) {
+                    continue;
+                }
+
+                var x_coord: f32 = undefined;
+                pdf_ *= eas1.sample(sampler.sample1D(), &x_coord);
+
+                const l_direction = @as(Vec4f, @splat(x_coord)) * dsd.xd + @as(Vec4f, @splat(y_coord)) * dsd.yd - lp;
+                const axis = trafo.objectToWorldNormal(l_direction);
+                const ws = p + axis;
+
+                var wn = trafo.rotation.r[2];
+
+                if (two_sided and math.dot3(wn, ws - p) > 0.0) {
+                    wn = -wn;
+                }
+
+                const sl = math.squaredLength3(axis);
+                const dir = axis / @as(Vec4f, @splat(@sqrt(sl)));
+                const c = -math.dot3(wn, dir);
+
+                if (c < math.safe.DotMin or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+                    continue;
+                }
+
+                const v = (xy[1] + 1.0) * 0.5;
+                buffer[current_sample] = SampleTo.init(ws, wn, dir, .{ u, v, 0.0, 0.0 }, (nsf * pdf_ * sl) / c);
+                current_sample += 1;
             }
 
-            const sl = math.squaredLength3(axis);
-            const dir = axis / @as(Vec4f, @splat(@sqrt(sl)));
-            const c = -math.dot3(wn, dir);
+            return buffer[0..current_sample];
+        } else {
+            var current_sample: u32 = 0;
+            for (0..num_samples) |_| {
+                const r2 = sampler.sample2D();
+                const xy = math.smpl.diskConcentric(r2);
 
-            if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
-                continue;
+                const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
+                const ws = trafo.position + @as(Vec4f, @splat(radius)) * trafo.objectToWorldNormal(ls);
+                var wn = trafo.rotation.r[2];
+
+                if (two_sided and math.dot3(wn, ws - p) > 0.0) {
+                    wn = -wn;
+                }
+
+                const axis = ws - p;
+                const sl = math.squaredLength3(axis);
+                const t = @sqrt(sl);
+                const dir = axis / @as(Vec4f, @splat(t));
+                const c = -math.dot3(wn, dir);
+
+                if (c < math.safe.DotMin) {
+                    continue;
+                }
+
+                const area = std.math.pi * (radius * radius);
+
+                buffer[current_sample] = SampleTo.init(ws, wn, dir, @splat(0.0), (nsf * sl) / (c * area));
+                current_sample += 1;
             }
 
-            const v = (xy[1] + 1.0) * 0.5;
-            buffer[current_sample] = SampleTo.init(ws, wn, dir, .{ u, v, 0.0, 0.0 }, (nsf * pdf_ * sl) / c);
-            current_sample += 1;
+            return buffer[0..current_sample];
         }
-
-        return buffer[0..current_sample];
     }
 
     pub fn sampleMaterialTo(
@@ -336,7 +377,7 @@ pub const Disk = struct {
             const dir = axis / @as(Vec4f, @splat(t));
             const c = -math.dot3(wn, dir);
 
-            if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+            if (c < math.safe.DotMin or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
                 continue;
             }
 
@@ -365,19 +406,29 @@ pub const Disk = struct {
 
     pub fn sampleFrom(
         trafo: Trafo,
+        uv: Vec2f,
+        importance_uv: Vec2f,
         cos_a: f32,
         two_sided: bool,
         sampler: *Sampler,
-        uv: Vec2f,
-        importance_uv: Vec2f,
+        from_image: bool,
     ) ?SampleFrom {
+        var ls: Vec4f = undefined;
+
+        if (from_image) {
+            const xy = @as(Vec2f, @splat(-2.0)) * uv + @as(Vec2f, @splat(1.0));
+            if (math.squaredLength2(xy) > 1.0) {
+                return null;
+            }
+
+            ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
+        } else {
+            const xy = math.smpl.diskConcentric(uv);
+            ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
+        }
+
         const radius = 0.5 * trafo.scaleX();
-
-        const xy = math.smpl.diskConcentric(uv);
-        const ls = Vec4f{ xy[0], xy[1], 0.0, 0.0 };
-
         const ws = trafo.position + @as(Vec4f, @splat(radius)) * trafo.objectToWorldNormal(ls);
-        const uvw = Vec4f{ uv[0], uv[1], 0.0, 0.0 };
 
         const area = @as(f32, if (two_sided) 2.0 * std.math.pi else std.math.pi) * (radius * radius);
 
@@ -387,7 +438,7 @@ pub const Disk = struct {
         var dir_l: Vec4f = undefined;
         var pdf_: f32 = undefined;
 
-        if (cos_a < math.safe.Dot_min) {
+        if (cos_a < math.safe.DotMin) {
             dir_l = math.smpl.hemisphereCosine(importance_uv);
             pdf_ = 1.0 / (std.math.pi * area);
         } else {
@@ -402,43 +453,52 @@ pub const Disk = struct {
             dir = -dir;
         }
 
+        const uvw = Vec4f{ uv[0], uv[1], 0.0, 0.0 };
+
         return SampleFrom.init(ro.offsetRay(ws, wn), wn, dir, uvw, importance_uv, trafo, pdf_);
     }
 
     pub fn pdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, split_threshold: f32, material: *const Material) f32 {
-        const lp = frag.isec.trafo.worldToFramePoint(p);
+        const c = @abs(math.dot3(frag.isec.trafo.rotation.r[2], dir));
 
-        const dsd = DiskSamplerData.init(lp);
+        const num_samples = material.numSamples(split_threshold);
+        const nsf: f32 = @floatFromInt(num_samples);
 
         const radius = 0.5 * frag.isec.trafo.scaleX();
 
-        const max_t = frag.isec.t;
+        const sl = math.squaredDistance3(p, frag.p);
 
-        const eas0 = EquiAngularSampling.init(lp, @splat(0.0), dsd.yd, -radius, radius);
+        if (UseEquiAngularSampling) {
+            const lp = frag.isec.trafo.worldToFramePoint(p);
 
-        const l_direction = frag.isec.trafo.worldToObjectNormal(dir);
-        const l_point = lp + @as(Vec4f, @splat(max_t)) * l_direction;
+            const dsd = DiskSamplerData.init(lp);
 
-        const y_coord = math.dot3(l_point, dsd.yd);
+            const eas0 = EquiAngularSampling.init(lp, @splat(0.0), dsd.yd, -radius, radius);
 
-        var u: f32 = undefined;
-        const eas_pdf = eas0.pdfAndSample(y_coord, &u);
-        u = u * 2.0 - 1.0;
-        var pdf_ = @sqrt(1.0 - u * u) / (0.25 * std.math.pi);
+            const l_point = frag.isec.trafo.worldToFramePoint(frag.p);
 
-        pdf_ *= eas_pdf;
+            const y_coord = math.dot3(l_point, dsd.yd);
 
-        const x_chord = @sqrt(radius * radius - y_coord * y_coord);
-        const eas1 = EquiAngularSampling.init(lp, @as(Vec4f, @splat(y_coord)) * dsd.yd, dsd.xd, -x_chord, x_chord);
-        const x_coord = math.dot3(l_point, dsd.xd);
-        pdf_ *= eas1.pdf(x_coord);
+            var u: f32 = undefined;
+            const eas_pdf = eas0.pdfAndSample(y_coord, &u);
+            u = u * 2.0 - 1.0;
+            var pdf_ = @sqrt(1.0 - u * u) / (0.25 * std.math.pi);
 
-        const c = @abs(math.dot3(frag.isec.trafo.rotation.r[2], dir));
+            pdf_ *= eas_pdf;
 
-        const sl = max_t * max_t;
+            const x_chord = @sqrt(radius * radius - y_coord * y_coord);
+            const eas1 = EquiAngularSampling.init(lp, @as(Vec4f, @splat(y_coord)) * dsd.yd, dsd.xd, -x_chord, x_chord);
+            const x_coord = math.dot3(l_point, dsd.xd);
+            pdf_ *= eas1.pdf(x_coord);
 
-        const num_samples = material.numSamples(split_threshold);
-        return (@as(f32, @floatFromInt(num_samples)) * pdf_ * sl) / c;
+            const result_pdf = (nsf * pdf_ * sl) / c;
+
+            return result_pdf;
+        } else {
+            const area = std.math.pi * (radius * radius);
+
+            return (nsf * sl) / (c * area);
+        }
     }
 
     pub fn materialPdf(

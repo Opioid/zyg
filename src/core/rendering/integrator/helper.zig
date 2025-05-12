@@ -88,7 +88,7 @@ pub fn nonSymmetryCompensation(wi: Vec4f, wo: Vec4f, geo_n: Vec4f, n: Vec4f) f32
     // https://github.com/mmp/pbrt-v3/blob/master/src/integrators/bdpt.cpp#L55
 
     const numer = @abs(math.dot3(wi, geo_n) * math.dot3(wo, n));
-    const denom = math.max(@abs(math.dot3(wi, n) * math.dot3(wo, geo_n)), math.safe.Dot_min);
+    const denom = math.max(@abs(math.dot3(wi, n) * math.dot3(wo, geo_n)), math.safe.DotMin);
 
     return numer / denom;
 }

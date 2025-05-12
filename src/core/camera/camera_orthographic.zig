@@ -29,8 +29,6 @@ pub const Orthographic = struct {
     const Self = @This();
 
     pub fn update(self: *Self) void {
-        self.super.mediums.clear();
-
         const size_x = self.size;
 
         const fr: Vec2f = @floatFromInt(self.super.resolution);
@@ -63,7 +61,7 @@ pub const Orthographic = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.RayMaxT), time, &self.super.mediums);
+        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.RayMaxT), time);
     }
 
     pub fn calculateRayDifferential(self: *const Self, p: Vec4f, time: u64, scene: *const Scene) RayDif {
@@ -87,6 +85,15 @@ pub const Orthographic = struct {
             .y_origin = p_w,
             .y_direction = y_dir_w,
         };
+    }
+
+    pub fn minDirDifferential(self: *const Self) [2]Vec4f {
+        const d_x = self.d_x;
+        const d_y = self.d_y;
+
+        const ss: Vec4f = @splat(self.super.sample_spacing);
+
+        return .{ ss * d_x, ss * d_y };
     }
 
     pub fn setParameters(self: *Self, value: std.json.Value) void {

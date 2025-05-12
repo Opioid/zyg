@@ -1,8 +1,8 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
-const Vertex = @import("../../vertex.zig").Vertex;
+const Context = @import("../../context.zig").Context;
 const Scene = @import("../../scene.zig").Scene;
+const Vertex = @import("../../vertex.zig").Vertex;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
-const Worker = @import("../../../rendering/worker.zig").Worker;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../intersection.zig");
@@ -133,7 +133,7 @@ pub const Part = struct {
         }
 
         const dimensions: Vec4i = if (m.usefulTexture()) |t| t.description(scene).dimensions else @splat(0);
-        var context = Context{
+        var context = EvalContext{
             .temps = try alloc.alloc(Temp, threads.numThreads()),
             .powers = try alloc.alloc(f32, num),
             .part = self,
@@ -147,7 +147,7 @@ pub const Part = struct {
             alloc.free(context.temps);
         }
 
-        const num_tasks = threads.runRange(&context, Context.run, 0, num, 0);
+        const num_tasks = threads.runRange(&context, EvalContext.run, 0, num, 0);
 
         var temp: Temp = .{};
         for (context.temps[0..num_tasks]) |t| {
@@ -259,7 +259,7 @@ pub const Part = struct {
         total_power: f32 = 0.0,
     };
 
-    const Context = struct {
+    const EvalContext = struct {
         temps: []Temp,
         powers: []f32,
         part: *const Part,
@@ -269,7 +269,7 @@ pub const Part = struct {
         estimate_area: f32,
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
-            const self: *Context = @ptrCast(context);
+            const self: *EvalContext = @ptrCast(context);
 
             const emission_map = self.m.emissionImageMapped();
 
@@ -368,10 +368,10 @@ pub const Mesh = struct {
 
     tree: Tree = .{},
 
-    num_parts: u32 = 0,
+    num_parts: u32,
     num_primitives: u32 = 0,
 
-    parts: [*]Part = undefined,
+    parts: [*]Part,
     primitive_mapping: [*]u32 = undefined,
 
     pub fn init(alloc: Allocator, num_parts: u32) !Mesh {
@@ -477,11 +477,11 @@ pub const Mesh = struct {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
         tr: *Vec4f,
     ) bool {
         const tray = trafo.worldToObjectRay(ray);
-        return self.tree.visibility(tray, entity, sampler, worker, tr);
+        return self.tree.visibility(tray, entity, sampler, context, tr);
     }
 
     pub fn transmittance(
@@ -490,11 +490,11 @@ pub const Mesh = struct {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
         tr: *Vec4f,
     ) bool {
         const tray = trafo.worldToObjectRay(probe.ray);
-        return self.tree.transmittance(tray, trafo, entity, probe.depth.volume, sampler, worker, tr);
+        return self.tree.transmittance(tray, trafo, entity, probe.depth.volume, sampler, context, tr);
     }
 
     pub fn emission(
@@ -503,10 +503,10 @@ pub const Mesh = struct {
         frag: *Fragment,
         split_threshold: f32,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
     ) Vec4f {
         const tray = frag.isec.trafo.worldToObjectRay(vertex.probe.ray);
-        return self.tree.emission(tray, vertex, frag, split_threshold, sampler, worker);
+        return self.tree.emission(tray, vertex, frag, split_threshold, sampler, context);
     }
 
     pub fn scatter(
@@ -516,10 +516,10 @@ pub const Mesh = struct {
         throughput: Vec4f,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
     ) Volume {
         const tray = trafo.worldToObjectRay(probe.ray);
-        return self.tree.scatter(tray, trafo, throughput, entity, probe.depth.volume, sampler, worker);
+        return self.tree.scatter(tray, trafo, throughput, entity, probe.depth.volume, sampler, context);
     }
 
     //Gram-Schmidt method
@@ -724,7 +724,7 @@ pub const Mesh = struct {
                 sample_pdf = (s.pdf * biased_sl) / (n_dot_dir * tri_area);
             }
 
-            if (n_dot_dir < math.safe.Dot_min) {
+            if (n_dot_dir < math.safe.DotMin) {
                 continue;
             }
 
@@ -745,13 +745,13 @@ pub const Mesh = struct {
 
     pub fn sampleFrom(
         self: *const Mesh,
-        part_id: u32,
-        variant: u32,
         trafo: Trafo,
-        two_sided: bool,
-        sampler: *Sampler,
         uv: Vec2f,
         importance_uv: Vec2f,
+        part_id: u32,
+        variant: u32,
+        two_sided: bool,
+        sampler: *Sampler,
     ) ?SampleFrom {
         const r = sampler.sample1D();
 

@@ -1,11 +1,11 @@
 const CM = @import("../collision_coefficients.zig").CM;
 
 const tracking = @import("../../../rendering/integrator/volume/tracking.zig");
-const Worker = @import("../../../rendering/worker.zig").Worker;
-const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+const Context = @import("../../../scene/context.zig").Context;
 const Material = @import("../../../scene/material/material.zig").Material;
 const Volume = @import("../../../scene/shape/intersection.zig").Volume;
 const ro = @import("../../../scene/ray_offset.zig");
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -111,12 +111,12 @@ pub const Gridtree = struct {
         prop: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
         tr: *Vec4f,
     ) bool {
         const d = ray.max_t;
 
-        var local_ray = tracking.objectToTextureRay(ray, prop, worker);
+        var local_ray = tracking.objectToTextureRay(ray, prop, context);
 
         const srs = material.similarityRelationScale(depth);
 
@@ -127,7 +127,7 @@ pub const Gridtree = struct {
 
         while (local_ray.min_t < d) {
             const dr = self.intersect(&local_ray);
-            if (!tracking.trackingTransmitted(tr, local_ray, cm * dr, cc, material, sampler, worker)) {
+            if (!tracking.trackingTransmitted(tr, local_ray, cm * dr, cc, material, sampler, context)) {
                 return false;
             }
 
@@ -145,11 +145,11 @@ pub const Gridtree = struct {
         prop: u32,
         depth: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
     ) Volume {
         const d = ray.max_t;
 
-        var local_ray = tracking.objectToTextureRay(ray, prop, worker);
+        var local_ray = tracking.objectToTextureRay(ray, prop, context);
 
         const srs = material.similarityRelationScale(depth);
 
@@ -171,7 +171,7 @@ pub const Gridtree = struct {
                     result.tr,
                     throughput,
                     sampler,
-                    worker,
+                    context,
                 );
 
                 if (.Scatter == result.event) {
@@ -196,7 +196,7 @@ pub const Gridtree = struct {
                     result.tr,
                     throughput,
                     sampler,
-                    worker,
+                    context,
                 );
 
                 if (.Scatter == result.event) {

@@ -53,7 +53,7 @@ pub const AOV = struct {
         const sampler = worker.pickSampler(0);
 
         var frag: Fragment = undefined;
-        worker.nextEvent(&vertex, &frag, sampler);
+        worker.context.nextEvent(&vertex, &frag, sampler);
         if (.Abort == frag.event or !frag.hit()) {
             return .{};
         }
@@ -76,7 +76,7 @@ pub const AOV = struct {
         var result: f32 = 0.0;
         var sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker);
+        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
 
         if (worker.aov.active()) {
             worker.commonAOV(&vertex, frag, &mat_sample);
@@ -97,7 +97,7 @@ pub const AOV = struct {
             occlusion_probe.ray = Ray.init(origin, ws, 0.0, radius);
 
             var tr: Vec4f = @splat(1.0);
-            if (worker.scene.visibility(occlusion_probe, sampler, worker, &tr)) {
+            if (worker.context.scene.visibility(occlusion_probe, sampler, worker.context, &tr)) {
                 result += num_samples_reciprocal;
             }
 
@@ -112,7 +112,7 @@ pub const AOV = struct {
 
         const sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker);
+        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
 
         if (worker.aov.active()) {
             worker.commonAOV(&vertex, frag, &mat_sample);
@@ -142,7 +142,7 @@ pub const AOV = struct {
     fn lightSampleCount(self: Self, vertex: Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
         var sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker);
+        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
 
         const n = mat_sample.super().geometricNormal();
         const p = frag.p;
@@ -152,19 +152,19 @@ pub const AOV = struct {
         const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth);
 
         var lights_buffer: Scene.Lights = undefined;
-        const lights = worker.scene.randomLightSpatial(p, n, false, sampler.sample1D(), split_threshold, &lights_buffer);
+        const lights = worker.context.scene.randomLightSpatial(p, n, false, sampler.sample1D(), split_threshold, &lights_buffer);
 
-        const max_light_samples = worker.scene.light_tree.potentialMaxLights(worker.scene); // * Shape.MaxSamples;
+        const max_light_samples = worker.context.scene.light_tree.potentialMaxLights(worker.context.scene); // * Shape.MaxSamples;
 
         var nun_samples: u32 = 0;
 
         for (lights) |l| {
-            const light = worker.scene.light(l.offset);
+            const light = worker.context.scene.light(l.offset);
 
-            const trafo = worker.scene.propTransformationAt(light.prop, vertex.probe.time);
+            const trafo = worker.context.scene.propTransformationAt(light.prop, vertex.probe.time);
 
             var samples_buffer: Scene.SamplesTo = undefined;
-            const samples = light.sampleTo(p, n, trafo, translucent, split_threshold, sampler, worker.scene, &samples_buffer);
+            const samples = light.sampleTo(p, n, trafo, translucent, split_threshold, sampler, worker.context.scene, &samples_buffer);
 
             nun_samples += @intCast(samples.len);
         }
@@ -179,7 +179,7 @@ pub const AOV = struct {
 
         const sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker);
+        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
 
         const super = mat_sample.super();
         const n = math.cross3(super.shadingTangent(), super.shadingBitangent());
@@ -197,7 +197,7 @@ pub const AOV = struct {
 
             var sampler = worker.pickSampler(total_depth);
 
-            const mat_sample = vertex.sample(frag, sampler, .Off, worker);
+            const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
 
             const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
             if (mat_sample.canEvaluate() and gather_photons) {
@@ -240,10 +240,10 @@ pub const AOV = struct {
             }
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(sample_result.wi, frag, &mat_sample, worker.scene);
+                vertex.interfaceChange(sample_result.wi, frag, &mat_sample, worker.context.scene);
             }
 
-            worker.nextEvent(vertex, frag, sampler);
+            worker.context.nextEvent(vertex, frag, sampler);
             if (.Abort == frag.event or !frag.hit()) {
                 break;
             }

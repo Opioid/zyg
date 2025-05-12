@@ -1,13 +1,13 @@
 const Fragment = @import("shape/intersection.zig").Fragment;
 const Probe = @import("shape/probe.zig").Probe;
+const Context = @import("context.zig").Context;
+const rst = @import("renderstate.zig");
+const Renderstate = rst.Renderstate;
+const CausticsResolve = rst.CausticsResolve;
 const Scene = @import("scene.zig").Scene;
 const MaterialSample = @import("material/material_sample.zig").Sample;
 const MediumStack = @import("prop/medium.zig").Stack;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
-const rst = @import("renderstate.zig");
-const Renderstate = rst.Renderstate;
-const CausticsResolve = rst.CausticsResolve;
-const Worker = @import("../rendering/worker.zig").Worker;
 const mat = @import("material/material.zig");
 const IoR = @import("material/sample_base.zig").IoR;
 
@@ -47,7 +47,7 @@ pub const Vertex = struct {
 
     const Self = @This();
 
-    pub fn init(ray: Ray, time: u64, mediums: *const MediumStack) Vertex {
+    pub fn init(ray: Ray, time: u64) Vertex {
         return .{
             .probe = Probe.init(ray, time),
             .state = .{},
@@ -62,7 +62,7 @@ pub const Vertex = struct {
             .shadow_catcher_emission = @splat(0.0),
             .origin = ray.origin,
             .geo_n = @splat(0.0),
-            .mediums = mediums.clone(),
+            .mediums = .{},
         };
     }
 
@@ -86,7 +86,7 @@ pub const Vertex = struct {
             self.mediums.remove(frag);
         } else {
             const material = frag.material(scene);
-            const cc = material.collisionCoefficients2D(mat_sample);
+            const cc = mat_sample.collisionCoefficients();
             self.mediums.push(frag, cc, material.ior(), material.super().priority);
         }
     }
@@ -110,7 +110,7 @@ pub const Vertex = struct {
         const ior = IoR{ .eta_t = inter_ior, .eta_i = self.mediums.topIor() };
 
         const material = frag.material(scene);
-        const cc = material.collisionCoefficients2D(mat_sample);
+        const cc = mat_sample.collisionCoefficients();
         self.mediums.push(frag, cc, material.ior(), material.super().priority);
 
         return ior;
@@ -121,11 +121,11 @@ pub const Vertex = struct {
         frag: *const Fragment,
         sampler: *Sampler,
         caustics: CausticsResolve,
-        worker: *const Worker,
+        context: Context,
     ) mat.Sample {
         const wo = -self.probe.ray.direction;
 
-        const m = frag.material(worker.scene);
+        const m = frag.material(context.scene);
 
         var rs: Renderstate = undefined;
         rs.trafo = frag.isec.trafo;
@@ -156,7 +156,7 @@ pub const Vertex = struct {
         rs.caustics = caustics;
         rs.highest_priority = self.mediums.highestPriority();
 
-        return m.sample(wo, rs, sampler, worker);
+        return m.sample(wo, rs, sampler, context);
     }
 };
 

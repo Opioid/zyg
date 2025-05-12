@@ -1,8 +1,9 @@
+const Context = @import("../../../scene/context.zig").Context;
+const Scene = @import("../../../scene/scene.zig").Scene;
+const Light = @import("../../../scene/light/light.zig").Light;
 const vt = @import("../../../scene/vertex.zig");
 const Vertex = vt.Vertex;
 const VertexPool = vt.Pool;
-const Scene = @import("../../../scene/scene.zig").Scene;
-const Light = @import("../../../scene/light/light.zig").Light;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const MaterialSample = @import("../../../scene/material/material_sample.zig").Sample;
 const bxdf = @import("../../../scene/material/bxdf.zig");
@@ -49,14 +50,14 @@ pub const PathtracerMIS = struct {
                 var sampler = worker.pickSampler(total_depth);
 
                 var frag: Fragment = undefined;
-                _ = worker.nextEvent(vertex, &frag, sampler);
+                worker.context.nextEvent(vertex, &frag, sampler);
                 if (.Abort == frag.event) {
                     continue;
                 }
 
-                const shadow_catcher = frag.hit() and worker.scene.propIsShadowCatcher(frag.prop);
+                const shadow_catcher = frag.hit() and worker.context.scene.propIsShadowCatcher(frag.prop);
 
-                const this_light = self.connectLight(vertex, &frag, shadow_catcher, sampler, worker);
+                const this_light = self.connectLight(vertex, &frag, shadow_catcher, sampler, worker.context);
                 const split_weight: Vec4f = @splat(vertex.split_weight);
                 var split_throughput = vertex.throughput * split_weight;
 
@@ -91,7 +92,7 @@ pub const PathtracerMIS = struct {
                 }
 
                 const caustics = self.causticsResolve(vertex.state);
-                const mat_sample = vertex.sample(&frag, sampler, caustics, worker);
+                const mat_sample = vertex.sample(&frag, sampler, caustics, worker.context);
 
                 if (worker.aov.active()) {
                     worker.commonAOV(vertex, &frag, &mat_sample);
@@ -110,7 +111,7 @@ pub const PathtracerMIS = struct {
 
                 const max_splits = VertexPool.maxSplits(vertex, total_depth);
 
-                const next_light = self.sampleLights(vertex, &frag, &mat_sample, max_splits, shadow_catcher, sampler, worker);
+                const next_light = self.sampleLights(vertex, &frag, &mat_sample, max_splits, shadow_catcher, sampler, worker.context);
 
                 vertex.state.from_shadow_catcher = shadow_catcher;
 
@@ -170,7 +171,7 @@ pub const PathtracerMIS = struct {
                     }
 
                     if (class.transmission) {
-                        next_vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.scene);
+                        next_vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.context.scene);
                     }
 
                     next_vertex.state.transparent = next_vertex.state.transparent and (class.transmission or class.straight);
@@ -193,7 +194,7 @@ pub const PathtracerMIS = struct {
         max_material_splits: u32,
         shadow_catcher: bool,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
     ) LightResult {
         var result = LightResult.empty();
 
@@ -209,7 +210,7 @@ pub const PathtracerMIS = struct {
         const split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth);
 
         var lights_buffer: Scene.Lights = undefined;
-        const lights = worker.scene.randomLightSpatial(p, n, translucent, select, split_threshold, &lights_buffer);
+        const lights = context.scene.randomLightSpatial(p, n, translucent, select, split_threshold, &lights_buffer);
 
         for (lights) |l| {
             result.addAssign(evaluateLight(
@@ -221,7 +222,7 @@ pub const PathtracerMIS = struct {
                 shadow_catcher,
                 split_threshold,
                 sampler,
-                worker,
+                context,
             ));
         }
 
@@ -237,27 +238,27 @@ pub const PathtracerMIS = struct {
         shadow_catcher: bool,
         light_split_threshold: f32,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
     ) LightResult {
         const p = frag.p;
         const gn = mat_sample.super().geometricNormal();
         const translucent = mat_sample.isTranslucent();
 
-        const light = worker.scene.light(light_pick.offset);
+        const light = context.scene.light(light_pick.offset);
 
-        const trafo = worker.scene.propTransformationAt(light.prop, vertex.probe.time);
+        const trafo = context.scene.propTransformationAt(light.prop, vertex.probe.time);
 
         var unoccluded: Vec4f = @splat(0.0);
         var occluded: Vec4f = @splat(0.0);
 
         var samples_buffer: Scene.SamplesTo = undefined;
-        const samples = light.sampleTo(p, gn, trafo, translucent, light_split_threshold, sampler, worker.scene, &samples_buffer);
+        const samples = light.sampleTo(p, gn, trafo, translucent, light_split_threshold, sampler, context.scene, &samples_buffer);
 
         for (samples) |light_sample| {
-            const shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, worker.scene));
+            const shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, context.scene));
 
             var tr: Vec4f = @splat(1.0);
-            if (!worker.visibility(shadow_probe, sampler, &tr)) {
+            if (!context.visibility(shadow_probe, sampler, &tr)) {
                 if (!shadow_catcher) {
                     continue;
                 } else {
@@ -265,7 +266,7 @@ pub const PathtracerMIS = struct {
                 }
             }
 
-            const radiance = light.evaluateTo(p, trafo, light_sample, sampler, worker);
+            const radiance = light.evaluateTo(p, trafo, light_sample, sampler, context);
 
             const bxdf_result = mat_sample.evaluate(light_sample.wi, max_material_splits);
 
@@ -291,7 +292,7 @@ pub const PathtracerMIS = struct {
         frag: *const Fragment,
         shadow_catcher: bool,
         sampler: *Sampler,
-        worker: *const Worker,
+        context: Context,
     ) LightResult {
         var result = LightResult.empty();
 
@@ -307,8 +308,8 @@ pub const PathtracerMIS = struct {
         const previous_shadow_catcher = vertex.state.from_shadow_catcher;
 
         if (frag.hit()) {
-            if (frag.evaluateRadiance(p, wo, sampler, worker)) |local_energy| {
-                const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, frag, split_threshold));
+            if (frag.evaluateRadiance(p, wo, sampler, context)) |local_energy| {
+                const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
 
                 result.emission = weight * local_energy;
             }
@@ -317,7 +318,7 @@ pub const PathtracerMIS = struct {
         var light_frag: Fragment = undefined;
         light_frag.event = .Pass;
 
-        result.emission += worker.emission(vertex, &light_frag, split_threshold, sampler);
+        result.emission += context.emission(vertex, &light_frag, split_threshold, sampler);
 
         const ray_max_t = vertex.probe.ray.max_t;
         const handle_shadow_catcher = previous_shadow_catcher or shadow_catcher;
@@ -326,20 +327,20 @@ pub const PathtracerMIS = struct {
         }
 
         if (ro.RayMaxT == vertex.probe.ray.max_t) {
-            for (worker.scene.infinite_props.items) |prop| {
-                if (!worker.propIntersect(prop, vertex.probe, &light_frag)) {
+            for (context.scene.infinite_props.items) |prop| {
+                if (!context.propIntersect(prop, vertex.probe, &light_frag)) {
                     continue;
                 }
 
-                worker.propInterpolateFragment(prop, vertex.probe, &light_frag);
+                context.propInterpolateFragment(prop, vertex.probe, &light_frag);
 
-                var local_energy = light_frag.evaluateRadiance(p, wo, sampler, worker) orelse continue;
+                var local_energy = light_frag.evaluateRadiance(p, wo, sampler, context) orelse continue;
 
-                const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, &light_frag, split_threshold));
+                const weight: Vec4f = @splat(context.scene.lightPdf(vertex, &light_frag, split_threshold));
 
                 local_energy *= weight;
 
-                if (handle_shadow_catcher and worker.scene.propIsShadowCatcherLight(prop)) {
+                if (handle_shadow_catcher and context.scene.propIsShadowCatcherLight(prop)) {
                     if (ro.RayMaxT == ray_max_t) {
                         // The light was not occluded
                         result.occluded += local_energy;

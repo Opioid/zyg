@@ -7,6 +7,7 @@ const Volumetric = @import("volumetric/volumetric_sample.zig").Sample;
 const Base = @import("sample_base.zig").Base;
 const bxdf = @import("bxdf.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const CC = @import("collision_coefficients.zig").CC;
 
 const base = @import("base");
 const math = base.math;
@@ -61,6 +62,14 @@ pub const Sample = union(enum) {
                 buffer[0] = s.sample(sampler);
                 return buffer[0..1];
             },
+        };
+    }
+
+    pub fn collisionCoefficients(self: *const Sample) CC {
+        return switch (self.*) {
+            .Glass => |s| .{ .a = s.absorption_coef, .s = @splat(0.0) },
+            .Substitute => |s| s.cc,
+            else => undefined,
         };
     }
 };

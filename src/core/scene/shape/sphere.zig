@@ -11,8 +11,8 @@ const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Material = @import("../material/material.zig").Material;
+const Context = @import("../context.zig").Context;
 const Scene = @import("../scene.zig").Scene;
-const Worker = @import("../../rendering/worker.zig").Worker;
 const ro = @import("../ray_offset.zig");
 
 const base = @import("base");
@@ -119,7 +119,7 @@ pub const Sphere = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
         const idl = 1.0 / math.length3(ray.direction);
         const nd = ray.direction * @as(Vec4f, @splat(idl));
 
@@ -147,7 +147,7 @@ pub const Sphere = struct {
                 rs.geo_n = n;
                 rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                if (!worker.scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, worker, tr)) {
+                if (!context.scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, context, tr)) {
                     return false;
                 }
             }
@@ -164,7 +164,7 @@ pub const Sphere = struct {
                 rs.geo_n = n;
                 rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                if (!worker.scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, worker, tr)) {
+                if (!context.scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, context, tr)) {
                     return false;
                 }
             }
@@ -178,7 +178,7 @@ pub const Sphere = struct {
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
         tr: *Vec4f,
     ) bool {
         const ray = probe.ray;
@@ -200,7 +200,7 @@ pub const Sphere = struct {
             const start = math.max(t0, ray.min_t);
             const end = math.min(t1, ray.max_t);
 
-            const material = worker.scene.propMaterial(entity, 0);
+            const material = context.scene.propMaterial(entity, 0);
 
             const tray = Ray.init(
                 trafo.worldToObjectPoint(ray.origin),
@@ -208,13 +208,13 @@ pub const Sphere = struct {
                 start,
                 end,
             );
-            return worker.propTransmittance(tray, material, entity, probe.depth.volume, sampler, tr);
+            return context.propTransmittance(tray, material, entity, probe.depth.volume, sampler, tr);
         }
 
         return true;
     }
 
-    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, worker: *const Worker) Vec4f {
+    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, context: Context) Vec4f {
         if (!intersect(vertex.probe.ray, frag.isec.trafo, &frag.isec)) {
             return @splat(0.0);
         }
@@ -224,9 +224,9 @@ pub const Sphere = struct {
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
 
-        const energy = frag.evaluateRadiance(p, wo, sampler, worker) orelse return @splat(0.0);
+        const energy = frag.evaluateRadiance(p, wo, sampler, context) orelse return @splat(0.0);
 
-        const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, frag, split_threshold));
+        const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
 
         return energy * weight;
     }
@@ -237,7 +237,7 @@ pub const Sphere = struct {
         throughput: Vec4f,
         entity: u32,
         sampler: *Sampler,
-        worker: *Worker,
+        context: Context,
     ) Volume {
         const ray = probe.ray;
 
@@ -258,7 +258,7 @@ pub const Sphere = struct {
             const start = math.max(t0, ray.min_t);
             const end = math.min(t1, ray.max_t);
 
-            const material = worker.scene.propMaterial(entity, 0);
+            const material = context.scene.propMaterial(entity, 0);
 
             const tray = Ray.init(
                 trafo.worldToObjectPoint(ray.origin),
@@ -267,7 +267,7 @@ pub const Sphere = struct {
                 end,
             );
 
-            return worker.propScatter(tray, throughput, material, entity, probe.depth.volume, sampler);
+            return context.propScatter(tray, throughput, material, entity, probe.depth.volume, sampler);
         }
 
         return Volume.initPass(@splat(1.0));
@@ -381,7 +381,7 @@ pub const Sphere = struct {
         const wn = math.normalize3(ws - trafo.position);
         const c = -math.dot3(wn, dir);
 
-        if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+        if (c < math.safe.DotMin or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
             return buffer[0..0];
         }
 

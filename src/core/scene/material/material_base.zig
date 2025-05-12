@@ -1,7 +1,7 @@
 const Rainbow = @import("rainbow_integral.zig");
 const fresnel = @import("fresnel.zig");
+const Context = @import("../context.zig").Context;
 const Renderstate = @import("../renderstate.zig").Renderstate;
-const Worker = @import("../../rendering/worker.zig").Worker;
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -56,8 +56,8 @@ pub const Base = struct {
         self.properties.two_sided = two_sided;
     }
 
-    pub fn opacity(self: *const Base, rs: Renderstate, sampler: *Sampler, worker: *const Worker) f32 {
-        return ts.sample2D_1(self.sampler_key, self.mask, rs, sampler, worker);
+    pub fn opacity(self: *const Base, rs: Renderstate, sampler: *Sampler, context: Context) f32 {
+        return ts.sample2D_1(self.sampler_key, self.mask, rs, sampler, context);
     }
 
     pub const Start_wavelength = Rainbow.Wavelength_start;

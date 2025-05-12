@@ -1,7 +1,7 @@
 const Base = @import("../material_base.zig").Base;
 const Sample = @import("glass_sample.zig").Sample;
+const Context = @import("../../context.zig").Context;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
-const Worker = @import("../../../rendering/worker.zig").Worker;
 const ts = @import("../../../image/texture/texture_sampler.zig");
 const Texture = @import("../../../image/texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -41,12 +41,12 @@ pub const Material = struct {
         self.attenuation_distance = distance;
     }
 
-    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker) Sample {
+    pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, context: Context) Sample {
         const key = self.super.sampler_key;
 
         const use_roughness = !self.super.properties.caustic and (0.0 == self.thickness or rs.primary);
         const r = if (use_roughness)
-            ggx.clampRoughness(ts.sample2D_1(key, self.roughness, rs, sampler, worker))
+            ggx.clampRoughness(ts.sample2D_1(key, self.roughness, rs, sampler, context))
         else
             0.0;
 
@@ -64,7 +64,7 @@ pub const Material = struct {
         );
 
         if (!self.normal_map.isUniform()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, worker);
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, context);
             result.super.frame = Frame.init(n);
         } else {
             result.super.frame = .{ .x = rs.t, .y = rs.b, .z = rs.n };
@@ -73,8 +73,8 @@ pub const Material = struct {
         return result;
     }
 
-    pub fn visibility(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
-        const o = self.super.opacity(rs, sampler, worker);
+    pub fn visibility(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
+        const o = self.super.opacity(rs, sampler, context);
 
         if (self.thickness > 0.0) {
             const eta_i: f32 = 1.0;

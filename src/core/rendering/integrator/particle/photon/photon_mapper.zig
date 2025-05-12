@@ -2,8 +2,8 @@ const Photon = @import("photon.zig").Photon;
 const Map = @import("photon_map.zig").Map;
 const Vertex = @import("../../../../scene/vertex.zig").Vertex;
 const bxdf = @import("../../../../scene/material/bxdf.zig");
-const Worker = @import("../../../worker.zig").Worker;
 const Camera = @import("../../../../camera/camera_perspective.zig").Perspective;
+const Context = @import("../../../../scene/context.zig").Context;
 const SampleFrom = @import("../../../../scene/shape/sample.zig").From;
 const Fragment = @import("../../../../scene/shape/intersection.zig").Fragment;
 const ro = @import("../../../../scene/ray_offset.zig");
@@ -44,20 +44,20 @@ pub const Mapper = struct {
         alloc.free(self.photons);
     }
 
-    pub fn bake(self: *Self, map: *Map, begin: u32, end: u32, frame: u32, iteration: u32, worker: *Worker) u32 {
+    pub fn bake(self: *Self, map: *Map, begin: u32, end: u32, frame: u32, iteration: u32, context: Context) u32 {
         _ = iteration;
 
-        const world_bounds = if (self.settings.full_light_path) worker.scene.aabb() else worker.scene.causticAabb();
+        const world_bounds = if (self.settings.full_light_path) context.scene.aabb() else context.scene.causticAabb();
         const bounds = world_bounds;
 
-        const finite = worker.scene.finite();
+        const finite = context.scene.finite();
 
         var num_paths: u32 = 0;
 
         var i = begin;
         while (i < end) {
             const max_photons = @min(self.settings.max_bounces, end - i);
-            const result = self.tracePhoton(bounds, frame, max_photons, finite, worker);
+            const result = self.tracePhoton(bounds, frame, max_photons, finite, context);
 
             if (result.num_iterations > 0) {
                 for (self.photons[0..result.num_photons], 0..) |p, j| {
@@ -79,7 +79,7 @@ pub const Mapper = struct {
         num_photons: u32,
     };
 
-    fn tracePhoton(self: *Self, bounds: AABB, frame: u32, max_photons: u32, finite_world: bool, worker: *Worker) Result {
+    fn tracePhoton(self: *Self, bounds: AABB, frame: u32, max_photons: u32, finite_world: bool, context: Context) Result {
         // How often should we try to create a valid photon path?
         const Max_iterations = 1024 * 10;
 
@@ -93,38 +93,35 @@ pub const Mapper = struct {
             var vertex = self.generateLightVertex(
                 frame,
                 bounds,
-                worker,
+                context,
                 &light_id,
                 &light_sample,
             ) orelse continue;
 
-            const light = worker.scene.light(light_id);
-            if (light.volumetric()) {
-                vertex.mediums.pushVolumeLight(light, light_sample.trafo);
-            }
+            const light = context.scene.light(light_id);
 
             while (vertex.probe.depth.surface <= self.settings.max_bounces) {
                 var sampler = &self.sampler;
 
                 var frag: Fragment = undefined;
-                worker.nextEvent(&vertex, &frag, sampler);
+                context.nextEvent(&vertex, &frag, sampler);
                 if (.Absorb == frag.event or .Abort == frag.event or !frag.hit()) {
                     break;
                 }
 
                 if (0 == vertex.probe.depth.surface) {
                     const pdf: Vec4f = @splat(light_sample.pdf());
-                    const energy = light.evaluateFrom(frag.p, light_sample, sampler, worker) / pdf;
+                    const energy = light.evaluateFrom(frag.p, light_sample, sampler, context) / pdf;
                     vertex.throughput *= energy;
                 }
 
-                const mat_sample = vertex.sample(&frag, &self.sampler, .Full, worker);
+                const mat_sample = vertex.sample(&frag, &self.sampler, .Full, context);
 
                 if (mat_sample.canEvaluate() and (vertex.state.started_specular or self.settings.full_light_path)) {
                     if (finite_world or bounds.pointInside(frag.p)) {
                         var radiance = vertex.throughput;
 
-                        const material_ior = frag.material(worker.scene).ior();
+                        const material_ior = frag.material(context.scene).ior();
                         if (frag.subsurface() and material_ior > 1.0) {
                             const ior_t = vertex.mediums.surroundingIor();
                             const eta = material_ior / ior_t;
@@ -186,7 +183,7 @@ pub const Mapper = struct {
                 }
 
                 if (class.transmission) {
-                    const ior = vertex.interfaceChangeIor(sample_result.wi, &frag, &mat_sample, worker.scene);
+                    const ior = vertex.interfaceChangeIor(sample_result.wi, &frag, &mat_sample, context.scene);
                     const eta = ior.eta_i / ior.eta_t;
                     vertex.throughput *= @as(Vec4f, @splat(eta * eta));
                 }
@@ -208,21 +205,21 @@ pub const Mapper = struct {
         self: *Self,
         frame: u32,
         bounds: AABB,
-        worker: *Worker,
+        context: Context,
         light_id: *u32,
         light_sample: *SampleFrom,
     ) ?Vertex {
         const select = self.sampler.sample1D();
-        const l = worker.scene.randomLight(select);
+        const l = context.scene.randomLight(select);
 
-        const time = worker.absoluteTime(frame, self.sampler.sample1D());
+        const time = context.absoluteTime(frame, self.sampler.sample1D());
 
-        const light = worker.scene.light(l.offset);
-        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, worker.scene) orelse return null;
+        const light = context.scene.light(l.offset);
+        light_sample.* = light.sampleFrom(time, &self.sampler, bounds, context.scene) orelse return null;
         light_sample.mulAssignPdf(l.pdf);
 
         light_id.* = l.offset;
 
-        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.RayMaxT), time, &.{});
+        return Vertex.init(Ray.init(light_sample.p, light_sample.dir, 0.0, ro.RayMaxT), time);
     }
 };

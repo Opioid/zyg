@@ -236,7 +236,16 @@ pub const Loader = struct {
                 continue;
             }
 
-            const leaf = self.loadLeafEntity(alloc, entity_value, parent_id, parent_trafo, animated, local_materials, graph, false) catch continue;
+            const leaf = self.loadLeafEntity(
+                alloc,
+                entity_value,
+                parent_id,
+                parent_trafo,
+                animated,
+                local_materials,
+                graph,
+                false,
+            ) catch continue;
 
             if (leaf.children_ptr) |children| {
                 try self.loadEntities(
@@ -447,6 +456,14 @@ pub const Loader = struct {
         graph: *Graph,
         prototype: bool,
     ) Error!u32 {
+        if (value.object.get("source")) |file_node| {
+            const filename = file_node.string;
+            return self.loadInstancerFile(alloc, filename, parent_id, parent_trafo, graph, prototype) catch |e| {
+                log.err("Loading instancer file \"{s}\": {}", .{ filename, e });
+                return Scene.Null;
+            };
+        }
+
         var prototypes: List(u32) = .empty;
         defer prototypes.deinit(alloc);
 
@@ -556,10 +573,61 @@ pub const Loader = struct {
 
             const shape = try self.resources.instancers.store(alloc, Scene.Null, instancer);
 
-            return try graph.scene.createPropInstancer(alloc, shape, solids.items.len > 0, volumes.items.len > 0, prototype);
+            return try graph.scene.createPropInstancer(alloc, shape, prototype);
         }
 
         return Scene.Null;
+    }
+
+    fn loadInstancerFile(
+        self: *Loader,
+        alloc: Allocator,
+        filename: []const u8,
+        parent_id: u32,
+        parent_trafo: Transformation,
+        graph: *Graph,
+        prototype: bool,
+    ) !u32 {
+        if (self.resources.instancers.getByName(filename, .{})) |shape_id| {
+            return try graph.scene.createPropInstancer(alloc, shape_id, prototype);
+        }
+
+        const fs = &self.resources.fs;
+
+        var stream = try fs.readStream(alloc, filename);
+
+        const buffer = try stream.readAll(alloc);
+        stream.deinit();
+        defer alloc.free(buffer);
+
+        var parsed = try std.json.parseFromSlice(
+            std.json.Value,
+            alloc,
+            buffer,
+            .{ .duplicate_field_behavior = .use_last },
+        );
+        defer parsed.deinit();
+
+        const root = parsed.value;
+
+        try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
+        defer fs.popMount(alloc);
+
+        var local_materials = LocalMaterials.init(alloc);
+        defer local_materials.deinit();
+
+        if (root.object.get("materials")) |materials_node| {
+            try readMaterials(materials_node, &local_materials);
+        }
+
+        const entity_id = try self.loadInstancer(alloc, root, parent_id, parent_trafo, local_materials, graph, prototype);
+
+        if (Scene.Null != entity_id) {
+            const shape_id = graph.scene.prop(entity_id).resource;
+            try self.resources.instancers.associate(alloc, shape_id, filename, .{});
+        }
+
+        return entity_id;
     }
 
     fn loadScatterer(
@@ -677,7 +745,7 @@ pub const Loader = struct {
     fn loadShape(self: *const Loader, alloc: Allocator, value: std.json.Value) !u32 {
         const type_name = json.readStringMember(value, "type", "");
         if (type_name.len > 0) {
-            return try getShape(type_name);
+            return getShape(type_name);
         }
 
         const file = json.readStringMember(value, "file", "");

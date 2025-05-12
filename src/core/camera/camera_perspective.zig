@@ -75,8 +75,6 @@ pub const Perspective = struct {
     }
 
     pub fn update(self: *Self, time: u64, scene: *const Scene) void {
-        self.super.mediums.clear();
-
         const fr: Vec2f = @floatFromInt(self.super.resolution);
         const ratio = fr[1] / fr[0];
 
@@ -146,7 +144,7 @@ pub const Perspective = struct {
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
 
-        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.RayMaxT), time, &self.super.mediums);
+        return Vertex.init(Ray.init(origin_w, direction_w, 0.0, ro.RayMaxT), time);
     }
 
     pub fn sampleTo(
@@ -246,6 +244,15 @@ pub const Perspective = struct {
             .y_origin = p_w,
             .y_direction = y_dir_w,
         };
+    }
+
+    pub fn minDirDifferential(self: *const Self, layer: u32) [2]Vec4f {
+        const d_x = self.d_x[layer];
+        const d_y = self.d_y[layer];
+
+        const ss: Vec4f = @splat(self.super.sample_spacing);
+
+        return .{ ss * d_x, ss * d_y };
     }
 
     pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, scene: *const Scene, resources: *Resources) !void {

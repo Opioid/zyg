@@ -6,7 +6,7 @@ const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const DifferentialSurface = int.DifferentialSurface;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Worker = @import("../../rendering/worker.zig").Worker;
+const Context = @import("../context.zig").Context;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
@@ -24,6 +24,8 @@ const Ray = math.Ray;
 const std = @import("std");
 
 pub const Rectangle = struct {
+    const UseSphericalSampling = true;
+
     pub fn intersect(ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
@@ -110,7 +112,7 @@ pub const Rectangle = struct {
         return false;
     }
 
-    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, worker: *const Worker, tr: *Vec4f) bool {
+    pub fn visibility(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);
         const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
@@ -138,13 +140,13 @@ pub const Rectangle = struct {
             rs.geo_n = n;
             rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-            return worker.scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, worker, tr);
+            return context.scene.propMaterial(entity, 0).visibility(ray.direction, rs, sampler, context, tr);
         }
 
         return true;
     }
 
-    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, worker: *const Worker) Vec4f {
+    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, context: Context) Vec4f {
         if (!intersect(vertex.probe.ray, frag.isec.trafo, &frag.isec)) {
             return @splat(0.0);
         }
@@ -154,9 +156,9 @@ pub const Rectangle = struct {
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
 
-        const energy = frag.evaluateRadiance(p, wo, sampler, worker) orelse return @splat(0.0);
+        const energy = frag.evaluateRadiance(p, wo, sampler, context) orelse return @splat(0.0);
 
-        const weight: Vec4f = @splat(worker.scene.lightPdf(vertex, frag, split_threshold));
+        const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
 
         return energy * weight;
     }
@@ -261,7 +263,7 @@ pub const Rectangle = struct {
             const diff_solid_angle_numer = area * @abs(lp[2]);
             const diff_solid_angle_denom = sqr_dist * @sqrt(sqr_dist);
 
-            return if (diff_solid_angle_numer > diff_solid_angle_denom * math.safe.Dot_min)
+            return if (diff_solid_angle_numer > diff_solid_angle_denom * math.safe.DotMin)
                 (1.0 / squad.S)
             else
                 (diff_solid_angle_denom / diff_solid_angle_numer);
@@ -279,46 +281,87 @@ pub const Rectangle = struct {
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
-        const lp = trafo.worldToFramePoint(p);
-        const scale = trafo.scale();
-
-        const squad = SphQuad.init(scale, lp);
-
         const num_samples = material.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
-        const sample_pdf = nsf * squad.pdf(scale);
+        const scale = trafo.scale();
 
-        var current_sample: u32 = 0;
-        for (0..num_samples) |_| {
-            const uv = sampler.sample2D();
+        if (UseSphericalSampling) {
+            const lp = trafo.worldToFramePoint(p);
 
-            const ls = squad.sample(uv);
-            const ws = trafo.frameToWorldPoint(ls);
-            const dir = math.normalize3(ws - p);
+            const squad = SphQuad.init(scale, lp);
 
-            var wn = trafo.rotation.r[2];
-            if (two_sided and math.dot3(wn, dir) > 0.0) {
-                wn = -wn;
+            const sample_pdf = nsf * squad.pdf(scale);
+
+            var current_sample: u32 = 0;
+            for (0..num_samples) |_| {
+                const uv = sampler.sample2D();
+
+                const ls = squad.sample(uv);
+                const ws = trafo.frameToWorldPoint(ls);
+                const dir = math.normalize3(ws - p);
+
+                var wn = trafo.rotation.r[2];
+                if (two_sided and math.dot3(wn, dir) > 0.0) {
+                    wn = -wn;
+                }
+
+                if (-math.dot3(wn, dir) < math.safe.DotMin or 0.0 == squad.S or
+                    (math.dot3(dir, n) <= 0.0 and !total_sphere))
+                {
+                    continue;
+                }
+
+                buffer[current_sample] = SampleTo.init(
+                    ws,
+                    wn,
+                    dir,
+                    .{ uv[0], uv[1], 0.0, 0.0 },
+                    sample_pdf,
+                );
+                current_sample += 1;
             }
 
-            if (-math.dot3(wn, dir) < math.safe.Dot_min or 0.0 == squad.S or
-                (math.dot3(dir, n) <= 0.0 and !total_sphere))
-            {
-                continue;
+            return buffer[0..current_sample];
+        } else {
+            const area = scale[0] * scale[1];
+
+            var current_sample: u32 = 0;
+            for (0..num_samples) |_| {
+                const uv = sampler.sample2D();
+
+                const uv2 = @as(Vec2f, @splat(-1.0)) * uv + @as(Vec2f, @splat(0.5));
+                const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
+                const ws = trafo.objectToWorldPoint(ls);
+                const axis = ws - p;
+
+                var wn = trafo.rotation.r[2];
+
+                if (two_sided and math.dot3(wn, axis) > 0.0) {
+                    wn = -wn;
+                }
+
+                const sl = math.squaredLength3(axis);
+                const t = @sqrt(sl);
+                const dir = axis / @as(Vec4f, @splat(t));
+                const c = -math.dot3(wn, dir);
+
+                if (c < math.safe.DotMin or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+                    continue;
+                }
+
+                buffer[current_sample] = SampleTo.init(
+                    ws,
+                    wn,
+                    dir,
+                    .{ uv[0], uv[1], 0.0, 0.0 },
+                    (nsf * sl) / (c * area),
+                );
+                current_sample += 1;
             }
 
-            buffer[current_sample] = SampleTo.init(
-                ws,
-                wn,
-                dir,
-                .{ uv[0], uv[1], 0.0, 0.0 },
-                sample_pdf,
-            );
-            current_sample += 1;
+            return buffer[0..current_sample];
         }
-
-        return buffer[0..current_sample];
     }
 
     pub fn sampleMaterialTo(
@@ -363,7 +406,7 @@ pub const Rectangle = struct {
             const dir = axis / @as(Vec4f, @splat(t));
             const c = -math.dot3(wn, dir);
 
-            if (c < math.safe.Dot_min or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+            if (c < math.safe.DotMin or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
                 continue;
             }
 
@@ -380,7 +423,7 @@ pub const Rectangle = struct {
         return buffer[0..current_sample];
     }
 
-    pub fn sampleFrom(trafo: Trafo, two_sided: bool, sampler: *Sampler, uv: Vec2f, importance_uv: Vec2f) SampleFrom {
+    pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, two_sided: bool, sampler: *Sampler) SampleFrom {
         const uv2 = @as(Vec2f, @splat(-1.0)) * uv + @as(Vec2f, @splat(0.5));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
         const ws = trafo.objectToWorldPoint(ls);
@@ -410,14 +453,27 @@ pub const Rectangle = struct {
         );
     }
 
-    pub fn pdf(p: Vec4f, trafo: Trafo, split_threshold: f32, material: *const Material) f32 {
-        const lp = trafo.worldToFramePoint(p);
-
-        const scale = trafo.scale();
-        const squad = SphQuad.init(scale, lp);
-
+    pub fn pdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, split_threshold: f32, material: *const Material) f32 {
         const num_samples = material.numSamples(split_threshold);
-        return @as(f32, @floatFromInt(num_samples)) * squad.pdf(scale);
+        const nsf: f32 = @floatFromInt(num_samples);
+
+        const scale = frag.isec.trafo.scale();
+
+        if (UseSphericalSampling) {
+            const lp = frag.isec.trafo.worldToFramePoint(p);
+
+            const squad = SphQuad.init(scale, lp);
+
+            return nsf * squad.pdf(scale);
+        } else {
+            const c = @abs(math.dot3(frag.isec.trafo.rotation.r[2], dir));
+
+            const area = scale[0] * scale[1];
+
+            const sl = math.squaredDistance3(p, frag.p);
+
+            return (nsf * sl) / (c * area);
+        }
     }
 
     pub fn materialPdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, split_threshold: f32, material: *const Material) f32 {

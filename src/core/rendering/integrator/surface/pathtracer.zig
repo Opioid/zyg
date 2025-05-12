@@ -1,5 +1,5 @@
+const Context = @import("../../../scene/context.zig").Context;
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
-const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
 const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const bxdf = @import("../../../scene/material/bxdf.zig");
@@ -39,12 +39,12 @@ pub const Pathtracer = struct {
             var sampler = worker.pickSampler(total_depth);
 
             var frag: Fragment = undefined;
-            _ = worker.nextEvent(&vertex, &frag, sampler);
+            worker.context.nextEvent(&vertex, &frag, sampler);
             if (.Abort == frag.event) {
-                continue;
+                break;
             }
 
-            const energy = self.connectLight(&vertex, &frag, sampler, worker);
+            const energy = self.connectLight(&vertex, &frag, sampler, worker.context);
             const weighted_energy = vertex.throughput * energy;
 
             const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
@@ -63,7 +63,7 @@ pub const Pathtracer = struct {
             }
 
             const caustics = self.causticsResolve(vertex.state);
-            const mat_sample = vertex.sample(&frag, sampler, caustics, worker);
+            const mat_sample = vertex.sample(&frag, sampler, caustics, worker.context);
 
             if (worker.aov.active()) {
                 worker.commonAOV(&vertex, &frag, &mat_sample);
@@ -101,7 +101,7 @@ pub const Pathtracer = struct {
             }
 
             if (sample_result.class.transmission) {
-                vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.scene);
+                vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.context.scene);
             }
 
             vertex.state.transparent = vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);
@@ -113,7 +113,7 @@ pub const Pathtracer = struct {
         return result;
     }
 
-    fn connectLight(self: Self, vertex: *Vertex, frag: *const Fragment, sampler: *Sampler, worker: *const Worker) Vec4f {
+    fn connectLight(self: Self, vertex: *Vertex, frag: *const Fragment, sampler: *Sampler, context: Context) Vec4f {
         if (!self.settings.caustics_path and vertex.state.treat_as_singular and !vertex.state.primary_ray) {
             return @splat(0.0);
         }
@@ -121,24 +121,35 @@ pub const Pathtracer = struct {
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
 
+        var energy: Vec4f = @splat(0.0);
+
         if (frag.hit()) {
-            return frag.evaluateRadiance(p, wo, sampler, worker) orelse @splat(0.0);
+            energy += frag.evaluateRadiance(p, wo, sampler, context) orelse @splat(0.0);
         }
 
-        var energy: Vec4f = @splat(0.0);
+        // Do this to avoid MIS calculation, which this integrator doesn't need
+        const treat_as_singular = vertex.state.treat_as_singular;
+        vertex.state.treat_as_singular = true;
+
+        var light_frag: Fragment = undefined;
+        light_frag.event = .Pass;
+
+        energy += context.emission(vertex, &light_frag, 0.0, sampler);
 
         var inf_frag: Fragment = undefined;
         inf_frag.event = .Pass;
 
-        for (worker.scene.infinite_props.items) |prop| {
-            if (!worker.propIntersect(prop, vertex.probe, &inf_frag)) {
+        for (context.scene.infinite_props.items) |prop| {
+            if (!context.propIntersect(prop, vertex.probe, &inf_frag)) {
                 continue;
             }
 
-            worker.propInterpolateFragment(prop, vertex.probe, &inf_frag);
+            context.propInterpolateFragment(prop, vertex.probe, &inf_frag);
 
-            energy += inf_frag.evaluateRadiance(p, wo, sampler, worker) orelse continue;
+            energy += inf_frag.evaluateRadiance(p, wo, sampler, context) orelse continue;
         }
+
+        vertex.state.treat_as_singular = treat_as_singular;
 
         return energy;
     }
