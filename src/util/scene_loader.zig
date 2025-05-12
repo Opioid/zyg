@@ -745,7 +745,7 @@ pub const Loader = struct {
     fn loadShape(self: *const Loader, alloc: Allocator, value: std.json.Value) !u32 {
         const type_name = json.readStringMember(value, "type", "");
         if (type_name.len > 0) {
-            return try getShape(type_name);
+            return getShape(type_name);
         }
 
         const file = json.readStringMember(value, "file", "");

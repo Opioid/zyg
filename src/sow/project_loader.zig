@@ -41,8 +41,10 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
 
     var iter = root.object.iterator();
     while (iter.next()) |entry| {
-        if (std.mem.eql(u8, "grid", entry.key_ptr.*)) {
-            project.grid = json.readVec2u(entry.value_ptr.*);
+        if (std.mem.eql(u8, "mount_folder", entry.key_ptr.*)) {
+            project.mount_folder = try alloc.dupe(u8, json.readString(entry.value_ptr.*));
+        } else if (std.mem.eql(u8, "density", entry.key_ptr.*)) {
+            project.density = json.readFloat(f32, entry.value_ptr.*);
         } else if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {
             try loadPrototypes(alloc, entry.value_ptr.*, project);
         }

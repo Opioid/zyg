@@ -308,7 +308,8 @@ pub const Scene = struct {
 
         var i: u32 = 0;
         while (i < num_parts) : (i += 1) {
-            try self.material_ids.append(alloc, materials[shape_inst.partIdToMaterialId(i)]);
+            const material_id = if (materials.len > 0) materials[shape_inst.partIdToMaterialId(i)] else 0;
+            try self.material_ids.append(alloc, material_id);
             try self.light_ids.append(alloc, Null);
         }
 

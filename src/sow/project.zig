@@ -31,11 +31,13 @@ pub const Instance = struct {
 pub const Project = struct {
     scene_filename: []u8 = &.{},
 
+    mount_folder: []u8 = &.{},
+
     prototypes: []Prototype = &.{},
 
     prototype_distribution: Distribution1D = .{},
 
-    grid: Vec2u = @splat(1),
+    density: f32 = 1.0,
 
     const Self = @This();
 
@@ -47,6 +49,7 @@ pub const Project = struct {
         }
 
         alloc.free(self.prototypes);
+        alloc.free(self.mount_folder);
         alloc.free(self.scene_filename);
     }
 };

@@ -18,6 +18,7 @@ const Context = core.scn.Context;
 const Vertex = core.scn.Vertex;
 const Fragment = core.scn.shp.int.Fragment;
 const Probe = core.scn.shp.Probe;
+const Shape = core.scn.Shape;
 
 const base = @import("base");
 const math = base.math;
@@ -103,12 +104,51 @@ pub fn main() !void {
     const region = graph.scene.aabb();
     const extent = region.extent();
 
+    var max_prototype_extent: Vec4f = @splat(0.0);
+
+    {
+        if (project.mount_folder.len > 0) {
+            try resources.fs.pushMount(alloc, project.mount_folder);
+        }
+
+        var proto_ids = try alloc.alloc(u32, project.prototypes.len);
+        defer alloc.free(proto_ids);
+
+        for (project.prototypes, 0..) |p, i| {
+            const proto_shape = try resources.loadFile(Shape, alloc, p.shape_file, .{});
+            const proto_id = try graph.scene.createPropShape(alloc, proto_shape, &.{}, false, true);
+            proto_ids[i] = proto_id;
+        }
+
+        resources.commitAsync();
+
+        for (proto_ids) |p| {
+            const proto_inst = graph.scene.prop(p);
+
+            const aabb = proto_inst.localAabb(&graph.scene);
+
+            max_prototype_extent = math.max4(max_prototype_extent, aabb.extent());
+        }
+
+        if (project.mount_folder.len > 0) {
+            resources.fs.popMount(alloc);
+        }
+    }
+
     // Camera is only used in case material requests ray differentials
     const resolution = Vec2i{ @intFromFloat(@ceil(extent[0])), @intFromFloat(@ceil(extent[2])) };
     ortho.super.setResolution(resolution, .{ 0, 0, resolution[0], resolution[1] });
     ortho.update();
 
-    const grid = project.grid;
+    const cell_extent = math.max(max_prototype_extent[0], max_prototype_extent[2]) / project.density;
+
+    const grid = Vec2u{
+        @intFromFloat(@ceil(extent[0] / cell_extent)),
+        @intFromFloat(@ceil(extent[2] / cell_extent)),
+    };
+
+    log.info("Grid: {}", .{grid});
+
     const fgrid: Vec2f = @floatFromInt(grid);
 
     var instances = List(prj.Instance){};
