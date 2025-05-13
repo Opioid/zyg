@@ -16,7 +16,7 @@ const Allocator = std.mem.Allocator;
 pub const Writer = union(enum) {
     pub const Encoding = enum {
         Color,
-        Color_alpha,
+        ColorAlpha,
         Normal,
         Depth,
         Id,

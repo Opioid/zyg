@@ -46,7 +46,7 @@ pub const Writer = struct {
         var num_channels: u32 = 3;
 
         switch (encoding) {
-            .Color_alpha => num_channels = 4,
+            .ColorAlpha => num_channels = 4,
             .Depth => {
                 num_channels = 1;
                 format = .Float;

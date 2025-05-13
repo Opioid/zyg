@@ -223,6 +223,10 @@ pub const Worker = struct {
             self.aov.insert3(.ShadingNormal, mat_sample.super().shadingNormal());
         }
 
+        if (self.aov.activeClass(.Roughness)) {
+            self.aov.insert1(.Roughness, @sqrt(mat_sample.super().averageAlpha()));
+        }
+
         if (self.aov.activeClass(.Depth)) {
             self.aov.insert1(.Depth, vertex.probe.ray.max_t);
         }

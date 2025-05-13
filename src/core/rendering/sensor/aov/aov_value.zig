@@ -13,6 +13,7 @@ pub const Value = struct {
         MaterialId,
         GeometricNormal,
         ShadingNormal,
+        Roughness,
         Direct,
         Indirect,
 
@@ -34,6 +35,7 @@ pub const Value = struct {
                 .Depth => .Depth,
                 .MaterialId => .Id,
                 .GeometricNormal, .ShadingNormal => .Normal,
+                .Roughness => .Float,
             };
         }
     };

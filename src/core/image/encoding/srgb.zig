@@ -46,7 +46,7 @@ pub const Srgb = struct {
 
         switch (encoding) {
             .Color, .Normal, .Id => num_channels = 3,
-            .Color_alpha => num_channels = 4,
+            .ColorAlpha => num_channels = 4,
             .Depth => {
                 num_channels = 1;
 
@@ -118,8 +118,8 @@ pub const Srgb = struct {
 
         var y = y_start + begin;
 
-        const asColor = .Color == self.encoding or .Color_alpha == self.encoding;
-        const alpha = .Color_alpha == self.encoding;
+        const asColor = .Color == self.encoding or .ColorAlpha == self.encoding;
+        const alpha = .ColorAlpha == self.encoding;
 
         const image = self.image;
         const buffer = self.buffer;

@@ -92,7 +92,7 @@ pub fn main() !void {
     const encoding: core.ImageWriter.Encoding = switch (operator.textures.items[0].numChannels()) {
         0, 1 => .Float,
         2, 3 => .Color,
-        else => .Color_alpha,
+        else => .ColorAlpha,
     };
 
     const format = options.format orelse (if (bytes_per_channel > 1) Options.Format.EXR else Options.Format.PNG);
