@@ -46,8 +46,10 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
             project.mount_folder = try alloc.dupe(u8, json.readString(entry.value_ptr.*));
         } else if (std.mem.eql(u8, "density", entry.key_ptr.*)) {
             project.density = json.readFloat(f32, entry.value_ptr.*);
-        } else if (std.mem.eql(u8, "ortho_mode", entry.key_ptr.*)) {
-            project.ortho_mode = json.readBool(entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "ortho_order_scale", entry.key_ptr.*)) {
+            project.ortho_order_scale = json.readFloat(f32, entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "tileable", entry.key_ptr.*)) {
+            project.tileable = json.readBool(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {
             try loadPrototypes(alloc, entry.value_ptr.*, project);
         }
@@ -73,6 +75,7 @@ fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, 
     var w: f32 = 1.0;
     var trafo = Transformation.Identity;
     var position_jitter: Vec2f = @splat(0.0);
+    var incline_jitter: Vec2f = @splat(0.0);
     var scale_range: Vec2f = @splat(1.0);
 
     prototype.shape_type = &.{};
@@ -94,6 +97,8 @@ fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, 
             json.readTransformation(entry.value_ptr.*, &trafo);
         } else if (std.mem.eql(u8, "position_jitter", entry.key_ptr.*)) {
             position_jitter = json.readVec2f(entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "incline_jitter", entry.key_ptr.*)) {
+            incline_jitter = json.readVec2f(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "scale_range", entry.key_ptr.*)) {
             scale_range = json.readVec2f(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "weight", entry.key_ptr.*)) {
@@ -103,6 +108,7 @@ fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, 
 
     prototype.trafo = trafo;
     prototype.position_jitter = position_jitter;
+    prototype.incline_jitter = incline_jitter;
     prototype.scale_range = scale_range;
 
     weight.* = w;

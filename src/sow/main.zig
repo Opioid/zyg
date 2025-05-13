@@ -159,20 +159,20 @@ pub fn main() !void {
     const y_order = try alloc.alloc(f32, grid[0] * grid[1]);
     defer alloc.free(y_order);
 
-    if (project.ortho_mode) {
-        var offset: f32 = 0.0;
-        for (y_order) |*o| {
-            o.* = offset;
-            offset -= 0.01;
-        }
+    // if (project.ortho_mode) {
+    //     var offset: f32 = 0.0;
+    //     for (y_order) |*o| {
+    //         o.* = offset;
+    //         offset -= 0.01;
+    //     }
 
-        rng.start(0, 0);
-        base.rnd.biasedShuffle(f32, y_order, &rng);
-    } else {
-        for (y_order) |*o| {
-            o.* = 0.0;
-        }
+    //     rng.start(0, 0);
+    //     base.rnd.biasedShuffle(f32, y_order, &rng);
+    // } else {
+    for (y_order) |*o| {
+        o.* = 0.0;
     }
+    // }
 
     var sampler = Sampler{ .Sobol = undefined };
 
@@ -185,14 +185,21 @@ pub fn main() !void {
 
             sampler.startPixel(0, rng.randomUint());
 
-            const r = sampler.sample4D();
-            const z_jitter = 2.0 * r[0] - 1.0;
-            const x_jitter = 2.0 * r[1] - 1.0;
-            const scale_r = r[2];
-            const rotation_r = r[3];
+            const r0 = sampler.sample4D();
+
+            const order_jitter = 2.0 * r0[0] - 1.0;
+            const x_jitter = 2.0 * r0[1] - 1.0;
+            const z_jitter = 2.0 * r0[2] - 1.0;
+            const scale_r = r0[3];
+
             const mask_p = sampler.sample1D();
 
-            const selected_prototype_id = project.prototype_distribution.sample(sampler.sample1D());
+            const r1 = sampler.sample4D();
+            const rotation_r = r1[0];
+            const incline_x_jitter = 2.0 * r0[1] - 1.0;
+            const incline_z_jitter = 2.0 * r0[2] - 1.0;
+
+            const selected_prototype_id = project.prototype_distribution.sample(r1[3]);
             const prototype = project.prototypes[selected_prototype_id];
 
             const pos_jitter = @as(Vec2f, @splat(0.5)) * prototype.position_jitter;
@@ -218,17 +225,22 @@ pub fn main() !void {
                 continue;
             }
 
+            const rotation = math.quaternion.initRotationY((2.0 * std.math.pi) * rotation_r);
+
+            const incline_x = math.quaternion.initRotationX(std.math.pi * prototype.incline_jitter[0] * incline_x_jitter);
+            const incline_z = math.quaternion.initRotationZ(std.math.pi * prototype.incline_jitter[1] * incline_z_jitter);
+
             const local_trafo: Transformation = .{
-                .position = frag.p + Vec4f{ 0.0, y_order[id], 0.0, 0.0 },
+                .position = frag.p + Vec4f{ 0.0, y_order[id] + project.ortho_order_scale * order_jitter, 0.0, 0.0 },
                 .scale = @splat(math.lerp(prototype.scale_range[0], prototype.scale_range[1], scale_r)),
-                .rotation = math.quaternion.initRotationY((2.0 * std.math.pi) * rotation_r),
+                .rotation = math.quaternion.mul(math.quaternion.mul(incline_x, incline_z), rotation),
             };
 
             const trafo = local_trafo.transform(prototype.trafo);
 
             try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = trafo.toMat4x4() });
 
-            if (project.ortho_mode) {
+            if (project.tileable) {
                 if (0 == y) {
                     var tile_trafo = trafo;
                     tile_trafo.position[2] += extent[2];

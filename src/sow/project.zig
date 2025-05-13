@@ -16,6 +16,7 @@ pub const Prototype = struct {
     trafo: Transformation,
 
     position_jitter: Vec2f,
+    incline_jitter: Vec2f,
     scale_range: Vec2f,
 
     pub fn deinit(self: *Prototype, alloc: Allocator) void {
@@ -45,7 +46,9 @@ pub const Project = struct {
 
     density: f32 = 1.0,
 
-    ortho_mode: bool = false,
+    ortho_order_scale: f32 = 0.0,
+
+    tileable: bool = false,
 
     const Self = @This();
 
