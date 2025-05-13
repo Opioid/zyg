@@ -29,7 +29,7 @@ pub const Orthographic = struct {
     const Self = @This();
 
     pub fn update(self: *Self) void {
-        const size_x = self.size;
+        const size_x = 0.5 * self.size;
 
         const fr: Vec2f = @floatFromInt(self.super.resolution);
         const ratio = fr[1] / fr[0];

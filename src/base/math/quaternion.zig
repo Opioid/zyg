@@ -6,7 +6,7 @@ const std = @import("std");
 
 pub const Quaternion = Vec4f;
 
-pub const identity = Quaternion{ 0.0, 0.0, 0.0, 1.0 };
+pub const Identity = Quaternion{ 0.0, 0.0, 0.0, 1.0 };
 
 pub fn initFromMat3x3(m: Mat3x3) Quaternion {
     var t: f32 = undefined;

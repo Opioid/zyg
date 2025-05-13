@@ -115,17 +115,17 @@ pub fn main() !void {
         defer alloc.free(proto_ids);
 
         for (project.prototypes, 0..) |p, i| {
-            const proto_shape = try resources.loadFile(Shape, alloc, p.shape_file, .{});
+            const proto_shape = try (if (p.shape_file.len > 0) resources.loadFile(Shape, alloc, p.shape_file, .{}) else SceneLoader.getShape(p.shape_type));
             const proto_id = try graph.scene.createPropShape(alloc, proto_shape, &.{}, false, true);
             proto_ids[i] = proto_id;
         }
 
         resources.commitAsync();
 
-        for (proto_ids) |p| {
-            const proto_inst = graph.scene.prop(p);
+        for (project.prototypes, proto_ids) |p, proto_id| {
+            const proto_inst = graph.scene.prop(proto_id);
 
-            const aabb = proto_inst.localAabb(&graph.scene);
+            const aabb = proto_inst.localAabb(&graph.scene).transform(p.trafo.toMat4x4());
 
             max_prototype_extent = math.max4(max_prototype_extent, aabb.extent());
         }
@@ -176,8 +176,8 @@ pub fn main() !void {
 
             const selected_prototype_id = project.prototype_distribution.sample(sampler.sample1D());
 
-            const x_pos = region.bounds[0][0] + (@as(f32, @floatFromInt(x)) + 0.4 * x_jitter) * (extent[0] / fgrid[0]);
-            const z_pos = region.bounds[0][2] + (@as(f32, @floatFromInt(y)) + 0.4 * z_jitter) * (extent[2] / fgrid[1]);
+            const x_pos = region.bounds[0][0] + (@as(f32, @floatFromInt(x)) + 0.5 + 0.4 * x_jitter) * (extent[0] / fgrid[0]);
+            const z_pos = region.bounds[0][2] + (@as(f32, @floatFromInt(y)) + 0.5 + 0.4 * z_jitter) * (extent[2] / fgrid[1]);
 
             vertex.probe = Probe.init(
                 Ray.init(.{ x_pos, region.bounds[1][1] + 1.0, z_pos, 0.0 }, .{ 0.0, -1.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
@@ -199,11 +199,13 @@ pub fn main() !void {
 
             const prototype = project.prototypes[selected_prototype_id];
 
-            const trafo: Transformation = .{
+            const local_trafo: Transformation = .{
                 .position = frag.p,
                 .scale = @splat(math.lerp(prototype.scale_range[0], prototype.scale_range[1], scale_r)),
                 .rotation = math.quaternion.initRotationY((2.0 * std.math.pi) * rotation_r),
             };
+
+            const trafo = local_trafo.transform(prototype.trafo);
 
             try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = trafo.toMat4x4() });
         }

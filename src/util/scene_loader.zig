@@ -123,11 +123,7 @@ pub const Loader = struct {
 
         const parent_id: u32 = Prop.Null;
 
-        const parent_trafo = Transformation{
-            .position = @splat(0.0),
-            .scale = @splat(1.0),
-            .rotation = math.quaternion.identity,
-        };
+        const parent_trafo = Transformation.Identity;
 
         try self.loadFile(alloc, graph.take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
 
@@ -311,11 +307,7 @@ pub const Loader = struct {
             is_scatterer = true;
         }
 
-        var trafo = Transformation{
-            .position = @splat(0.0),
-            .scale = @splat(1.0),
-            .rotation = math.quaternion.identity,
-        };
+        var trafo = Transformation.Identity;
 
         var animation_ptr: ?*std.json.Value = null;
         var children_ptr: ?*std.json.Value = null;
@@ -524,11 +516,7 @@ pub const Loader = struct {
                     proto_index = 0;
                 }
 
-                var trafo = Transformation{
-                    .position = @splat(0.0),
-                    .scale = @splat(1.0),
-                    .rotation = math.quaternion.identity,
-                };
+                var trafo = Transformation.Identity;
 
                 json.readTransformation(trafo_value, &trafo);
 
@@ -692,11 +680,7 @@ pub const Loader = struct {
                     proto_index = 0;
                 }
 
-                var trafo = Transformation{
-                    .position = @splat(0.0),
-                    .scale = @splat(1.0),
-                    .rotation = math.quaternion.identity,
-                };
+                var trafo = Transformation.Identity;
 
                 json.readTransformation(trafo_value, &trafo);
 
@@ -756,7 +740,7 @@ pub const Loader = struct {
         return Error.UndefinedShape;
     }
 
-    fn getShape(type_name: []const u8) !u32 {
+    pub fn getShape(type_name: []const u8) !u32 {
         if (std.mem.eql(u8, "Canopy", type_name)) {
             return @intFromEnum(Scene.ShapeID.Canopy);
         } else if (std.mem.eql(u8, "Cube", type_name)) {

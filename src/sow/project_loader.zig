@@ -9,6 +9,7 @@ const base = @import("base");
 const json = base.json;
 const math = base.math;
 const Vec2f = math.Vec2f;
+const Transformation = math.Transformation;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -68,12 +69,16 @@ fn loadPrototypes(alloc: Allocator, value: std.json.Value, project: *Project) !v
 
 fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, weight: *f32) !void {
     var w: f32 = 1.0;
-
+    var trafo = Transformation.Identity;
     var scale_range: Vec2f = @splat(1.0);
+
+    prototype.shape_type = &.{};
+    prototype.shape_file = &.{};
 
     var iter = value.object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "shape", entry.key_ptr.*)) {
+            prototype.shape_type = try alloc.dupe(u8, json.readStringMember(entry.value_ptr.*, "type", ""));
             prototype.shape_file = try alloc.dupe(u8, json.readStringMember(entry.value_ptr.*, "file", ""));
         } else if (std.mem.eql(u8, "materials", entry.key_ptr.*)) {
             const mat_array = entry.value_ptr.array;
@@ -82,6 +87,8 @@ fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, 
             for (mat_array.items, 0..) |material, i| {
                 prototype.materials[i] = try alloc.dupe(u8, material.string);
             }
+        } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
+            json.readTransformation(entry.value_ptr.*, &trafo);
         } else if (std.mem.eql(u8, "scale_range", entry.key_ptr.*)) {
             scale_range = json.readVec2f(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "weight", entry.key_ptr.*)) {
@@ -89,6 +96,7 @@ fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, 
         }
     }
 
+    prototype.trafo = trafo;
     prototype.scale_range = scale_range;
 
     weight.* = w;

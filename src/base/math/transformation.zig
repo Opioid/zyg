@@ -9,6 +9,12 @@ pub const Transformation = struct {
     scale: Vec4f,
     rotation: Quaternion,
 
+    pub const Identity = Transformation{
+        .position = @splat(0.0),
+        .scale = @splat(1.0),
+        .rotation = quaternion.Identity,
+    };
+
     pub fn toMat4x4(self: Transformation) Mat4x4 {
         return Mat4x4.compose(quaternion.toMat3x3(self.rotation), self.scale, self.position);
     }
@@ -23,7 +29,7 @@ pub const Transformation = struct {
         return .{
             .position = self.toMat4x4().transformPoint(other.position),
             .scale = self.scale * other.scale,
-            .rotation = quaternion.mul(self.rotation, other.rotation),
+            .rotation = quaternion.mul(other.rotation, self.rotation),
         };
     }
 

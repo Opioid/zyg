@@ -3,13 +3,17 @@ const Distribution1D = math.Distribution1D;
 const Mat4x4 = math.Mat4x4;
 const Vec2u = math.Vec2u;
 const Vec2f = math.Vec2f;
+const Transformation = math.Transformation;
 
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
 
 pub const Prototype = struct {
+    shape_type: []u8,
     shape_file: []u8,
     materials: [][]u8,
+
+    trafo: Transformation,
 
     scale_range: Vec2f,
 
@@ -20,6 +24,7 @@ pub const Prototype = struct {
 
         alloc.free(self.materials);
         alloc.free(self.shape_file);
+        alloc.free(self.shape_type);
     }
 };
 
