@@ -44,6 +44,8 @@ pub const Project = struct {
 
     density: f32 = 1.0,
 
+    ortho_order: bool = false,
+
     const Self = @This();
 
     pub fn deinit(self: *Self, alloc: Allocator) void {

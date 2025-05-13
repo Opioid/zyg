@@ -156,6 +156,24 @@ pub fn main() !void {
 
     var rng: RNG = undefined;
 
+    const y_order = try alloc.alloc(f32, grid[0] * grid[1]);
+    defer alloc.free(y_order);
+
+    if (project.ortho_order) {
+        var offset: f32 = 0.0;
+        for (y_order) |*o| {
+            o.* = offset;
+            offset -= 0.01;
+        }
+
+        rng.start(0, 0);
+        base.rnd.biasedShuffle(f32, y_order, &rng);
+    } else {
+        for (y_order) |*o| {
+            o.* = 0.0;
+        }
+    }
+
     var sampler = Sampler{ .Sobol = undefined };
 
     var vertex = Vertex.init(undefined, 0);
@@ -200,7 +218,7 @@ pub fn main() !void {
             const prototype = project.prototypes[selected_prototype_id];
 
             const local_trafo: Transformation = .{
-                .position = frag.p,
+                .position = frag.p + Vec4f{ 0.0, y_order[id], 0.0, 0.0 },
                 .scale = @splat(math.lerp(prototype.scale_range[0], prototype.scale_range[1], scale_r)),
                 .rotation = math.quaternion.initRotationY((2.0 * std.math.pi) * rotation_r),
             };
