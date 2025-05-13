@@ -44,7 +44,7 @@ pub const Project = struct {
 
     density: f32 = 1.0,
 
-    ortho_order: bool = false,
+    ortho_mode: bool = false,
 
     const Self = @This();
 

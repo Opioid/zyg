@@ -46,8 +46,8 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
             project.mount_folder = try alloc.dupe(u8, json.readString(entry.value_ptr.*));
         } else if (std.mem.eql(u8, "density", entry.key_ptr.*)) {
             project.density = json.readFloat(f32, entry.value_ptr.*);
-        } else if (std.mem.eql(u8, "ortho_order", entry.key_ptr.*)) {
-            project.ortho_order = json.readBool(entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "ortho_mode", entry.key_ptr.*)) {
+            project.ortho_mode = json.readBool(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {
             try loadPrototypes(alloc, entry.value_ptr.*, project);
         }

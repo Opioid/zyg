@@ -159,7 +159,7 @@ pub fn main() !void {
     const y_order = try alloc.alloc(f32, grid[0] * grid[1]);
     defer alloc.free(y_order);
 
-    if (project.ortho_order) {
+    if (project.ortho_mode) {
         var offset: f32 = 0.0;
         for (y_order) |*o| {
             o.* = offset;
@@ -226,6 +226,28 @@ pub fn main() !void {
             const trafo = local_trafo.transform(prototype.trafo);
 
             try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = trafo.toMat4x4() });
+
+            if (project.ortho_mode) {
+                if (0 == y) {
+                    var tile_trafo = trafo;
+                    tile_trafo.position[2] += extent[2];
+                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+                } else if (grid[1] - 1 == y) {
+                    var tile_trafo = trafo;
+                    tile_trafo.position[2] -= extent[2];
+                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+                }
+
+                if (0 == x) {
+                    var tile_trafo = trafo;
+                    tile_trafo.position[0] += extent[0];
+                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+                } else if (grid[0] - 1 == x) {
+                    var tile_trafo = trafo;
+                    tile_trafo.position[0] -= extent[0];
+                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+                }
+            }
         }
     }
 
