@@ -15,6 +15,7 @@ pub const Prototype = struct {
 
     trafo: Transformation,
 
+    position_jitter: Vec2f,
     scale_range: Vec2f,
 
     pub fn deinit(self: *Prototype, alloc: Allocator) void {

@@ -193,9 +193,12 @@ pub fn main() !void {
             const mask_p = sampler.sample1D();
 
             const selected_prototype_id = project.prototype_distribution.sample(sampler.sample1D());
+            const prototype = project.prototypes[selected_prototype_id];
 
-            const x_pos = region.bounds[0][0] + (@as(f32, @floatFromInt(x)) + 0.5 + 0.4 * x_jitter) * (extent[0] / fgrid[0]);
-            const z_pos = region.bounds[0][2] + (@as(f32, @floatFromInt(y)) + 0.5 + 0.4 * z_jitter) * (extent[2] / fgrid[1]);
+            const pos_jitter = @as(Vec2f, @splat(0.5)) * prototype.position_jitter;
+
+            const x_pos = region.bounds[0][0] + (@as(f32, @floatFromInt(x)) + 0.5 + pos_jitter[0] * x_jitter) * (extent[0] / fgrid[0]);
+            const z_pos = region.bounds[0][2] + (@as(f32, @floatFromInt(y)) + 0.5 + pos_jitter[1] * z_jitter) * (extent[2] / fgrid[1]);
 
             vertex.probe = Probe.init(
                 Ray.init(.{ x_pos, region.bounds[1][1] + 1.0, z_pos, 0.0 }, .{ 0.0, -1.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
@@ -214,8 +217,6 @@ pub fn main() !void {
             if (probability < 0.99999 and probability <= mask_p) {
                 continue;
             }
-
-            const prototype = project.prototypes[selected_prototype_id];
 
             const local_trafo: Transformation = .{
                 .position = frag.p + Vec4f{ 0.0, y_order[id], 0.0, 0.0 },

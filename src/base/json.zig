@@ -63,9 +63,12 @@ pub fn readUInt64Member(value: Value, name: []const u8, default: u64) u64 {
 }
 
 pub fn readVec2f(value: Value) Vec2f {
-    return .{
-        readFloat(f32, value.array.items[0]),
-        readFloat(f32, value.array.items[1]),
+    return switch (value) {
+        .array => |a| .{
+            readFloat(f32, a.items[0]),
+            readFloat(f32, a.items[1]),
+        },
+        else => @splat(readFloat(f32, value)),
     };
 }
 
@@ -86,10 +89,7 @@ pub fn readVec2i(value: Value) Vec2i {
 pub fn readVec2fMember(value: Value, name: []const u8, default: Vec2f) Vec2f {
     const member = value.object.get(name) orelse return default;
 
-    return .{
-        readFloat(f32, member.array.items[0]),
-        readFloat(f32, member.array.items[1]),
-    };
+    return readVec2f(member);
 }
 
 pub fn readVec2iMember(value: Value, name: []const u8, default: Vec2i) Vec2i {

@@ -72,6 +72,7 @@ fn loadPrototypes(alloc: Allocator, value: std.json.Value, project: *Project) !v
 fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, weight: *f32) !void {
     var w: f32 = 1.0;
     var trafo = Transformation.Identity;
+    var position_jitter: Vec2f = @splat(0.0);
     var scale_range: Vec2f = @splat(1.0);
 
     prototype.shape_type = &.{};
@@ -91,6 +92,8 @@ fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, 
             }
         } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
             json.readTransformation(entry.value_ptr.*, &trafo);
+        } else if (std.mem.eql(u8, "position_jitter", entry.key_ptr.*)) {
+            position_jitter = json.readVec2f(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "scale_range", entry.key_ptr.*)) {
             scale_range = json.readVec2f(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "weight", entry.key_ptr.*)) {
@@ -99,6 +102,7 @@ fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, 
     }
 
     prototype.trafo = trafo;
+    prototype.position_jitter = position_jitter;
     prototype.scale_range = scale_range;
 
     weight.* = w;
