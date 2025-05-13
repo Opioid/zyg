@@ -125,6 +125,8 @@ pub const Options = struct {
             }
 
             self.operator = .{ .MaxValue = value };
+        } else if (std.mem.eql(u8, "mul", command)) {
+            self.operator = .Mul;
         } else if (std.mem.eql(u8, "over", command)) {
             self.operator = .Over;
         } else if (std.mem.eql(u8, "threads", command) or std.mem.eql(u8, "t", command)) {
