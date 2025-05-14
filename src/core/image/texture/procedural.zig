@@ -1,3 +1,4 @@
+pub const ChannelMix = @import("procedural_channel_mix.zig").ChannelMix;
 pub const Checker = @import("procedural_checker.zig").Checker;
 pub const DetailNormal = @import("procedural_detail_normal.zig").DetailNormal;
 pub const Max = @import("procedural_max.zig").Max;
@@ -25,6 +26,7 @@ pub const Procedural = struct {
     };
 
     pub const Type = enum {
+        ChannelMix,
         Checker,
         DetailNormal,
         Max,
@@ -33,6 +35,7 @@ pub const Procedural = struct {
         Noise,
     };
 
+    channel_mixes: List(ChannelMix) = .empty,
     checkers: List(Checker) = .empty,
     detail_normals: List(DetailNormal) = .empty,
     maxes: List(Max) = .empty,
@@ -52,7 +55,9 @@ pub const Procedural = struct {
     pub fn append(self: *Procedural, alloc: Allocator, procedural: anytype) !u32 {
         const ptype = @TypeOf(procedural);
 
-        if (Checker == ptype) {
+        if (ChannelMix == ptype) {
+            return appendItem(ptype, alloc, &self.channel_mixes, procedural);
+        } else if (Checker == ptype) {
             return appendItem(ptype, alloc, &self.checkers, procedural);
         } else if (DetailNormal == ptype) {
             return appendItem(ptype, alloc, &self.detail_normals, procedural);
@@ -81,6 +86,7 @@ pub const Procedural = struct {
         const data = texture.data.procedural.data;
 
         return switch (proc) {
+            .ChannelMix => self.channel_mixes.items[data].evaluate1(rs, key, sampler, context),
             .Checker => self.checkers.items[data].evaluate(rs, key, texture.uv_set, context)[0],
             .DetailNormal => 0.0,
             .Max => self.maxes.items[data].evaluate1(rs, key, sampler, context),
@@ -96,6 +102,7 @@ pub const Procedural = struct {
         const data = texture.data.procedural.data;
 
         return switch (proc) {
+            .ChannelMix => self.channel_mixes.items[data].evaluate2(rs, key, sampler, context),
             .Checker => {
                 const color = self.checkers.items[data].evaluate(rs, key, texture.uv_set, context);
                 return .{ color[0], color[1] };
@@ -114,6 +121,7 @@ pub const Procedural = struct {
         const data = texture.data.procedural.data;
 
         return switch (proc) {
+            .ChannelMix => self.channel_mixes.items[data].evaluate3(rs, key, sampler, context),
             .Checker => self.checkers.items[data].evaluate(rs, key, texture.uv_set, context),
             .DetailNormal => @splat(0.0),
             .Max => self.maxes.items[data].evaluate3(rs, key, sampler, context),

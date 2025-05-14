@@ -479,7 +479,27 @@ const TextureDescriptor = struct {
             .object => |o| {
                 var iter = o.iterator();
                 while (iter.next()) |entry| {
-                    if (std.mem.eql(u8, "Checker", entry.key_ptr.*)) {
+                    if (std.mem.eql(u8, "ChannelMix", entry.key_ptr.*)) {
+                        var channel_mix: prcd.ChannelMix = .{
+                            .source = Texture.initUniform1(0.0),
+                            .channels = .{ @splat(0.0), @splat(0.0), @splat(0.0) },
+                        };
+
+                        var citer = entry.value_ptr.object.iterator();
+                        while (citer.next()) |cn| {
+                            if (std.mem.eql(u8, "source", cn.key_ptr.*)) {
+                                channel_mix.source = readValue(alloc, cn.value_ptr.*, usage, tex, resources);
+                            } else if (std.mem.eql(u8, "channels", cn.key_ptr.*)) {
+                                const items = cn.value_ptr.array.items;
+                                channel_mix.channels[0] = json.readVec4f3(items[0]);
+                                channel_mix.channels[1] = json.readVec4f3(items[1]);
+                                channel_mix.channels[2] = json.readVec4f3(items[2]);
+                            }
+                        }
+
+                        desc.procedural = @intFromEnum(Procedural.Type.ChannelMix);
+                        desc.procedural_data = try resources.scene.procedural.append(alloc, channel_mix);
+                    } else if (std.mem.eql(u8, "Checker", entry.key_ptr.*)) {
                         desc.procedural = @intFromEnum(Procedural.Type.Checker);
                         desc.procedural_data = try resources.scene.procedural.append(alloc, prcd.Checker.init(entry.value_ptr.*));
                     } else if (std.mem.eql(u8, "DetailNormal", entry.key_ptr.*)) {
