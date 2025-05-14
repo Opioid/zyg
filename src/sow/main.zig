@@ -187,7 +187,7 @@ pub fn main() !void {
 
             const r0 = sampler.sample4D();
 
-            const order_jitter = 2.0 * r0[0] - 1.0;
+            const depth_r = r0[0];
             const x_jitter = 2.0 * r0[1] - 1.0;
             const z_jitter = 2.0 * r0[2] - 1.0;
             const scale_r = r0[3];
@@ -230,8 +230,10 @@ pub fn main() !void {
             const incline_x = math.quaternion.initRotationX(std.math.pi * prototype.incline_jitter[0] * incline_x_jitter);
             const incline_z = math.quaternion.initRotationZ(std.math.pi * prototype.incline_jitter[1] * incline_z_jitter);
 
+            const depth_offset = math.lerp(project.depth_offset_range[0], project.depth_offset_range[1], depth_r);
+
             const local_trafo: Transformation = .{
-                .position = frag.p + Vec4f{ 0.0, y_order[id] + project.ortho_order_scale * order_jitter, 0.0, 0.0 },
+                .position = frag.p + Vec4f{ 0.0, y_order[id] + depth_offset, 0.0, 0.0 },
                 .scale = @splat(math.lerp(prototype.scale_range[0], prototype.scale_range[1], scale_r)),
                 .rotation = math.quaternion.mul(math.quaternion.mul(incline_x, incline_z), rotation),
             };

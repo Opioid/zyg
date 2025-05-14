@@ -44,10 +44,10 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "mount_folder", entry.key_ptr.*)) {
             project.mount_folder = try alloc.dupe(u8, json.readString(entry.value_ptr.*));
+        } else if (std.mem.eql(u8, "depth_offset_range", entry.key_ptr.*)) {
+            project.depth_offset_range = json.readVec2f(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "density", entry.key_ptr.*)) {
             project.density = json.readFloat(f32, entry.value_ptr.*);
-        } else if (std.mem.eql(u8, "ortho_order_scale", entry.key_ptr.*)) {
-            project.ortho_order_scale = json.readFloat(f32, entry.value_ptr.*);
         } else if (std.mem.eql(u8, "tileable", entry.key_ptr.*)) {
             project.tileable = json.readBool(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {

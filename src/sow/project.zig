@@ -44,9 +44,9 @@ pub const Project = struct {
 
     prototype_distribution: Distribution1D = .{},
 
-    density: f32 = 1.0,
+    depth_offset_range: Vec2f = @splat(0.0),
 
-    ortho_order_scale: f32 = 0.0,
+    density: f32 = 1.0,
 
     tileable: bool = false,
 
