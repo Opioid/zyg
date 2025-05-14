@@ -266,7 +266,7 @@ pub fn main() !void {
         }
     }
 
-    try exp.Exporter.write(alloc, options.output, project.prototypes, instances.items);
+    try exp.Exporter.write(alloc, options.output, project.materials.items, project.prototypes, instances.items);
 }
 
 fn createOrthoCamera(alloc: Allocator, graph: *Graph) !core.camera.Orthographic {

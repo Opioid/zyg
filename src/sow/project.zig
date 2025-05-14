@@ -7,6 +7,7 @@ const Transformation = math.Transformation;
 
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
+const List = std.ArrayListUnmanaged;
 
 pub const Prototype = struct {
     shape_type: []u8,
@@ -40,6 +41,8 @@ pub const Project = struct {
 
     mount_folder: []u8 = &.{},
 
+    materials: List(u8) = .empty,
+
     prototypes: []Prototype = &.{},
 
     prototype_distribution: Distribution1D = .{},
@@ -60,6 +63,7 @@ pub const Project = struct {
         }
 
         alloc.free(self.prototypes);
+        self.materials.deinit(alloc);
         alloc.free(self.mount_folder);
         alloc.free(self.scene_filename);
     }

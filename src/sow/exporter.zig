@@ -9,6 +9,7 @@ pub const Exporter = struct {
     pub fn write(
         alloc: Allocator,
         name: []const u8,
+        materials: []const u8,
         prototypes: []const Prototype,
         instances: []const Instance,
     ) !void {
@@ -19,6 +20,14 @@ pub const Exporter = struct {
         defer stream.deinit();
 
         try stream.beginObject();
+
+        if (materials.len > 0) {
+            try stream.objectField("materials");
+
+            try stream.beginWriteRaw();
+            try stream.stream.writeAll(materials);
+            stream.endWriteRaw();
+        }
 
         try stream.objectField("prototypes");
         {
