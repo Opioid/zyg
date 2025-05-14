@@ -244,19 +244,17 @@ fn mapColor(color: Vec4f) Vec4f {
     return spectrum.sRGBtoAP1(color);
 }
 
-pub fn readColor(value: std.json.Value) Vec4f {
+pub fn readColor(value: std.json.Value, default: Vec4f) Vec4f {
     return switch (value) {
-        .array => mapColor(readVec4f3(value)),
-        .integer => |i| mapColor(@splat(@floatFromInt(i))),
-        .float => |f| mapColor(@splat(@floatCast(f))),
+        .array, .float, .integer => mapColor(readVec4f3(value)),
         .object => |o| {
-            var rgb: Vec4f = @splat(0.0);
+            var rgb: Vec4f = default;
             var linear = true;
 
             var iter = o.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "sRGB", entry.key_ptr.*)) {
-                    rgb = readColor(entry.value_ptr.*);
+                    rgb = readVec4f3(entry.value_ptr.*);
                 } else if (std.mem.eql(u8, "temperature", entry.key_ptr.*)) {
                     const temperature = readFloat(f32, entry.value_ptr.*);
                     rgb = spectrum.blackbody(math.max(800.0, temperature));
@@ -271,6 +269,6 @@ pub fn readColor(value: std.json.Value) Vec4f {
 
             return mapColor(rgb);
         },
-        else => @splat(0.0),
+        else => default,
     };
 }
