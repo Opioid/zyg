@@ -17,26 +17,26 @@ pub const ChannelMix = struct {
     pub fn evaluate1(self: ChannelMix, rs: Renderstate, key: ts.Key, sampler: *Sampler, context: Context) f32 {
         const c = ts.sample2D_3(key, self.source, rs, sampler, context);
 
-        return math.dot3(c, self.channels[0]);
+        return math.clamp(math.dot3(c, self.channels[0]), 0.0, 1.0);
     }
 
     pub fn evaluate2(self: ChannelMix, rs: Renderstate, key: ts.Key, sampler: *Sampler, context: Context) Vec2f {
         const c = ts.sample2D_3(key, self.source, rs, sampler, context);
 
-        return .{
+        return math.clamp2(.{
             math.dot3(c, self.channels[0]),
             math.dot3(c, self.channels[1]),
-        };
+        }, 0.0, 1.0);
     }
 
     pub fn evaluate3(self: ChannelMix, rs: Renderstate, key: ts.Key, sampler: *Sampler, context: Context) Vec4f {
         const c = ts.sample2D_3(key, self.source, rs, sampler, context);
 
-        return .{
+        return math.clamp4(.{
             math.dot3(c, self.channels[0]),
             math.dot3(c, self.channels[1]),
             math.dot3(c, self.channels[2]),
             0.0,
-        };
+        }, 0.0, 1.0);
     }
 };
