@@ -108,7 +108,14 @@ pub const Context = struct {
     }
 
     pub fn intersectAndResolveMask(self: Self, probe: *Probe, frag: *Fragment, sampler: *Sampler) bool {
-        while (true) {
+        // This used to be an infinite loop, with the intention of rendering potentially "intinite forests".
+        // frag.offsetP() was trusted to always advance the ray origin.
+        // But I have seen cases where probe.ray.origin == frag.offsetP(probe.ray.direction);,
+        // without exactly understanding, why it fails.
+        // Anyway, now the loop is guaranteed to exit and 256 iterations is hopefully plenty for now.
+        // I wonder if it wouldn't be better to check for that specific case and terminate then...
+
+        for (0..256) |_| {
             if (!self.scene.intersect(probe, frag)) {
                 return false;
             }

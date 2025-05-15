@@ -49,8 +49,6 @@ pub fn main() !void {
 
     const num_workers = Threads.availableCores(options.threads);
 
-    log.info("#Threads {}", .{num_workers});
-
     var threads: Threads = .{};
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
@@ -81,8 +79,17 @@ pub fn main() !void {
     var project: Project = .{};
     defer project.deinit(alloc);
 
-    try ProjectLoader.load(alloc, stream, &project);
+    ProjectLoader.load(alloc, stream, &project) catch |err| {
+        log.err("Loading project: {}", .{err});
+        return;
+    };
+
     stream.deinit();
+
+    if (0 == project.prototypes.len) {
+        log.err("No prototypes specified.", .{});
+        return;
+    }
 
     graph.take.resolved_filename = try resources.fs.cloneLastResolvedName(alloc);
     graph.take.scene_filename = try alloc.dupe(u8, project.scene_filename);
@@ -92,6 +99,7 @@ pub fn main() !void {
 
     scene_loader.load(alloc, &graph) catch |err| {
         log.err("Loading scene: {}", .{err});
+        return;
     };
 
     var ortho = try createOrthoCamera(alloc, &graph);
