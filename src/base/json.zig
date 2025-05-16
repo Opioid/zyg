@@ -244,11 +244,11 @@ fn mapColor(color: Vec4f) Vec4f {
     return spectrum.sRGBtoAP1(color);
 }
 
-pub fn readColor(value: std.json.Value, default: Vec4f) Vec4f {
+pub fn readColor(value: std.json.Value) Vec4f {
     return switch (value) {
         .array, .float, .integer => mapColor(readVec4f3(value)),
         .object => |o| {
-            var rgb: Vec4f = default;
+            var rgb: Vec4f = @splat(0.0);
             var linear = true;
 
             var iter = o.iterator();
@@ -269,6 +269,6 @@ pub fn readColor(value: std.json.Value, default: Vec4f) Vec4f {
 
             return mapColor(rgb);
         },
-        else => default,
+        else => @splat(0.0),
     };
 }

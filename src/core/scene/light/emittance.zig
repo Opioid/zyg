@@ -23,8 +23,10 @@ pub const Emittance = struct {
     };
 
     emission_map: Texture = Texture.initUniform1(1.0),
+    profile: Texture = Texture.initUniform1(0.0),
+
     value: Vec4f = @splat(0.0),
-    profile: Texture = .{},
+
     cos_a: f32 = -1.0,
     quantity: Quantity = .Radiance,
     num_samples: u32 = 1,
@@ -125,10 +127,7 @@ pub const Emittance = struct {
 
         const d = self.profile.description(scene).dimensions;
 
-        const idf = @as(Vec2f, @splat(1.0)) / Vec2f{
-            @floatFromInt(d[0]),
-            @floatFromInt(d[1]),
-        };
+        const idf = @as(Vec4f, @splat(1.0)) / @as(Vec4f, @floatFromInt(d));
 
         var cos_a: f32 = 1.0;
 

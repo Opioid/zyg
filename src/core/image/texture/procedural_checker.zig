@@ -29,8 +29,8 @@ pub const Checker = struct {
             if (std.mem.eql(u8, "scale", cn.key_ptr.*)) {
                 checker.scale = json.readFloat(f32, cn.value_ptr.*);
             } else if (std.mem.eql(u8, "colors", cn.key_ptr.*)) {
-                checker.color_a = math.vec4fTo3f(json.readColor(cn.value_ptr.array.items[0], @splat(0.0)));
-                checker.color_b = math.vec4fTo3f(json.readColor(cn.value_ptr.array.items[1], @splat(0.0)));
+                checker.color_a = math.vec4fTo3f(json.readColor(cn.value_ptr.array.items[0]));
+                checker.color_b = math.vec4fTo3f(json.readColor(cn.value_ptr.array.items[1]));
             }
         }
 

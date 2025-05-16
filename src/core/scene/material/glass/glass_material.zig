@@ -18,7 +18,7 @@ const Vec4f = math.Vec4f;
 pub const Material = struct {
     super: Base = .{},
 
-    normal_map: Texture = .{},
+    normal_map: Texture = Texture.initUniform1(0.0),
     roughness: Texture = Texture.initUniform1(0.0),
 
     absorption: Vec4f = undefined,

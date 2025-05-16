@@ -34,7 +34,7 @@ pub const Material = struct {
 
     emittance: Emittance = .{},
 
-    density_map: Texture = .{},
+    density_map: Texture = Texture.initUniform1(0.0),
 
     blackbody: math.InterpolatedFunction1D(Vec4f) = .{},
 

@@ -34,13 +34,14 @@ pub const Material = struct {
     emittance: Emittance = .{},
 
     color: Texture = Texture.initUniform3(@splat(0.5)),
-    normal_map: Texture = .{},
+    normal_map: Texture = Texture.initUniform1(0.0),
     roughness: Texture = Texture.initUniform1(0.8),
     metallic: Texture = Texture.initUniform1(0.0),
+    specular: Texture = Texture.initUniform1(1.0),
     rotation: Texture = Texture.initUniform1(0.0),
     translucency: Texture = Texture.initUniform1(0.0),
     attenuation_color: Texture = Texture.initUniform3(@splat(0.0)),
-    coating_normal_map: Texture = .{},
+    coating_normal_map: Texture = Texture.initUniform1(0.0),
     coating_scale: Texture = Texture.initUniform1(1.0),
     coating_roughness: Texture = Texture.initUniform1(0.2),
     flakes_coverage: Texture = Texture.initUniform1(0.0),
@@ -113,6 +114,7 @@ pub const Material = struct {
 
         const roughness = ggx.clampRoughness(ts.sample2D_1(key, self.roughness, rs, sampler, context));
         const metallic = ts.sample2D_1(key, self.metallic, rs, sampler, context);
+        const specular = ts.sample2D_1(key, self.specular, rs, sampler, context);
 
         const alpha = anisotropicAlpha(roughness, self.anisotropy);
 
@@ -138,6 +140,7 @@ pub const Material = struct {
             ior_outer,
             rs.ior,
             metallic,
+            specular,
             attenuation_distance,
             self.volumetric_anisotropy,
             translucency,
