@@ -196,24 +196,24 @@ pub fn main() !void {
             const r0 = sampler.sample4D();
 
             const depth_r = r0[0];
-            const x_jitter = 2.0 * r0[1] - 1.0;
-            const z_jitter = 2.0 * r0[2] - 1.0;
+            const x_r = 2.0 * r0[1] - 1.0;
+            const z_r = 2.0 * r0[2] - 1.0;
             const scale_r = r0[3];
 
             const mask_p = sampler.sample1D();
 
             const r1 = sampler.sample4D();
             const rotation_r = r1[0];
-            const incline_x_jitter = 2.0 * r0[1] - 1.0;
-            const incline_z_jitter = 2.0 * r0[2] - 1.0;
+            const incline_x_r = 2.0 * r1[1] - 1.0;
+            const incline_z_r = 2.0 * r1[2] - 1.0;
 
             const selected_prototype_id = project.prototype_distribution.sample(r1[3]);
             const prototype = project.prototypes[selected_prototype_id];
 
             const pos_jitter = @as(Vec2f, @splat(0.5)) * prototype.position_jitter;
 
-            const x_pos = region.bounds[0][0] + (@as(f32, @floatFromInt(x)) + 0.5 + pos_jitter[0] * x_jitter) * (extent[0] / fgrid[0]);
-            const z_pos = region.bounds[0][2] + (@as(f32, @floatFromInt(y)) + 0.5 + pos_jitter[1] * z_jitter) * (extent[2] / fgrid[1]);
+            const x_pos = region.bounds[0][0] + (@as(f32, @floatFromInt(x)) + 0.5 + pos_jitter[0] * x_r) * (extent[0] / fgrid[0]);
+            const z_pos = region.bounds[0][2] + (@as(f32, @floatFromInt(y)) + 0.5 + pos_jitter[1] * z_r) * (extent[2] / fgrid[1]);
 
             vertex.probe = Probe.init(
                 Ray.init(.{ x_pos, region.bounds[1][1] + 1.0, z_pos, 0.0 }, .{ 0.0, -1.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
@@ -235,8 +235,8 @@ pub fn main() !void {
 
             const rotation = math.quaternion.initRotationY((2.0 * std.math.pi) * rotation_r);
 
-            const incline_x = math.quaternion.initRotationX(std.math.pi * prototype.incline_jitter[0] * incline_x_jitter);
-            const incline_z = math.quaternion.initRotationZ(std.math.pi * prototype.incline_jitter[1] * incline_z_jitter);
+            const incline_x = math.quaternion.initRotationX(std.math.pi * prototype.incline_jitter[0] * incline_x_r);
+            const incline_z = math.quaternion.initRotationZ(std.math.pi * prototype.incline_jitter[1] * incline_z_r);
 
             const depth_offset = math.lerp(project.depth_offset_range[0], project.depth_offset_range[1], depth_r);
 
