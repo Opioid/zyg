@@ -4,6 +4,7 @@ const Sample = cs.CameraSample;
 const SampleTo = cs.CameraSampleTo;
 const Aperture = @import("aperture.zig").Aperture;
 const Shaper = @import("../rendering/shaper.zig").Shaper;
+const Context = @import("../scene/context.zig").Context;
 const Prop = @import("../scene/prop/prop.zig").Prop;
 const Scene = @import("../scene/scene.zig").Scene;
 const vt = @import("../scene/vertex.zig");
@@ -27,6 +28,7 @@ const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4f = math.Vec4f;
 const Mat3x3 = math.Mat3x3;
+const rnd = base.rnd;
 const Variants = base.memory.VariantMap;
 
 const std = @import("std");
@@ -343,8 +345,11 @@ pub const Perspective = struct {
                 time,
             );
 
+            var rng = rnd.Generator.init(0, 0);
+            var sampler = Sampler{ .Random = .{ .rng = &rng } };
+
             var frag: Fragment = undefined;
-            if (scene.intersect(&probe, &frag)) {
+            if (scene.intersect(&probe, &sampler, &frag)) {
                 self.focus_distance = probe.ray.max_t + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;

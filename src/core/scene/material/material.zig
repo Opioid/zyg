@@ -245,7 +245,7 @@ pub const Material = union(enum) {
                 return m.visibility(wi, rs, sampler, context, tr);
             },
             else => {
-                const o = self.super().opacity(rs, sampler, context);
+                const o = self.super().opacity(rs.uv(), sampler, context.scene);
                 if (o < 1.0) {
                     tr.* *= @splat(1.0 - o);
                     return true;

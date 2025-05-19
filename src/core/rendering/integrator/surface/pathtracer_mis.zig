@@ -328,7 +328,7 @@ pub const PathtracerMIS = struct {
 
         if (ro.RayMaxT == vertex.probe.ray.max_t) {
             for (context.scene.infinite_props.items) |prop| {
-                if (!context.propIntersect(prop, vertex.probe, &light_frag)) {
+                if (!context.propIntersect(prop, vertex.probe, sampler, &light_frag)) {
                     continue;
                 }
 

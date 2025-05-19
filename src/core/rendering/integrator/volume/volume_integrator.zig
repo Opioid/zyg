@@ -93,7 +93,7 @@ pub const Integrator = struct {
         const ray_max_t = vertex.probe.ray.max_t;
         const limit = context.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse ray_max_t;
         vertex.probe.ray.max_t = math.min(ro.offsetF(limit), ray_max_t);
-        if (!context.intersectAndResolveMask(&vertex.probe, frag, sampler)) {
+        if (!context.intersect(&vertex.probe, sampler, frag)) {
             return;
         }
 

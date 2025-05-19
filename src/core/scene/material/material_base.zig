@@ -1,7 +1,6 @@
 const Rainbow = @import("rainbow_integral.zig");
 const fresnel = @import("fresnel.zig");
-const Context = @import("../context.zig").Context;
-const Renderstate = @import("../renderstate.zig").Renderstate;
+const Scene = @import("../scene.zig").Scene;
 const Texture = @import("../../image/texture/texture.zig").Texture;
 const ts = @import("../../image/texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -56,8 +55,25 @@ pub const Base = struct {
         self.properties.two_sided = two_sided;
     }
 
-    pub fn opacity(self: *const Base, rs: Renderstate, sampler: *Sampler, context: Context) f32 {
-        return ts.sample2D_1(self.sampler_key, self.mask, rs, sampler, context);
+    pub fn opacity(self: *const Base, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
+        if (!self.mask.isImage()) {
+            return 1.0;
+        }
+
+        return ts.sampleImage2D_1(self.sampler_key, self.mask, uv, sampler, scene);
+    }
+
+    pub fn stochasticOpacity(self: *const Base, uv: Vec2f, sampler: *Sampler, scene: *const Scene) bool {
+        if (!self.mask.isImage()) {
+            return true;
+        }
+
+        const o = ts.sampleImage2D_1(self.sampler_key, self.mask, uv, sampler, scene);
+        if (0.0 == o or (o < 1.0 and o <= sampler.sample1D())) {
+            return false;
+        }
+
+        return true;
     }
 
     pub const Start_wavelength = Rainbow.Wavelength_start;

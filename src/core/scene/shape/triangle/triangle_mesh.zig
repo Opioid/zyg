@@ -434,6 +434,11 @@ pub const Mesh = struct {
         return self.tree.intersect(local_ray, trafo, isec);
     }
 
+    pub fn intersectOpacity(self: *const Mesh, ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, isec: *Intersection) bool {
+        const local_ray = trafo.worldToObjectRay(ray);
+        return self.tree.intersectOpacity(local_ray, trafo, entity, sampler, scene, isec);
+    }
+
     pub fn fragment(self: *const Mesh, frag: *Fragment) void {
         const data = self.tree.data;
 
@@ -480,8 +485,8 @@ pub const Mesh = struct {
         context: Context,
         tr: *Vec4f,
     ) bool {
-        const tray = trafo.worldToObjectRay(ray);
-        return self.tree.visibility(tray, entity, sampler, context, tr);
+        const local_ray = trafo.worldToObjectRay(ray);
+        return self.tree.visibility(local_ray, entity, sampler, context, tr);
     }
 
     pub fn transmittance(
@@ -493,8 +498,8 @@ pub const Mesh = struct {
         context: Context,
         tr: *Vec4f,
     ) bool {
-        const tray = trafo.worldToObjectRay(probe.ray);
-        return self.tree.transmittance(tray, trafo, entity, probe.depth.volume, sampler, context, tr);
+        const local_ray = trafo.worldToObjectRay(probe.ray);
+        return self.tree.transmittance(local_ray, trafo, entity, probe.depth.volume, sampler, context, tr);
     }
 
     pub fn emission(

@@ -47,7 +47,7 @@ pub const Material = struct {
     pub fn initSun(alloc: Allocator) !Material {
         return Material{
             .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
-            .emission_map = .{},
+            .emission_map = Texture.initUniform1(0.0),
             .sun_radiance = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, Sky.Bake_dimensions_sun),
         };
     }

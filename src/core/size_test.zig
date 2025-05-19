@@ -42,17 +42,17 @@ pub fn testSize() void {
     testType(LightNode, "LightNode", 32);
     testType(mdm.Medium, "Medium", 80);
     testType(mdm.Stack, "MediumStack", 464);
-    testType(mt.Material, "Material", 352);
-    testType(mt.Substitute, "SubstituteMaterial", 336);
+    testType(mt.Material, "Material", 368);
+    testType(mt.Substitute, "SubstituteMaterial", 352);
     testType(mt.Hair, "HairMaterial", 112);
     testType(mt.Sample, "MaterialSample", 288);
-    testType(mtsmpl.Substitute, "SubstituteSample", 240);
+    testType(mtsmpl.Substitute, "SubstituteSample", 256);
     testType(mtsmpl.Hair, "HairSample", 272);
     testType(Texture, "Texture", 16);
     testType(SamplerKey, "SamplerKey", 3);
     testType(TriangleMesh, "TriangleMesh", 80);
     testType(TriangleBvh, "TriangleBvh", 56);
-    testType(Worker, "Worker", 352);
+    testType(Worker, "Worker", 368);
 }
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {

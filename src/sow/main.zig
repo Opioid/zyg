@@ -49,8 +49,6 @@ pub fn main() !void {
 
     const num_workers = Threads.availableCores(options.threads);
 
-    log.info("#Threads {}", .{num_workers});
-
     var threads: Threads = .{};
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
@@ -81,8 +79,17 @@ pub fn main() !void {
     var project: Project = .{};
     defer project.deinit(alloc);
 
-    try ProjectLoader.load(alloc, stream, &project);
+    ProjectLoader.load(alloc, stream, &project) catch |err| {
+        log.err("Loading project: {}", .{err});
+        return;
+    };
+
     stream.deinit();
+
+    if (0 == project.prototypes.len) {
+        log.err("No prototypes specified.", .{});
+        return;
+    }
 
     graph.take.resolved_filename = try resources.fs.cloneLastResolvedName(alloc);
     graph.take.scene_filename = try alloc.dupe(u8, project.scene_filename);
@@ -92,6 +99,7 @@ pub fn main() !void {
 
     scene_loader.load(alloc, &graph) catch |err| {
         log.err("Loading scene: {}", .{err});
+        return;
     };
 
     var ortho = try createOrthoCamera(alloc, &graph);
@@ -115,17 +123,17 @@ pub fn main() !void {
         defer alloc.free(proto_ids);
 
         for (project.prototypes, 0..) |p, i| {
-            const proto_shape = try resources.loadFile(Shape, alloc, p.shape_file, .{});
+            const proto_shape = try (if (p.shape_file.len > 0) resources.loadFile(Shape, alloc, p.shape_file, .{}) else SceneLoader.getShape(p.shape_type));
             const proto_id = try graph.scene.createPropShape(alloc, proto_shape, &.{}, false, true);
             proto_ids[i] = proto_id;
         }
 
         resources.commitAsync();
 
-        for (proto_ids) |p| {
-            const proto_inst = graph.scene.prop(p);
+        for (project.prototypes, proto_ids) |p, proto_id| {
+            const proto_inst = graph.scene.prop(proto_id);
 
-            const aabb = proto_inst.localAabb(&graph.scene);
+            const aabb = proto_inst.localAabb(&graph.scene).transform(p.trafo.toMat4x4());
 
             max_prototype_extent = math.max4(max_prototype_extent, aabb.extent());
         }
@@ -156,6 +164,24 @@ pub fn main() !void {
 
     var rng: RNG = undefined;
 
+    const y_order = try alloc.alloc(f32, grid[0] * grid[1]);
+    defer alloc.free(y_order);
+
+    // if (project.ortho_mode) {
+    //     var offset: f32 = 0.0;
+    //     for (y_order) |*o| {
+    //         o.* = offset;
+    //         offset -= 0.01;
+    //     }
+
+    //     rng.start(0, 0);
+    //     base.rnd.biasedShuffle(f32, y_order, &rng);
+    // } else {
+    for (y_order) |*o| {
+        o.* = 0.0;
+    }
+    // }
+
     var sampler = Sampler{ .Sobol = undefined };
 
     var vertex = Vertex.init(undefined, 0);
@@ -167,17 +193,27 @@ pub fn main() !void {
 
             sampler.startPixel(0, rng.randomUint());
 
-            const r = sampler.sample4D();
-            const z_jitter = 2.0 * r[0] - 1.0;
-            const x_jitter = 2.0 * r[1] - 1.0;
-            const scale_r = r[2];
-            const rotation_r = r[3];
+            const r0 = sampler.sample4D();
+
+            const depth_r = r0[0];
+            const x_r = 2.0 * r0[1] - 1.0;
+            const z_r = 2.0 * r0[2] - 1.0;
+            const scale_r = r0[3];
+
             const mask_p = sampler.sample1D();
 
-            const selected_prototype_id = project.prototype_distribution.sample(sampler.sample1D());
+            const r1 = sampler.sample4D();
+            const rotation_r = r1[0];
+            const incline_x_r = 2.0 * r1[1] - 1.0;
+            const incline_z_r = 2.0 * r1[2] - 1.0;
 
-            const x_pos = region.bounds[0][0] + (@as(f32, @floatFromInt(x)) + 0.4 * x_jitter) * (extent[0] / fgrid[0]);
-            const z_pos = region.bounds[0][2] + (@as(f32, @floatFromInt(y)) + 0.4 * z_jitter) * (extent[2] / fgrid[1]);
+            const selected_prototype_id = project.prototype_distribution.sample(r1[3]);
+            const prototype = project.prototypes[selected_prototype_id];
+
+            const pos_jitter = @as(Vec2f, @splat(0.5)) * prototype.position_jitter;
+
+            const x_pos = region.bounds[0][0] + (@as(f32, @floatFromInt(x)) + 0.5 + pos_jitter[0] * x_r) * (extent[0] / fgrid[0]);
+            const z_pos = region.bounds[0][2] + (@as(f32, @floatFromInt(y)) + 0.5 + pos_jitter[1] * z_r) * (extent[2] / fgrid[1]);
 
             vertex.probe = Probe.init(
                 Ray.init(.{ x_pos, region.bounds[1][1] + 1.0, z_pos, 0.0 }, .{ 0.0, -1.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
@@ -185,7 +221,7 @@ pub fn main() !void {
             );
 
             var frag: Fragment = undefined;
-            if (!graph.scene.intersect(&vertex.probe, &frag)) {
+            if (!graph.scene.intersect(&vertex.probe, &sampler, &frag)) {
                 continue;
             }
 
@@ -197,19 +233,48 @@ pub fn main() !void {
                 continue;
             }
 
-            const prototype = project.prototypes[selected_prototype_id];
+            const rotation = math.quaternion.initRotationY((2.0 * std.math.pi) * rotation_r);
 
-            const trafo: Transformation = .{
-                .position = frag.p,
+            const incline_x = math.quaternion.initRotationX(std.math.pi * prototype.incline_jitter[0] * incline_x_r);
+            const incline_z = math.quaternion.initRotationZ(std.math.pi * prototype.incline_jitter[1] * incline_z_r);
+
+            const depth_offset = math.lerp(project.depth_offset_range[0], project.depth_offset_range[1], depth_r);
+
+            const local_trafo: Transformation = .{
+                .position = frag.p + Vec4f{ 0.0, y_order[id] + depth_offset, 0.0, 0.0 },
                 .scale = @splat(math.lerp(prototype.scale_range[0], prototype.scale_range[1], scale_r)),
-                .rotation = math.quaternion.initRotationY((2.0 * std.math.pi) * rotation_r),
+                .rotation = math.quaternion.mul(math.quaternion.mul(incline_x, incline_z), rotation),
             };
 
+            const trafo = local_trafo.transform(prototype.trafo);
+
             try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = trafo.toMat4x4() });
+
+            if (project.tileable) {
+                if (0 == y) {
+                    var tile_trafo = trafo;
+                    tile_trafo.position[2] += extent[2];
+                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+                } else if (grid[1] - 1 == y) {
+                    var tile_trafo = trafo;
+                    tile_trafo.position[2] -= extent[2];
+                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+                }
+
+                if (0 == x) {
+                    var tile_trafo = trafo;
+                    tile_trafo.position[0] += extent[0];
+                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+                } else if (grid[0] - 1 == x) {
+                    var tile_trafo = trafo;
+                    tile_trafo.position[0] -= extent[0];
+                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+                }
+            }
         }
     }
 
-    try exp.Exporter.write(alloc, options.output, project.prototypes, instances.items);
+    try exp.Exporter.write(alloc, options.output, project.materials.items, project.prototypes, instances.items);
 }
 
 fn createOrthoCamera(alloc: Allocator, graph: *Graph) !core.camera.Orthographic {

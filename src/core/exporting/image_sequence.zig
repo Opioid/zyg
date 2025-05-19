@@ -47,7 +47,7 @@ pub const ImageSequence = struct {
         if (aov) |a| {
             encoding = a.encoding();
         } else {
-            encoding = if (self.alpha) .Color_alpha else .Color;
+            encoding = if (self.alpha) .ColorAlpha else .Color;
         }
 
         var buffered = std.io.bufferedWriter(file.writer());
@@ -63,6 +63,7 @@ pub const ImageSequence = struct {
                 .MaterialId => "_mat",
                 .GeometricNormal => "_ng",
                 .ShadingNormal => "_ns",
+                .Roughness => "_r",
                 .Direct => "_direct",
                 .Indirect => "_indirect",
             };

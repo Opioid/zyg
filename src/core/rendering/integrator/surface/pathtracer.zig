@@ -140,7 +140,7 @@ pub const Pathtracer = struct {
         inf_frag.event = .Pass;
 
         for (context.scene.infinite_props.items) |prop| {
-            if (!context.propIntersect(prop, vertex.probe, &inf_frag)) {
+            if (!context.propIntersect(prop, vertex.probe, sampler, &inf_frag)) {
                 continue;
             }
 

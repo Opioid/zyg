@@ -18,7 +18,7 @@ const Vec4f = math.Vec4f;
 pub const Material = struct {
     super: Base = .{},
 
-    normal_map: Texture = .{},
+    normal_map: Texture = Texture.initUniform1(0.0),
     roughness: Texture = Texture.initUniform1(0.0),
 
     absorption: Vec4f = undefined,
@@ -32,7 +32,7 @@ pub const Material = struct {
 
         const thin = self.thickness > 0.0;
         properties.two_sided = thin;
-        properties.evaluate_visibility = thin or !self.super.mask.isUniform();
+        properties.evaluate_visibility = thin or self.super.mask.isImage();
         properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= ggx.MinRoughness;
     }
 
@@ -74,7 +74,7 @@ pub const Material = struct {
     }
 
     pub fn visibility(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
-        const o = self.super.opacity(rs, sampler, context);
+        const o = self.super.opacity(rs.uv(), sampler, context.scene);
 
         if (self.thickness > 0.0) {
             const eta_i: f32 = 1.0;

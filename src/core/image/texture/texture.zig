@@ -56,9 +56,9 @@ pub const Texture = struct {
         image: Image,
     };
 
-    type: Type = .Uniform,
+    type: Type,
     uv_set: TexCoordMode = undefined,
-    data: Data = undefined,
+    data: Data,
 
     pub fn initImage(class: Type, image_id: u32, uv_set: TexCoordMode, scale: Vec2f) Texture {
         return .{ .type = class, .uv_set = uv_set, .data = .{ .image = .{ .id = image_id, .scale = scale } } };

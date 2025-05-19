@@ -30,6 +30,7 @@ pub const Sample = struct {
     ior: IoR,
 
     metallic: f32,
+    specular: f32,
     opacity: f32,
 
     pub fn init(
@@ -42,6 +43,7 @@ pub const Sample = struct {
         ior_outer: f32,
         ior_medium: f32,
         metallic: f32,
+        specular: f32,
         attenuation_distance: f32,
         volumetric_anisotropy: f32,
         translucency: f32,
@@ -65,6 +67,7 @@ pub const Sample = struct {
             .f0 = math.lerp(@as(Vec4f, @splat(f0)), albedo, @as(Vec4f, @splat(metallic))),
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
             .metallic = metallic,
+            .specular = specular,
             .opacity = 1.0 - (0.5 * translucency),
         };
     }
@@ -240,12 +243,14 @@ pub const Sample = struct {
             return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * d.reflection, dw * d.pdf);
         }
 
+        const s = self.specular;
+
         if (self.super.properties.flakes) {
             const cos_cone = alpha[0];
             const r = math.reflect3(frame.z, wo);
             const f = if (math.dot3(wi, r) > cos_cone) 1.0 / math.solidAngleOfCone(cos_cone) else 0.0;
 
-            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * f)) * self.f0, f);
+            return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi * f * s)) * self.f0, f);
         }
 
         const schlick = fresnel.Schlick.init(self.f0);
@@ -256,7 +261,7 @@ pub const Sample = struct {
 
         const pdf = dw * d.pdf + (1.0 - dw) * gg.pdf;
 
-        return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * (d.reflection + gg.reflection + mms), pdf);
+        return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * (d.reflection + @as(Vec4f, @splat(s)) * (gg.reflection + mms)), pdf);
     }
 
     fn baseSample(self: *const Sample, sampler: *Sampler, result: *bxdf.Sample) void {
@@ -334,7 +339,9 @@ pub const Sample = struct {
 
         const mms = ggx.dspbrMicroEc(self.f0, micro.n_dot_wi, frame.clampNdot(wo), alpha[1]);
 
-        result.reflection = @as(Vec4f, @splat(micro.n_dot_wi)) * (result.reflection + gg.reflection + mms);
+        const s = self.specular;
+
+        result.reflection = @as(Vec4f, @splat(micro.n_dot_wi)) * (result.reflection + @as(Vec4f, @splat(s)) * (gg.reflection + mms));
         result.pdf = diffuse_weight * result.pdf + (1.0 - diffuse_weight) * gg.pdf;
 
         return micro;
@@ -344,6 +351,7 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const frame = self.super.frame;
         const alpha = self.super.alpha;
+        const s = self.specular;
 
         if (self.super.properties.flakes) {
             const cos_cone = alpha[0];
@@ -358,7 +366,7 @@ pub const Sample = struct {
 
             const n_dot_wi = frame.clampNdot(wi);
 
-            result.reflection = @as(Vec4f, @splat(n_dot_wi * f)) * self.f0;
+            result.reflection = @as(Vec4f, @splat(n_dot_wi * f * s)) * self.f0;
             result.wi = wi;
             result.pdf = f;
             result.class = .{ .glossy = true, .reflection = true };
@@ -381,7 +389,7 @@ pub const Sample = struct {
                 d = diffuse.Micro.reflection(albedo, f0m, micro.n_dot_wi, n_dot_wo, alpha[1]);
             }
 
-            result.reflection = @as(Vec4f, @splat(micro.n_dot_wi)) * (result.reflection + mms + d.reflection);
+            result.reflection = @as(Vec4f, @splat(micro.n_dot_wi)) * (@as(Vec4f, @splat(s)) * (result.reflection + mms) + d.reflection);
             result.pdf = (1.0 - diffuse_weight) * result.pdf + diffuse_weight * d.pdf;
 
             return micro;
@@ -426,6 +434,7 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const alpha = self.super.alpha;
         const frame = self.super.frame;
+        const s = self.specular;
 
         if (!self.super.sameHemisphere(wo)) {
             const ior = quo_ior.swapped(false);
@@ -462,7 +471,7 @@ pub const Sample = struct {
             const split_pdf = if (split) 1.0 else gg.f[0];
 
             return bxdf.Result.init(
-                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * attenuation * gg.r.reflection,
+                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp * s)) * attenuation * gg.r.reflection,
                 split_pdf * gg.r.pdf,
             );
         }
@@ -483,7 +492,7 @@ pub const Sample = struct {
         const coated = self.coating.thickness > 0.0;
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
-        const base_reflection = @as(Vec4f, @splat(n_dot_wi)) * (gg.r.reflection + mms);
+        const base_reflection = @as(Vec4f, @splat(n_dot_wi * s)) * (gg.r.reflection + mms);
         const split_pdf = if (split and !coated) 1.0 else gg.f[0];
         const base_pdf = split_pdf * gg.r.pdf;
 
@@ -520,6 +529,7 @@ pub const Sample = struct {
         const same_side = self.super.sameHemisphere(wo);
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
+        const s = self.specular;
 
         const s3 = sampler.sample3D();
         const xi = Vec2f{ s3[1], s3[2] };
@@ -548,7 +558,7 @@ pub const Sample = struct {
                 const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, frame, &buffer[0]);
 
                 const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
-                const reflection = @as(Vec4f, @splat(n_dot_wi)) * (buffer[0].reflection + mms);
+                const reflection = @as(Vec4f, @splat(n_dot_wi * s)) * (buffer[0].reflection + mms);
 
                 buffer[0].reflection = reflection;
                 buffer[0].split_weight = f;
@@ -590,7 +600,7 @@ pub const Sample = struct {
                 const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, frame, result);
 
                 const mms = if (same_side) ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]) else @as(Vec4f, @splat(0.0));
-                const reflection = @as(Vec4f, @splat(n_dot_wi * ep)) * (@as(Vec4f, @splat(f)) * result.reflection + mms);
+                const reflection = @as(Vec4f, @splat(n_dot_wi * ep * s)) * (@as(Vec4f, @splat(f)) * result.reflection + mms);
 
                 result.reflection = reflection;
                 result.pdf *= f;
@@ -625,6 +635,7 @@ pub const Sample = struct {
         const same_side = self.super.sameHemisphere(wo);
         const frame = self.super.frame.swapped(same_side);
         const ior = quo_ior.swapped(same_side);
+        const s = self.specular;
 
         const s3 = sampler.sample3D();
         const xi = Vec2f{ s3[1], s3[2] };
@@ -664,7 +675,7 @@ pub const Sample = struct {
                     const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, frame, result);
 
                     const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
-                    const reflection = @as(Vec4f, @splat(n_dot_wi)) * (@as(Vec4f, @splat(f)) * result.reflection + mms);
+                    const reflection = @as(Vec4f, @splat(n_dot_wi * s)) * (@as(Vec4f, @splat(f)) * result.reflection + mms);
 
                     const coating = self.coating.evaluate(result.wi, self.super.wo, h, wo_dot_h, self.super.avoidCaustics());
 
@@ -707,7 +718,7 @@ pub const Sample = struct {
             if (p <= f) {
                 const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, frame, result);
 
-                result.reflection *= @splat(f * n_dot_wi * ep);
+                result.reflection *= @splat(f * s * n_dot_wi * ep);
                 result.pdf *= f;
             } else {
                 const r_wo_dot_h = wo_dot_h;

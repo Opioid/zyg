@@ -112,12 +112,14 @@ pub const View = struct {
                 self.aovs.set(.Albedo, json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "Depth", entry.key_ptr.*)) {
                 self.aovs.set(.Depth, json.readBool(entry.value_ptr.*));
-            } else if (std.mem.eql(u8, "Material_id", entry.key_ptr.*)) {
+            } else if (std.mem.eql(u8, "MaterialId", entry.key_ptr.*)) {
                 self.aovs.set(.MaterialId, json.readBool(entry.value_ptr.*));
-            } else if (std.mem.eql(u8, "Geometric_normal", entry.key_ptr.*)) {
+            } else if (std.mem.eql(u8, "GeometricNormal", entry.key_ptr.*)) {
                 self.aovs.set(.GeometricNormal, json.readBool(entry.value_ptr.*));
-            } else if (std.mem.eql(u8, "Shading_normal", entry.key_ptr.*)) {
+            } else if (std.mem.eql(u8, "ShadingNormal", entry.key_ptr.*)) {
                 self.aovs.set(.ShadingNormal, json.readBool(entry.value_ptr.*));
+            } else if (std.mem.eql(u8, "Roughness", entry.key_ptr.*)) {
+                self.aovs.set(.Roughness, json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "Direct", entry.key_ptr.*)) {
                 self.aovs.set(.Direct, json.readBool(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "Indirect", entry.key_ptr.*)) {

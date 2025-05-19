@@ -22,6 +22,7 @@ pub const Operator = struct {
         Denoise: Denoise,
         Diff,
         MaxValue: Vec4f,
+        Mul,
         Over,
         Tonemap: core.Tonemapper.Class,
     };
@@ -175,6 +176,16 @@ pub const Operator = struct {
                             for (self.textures.items[current + 1 ..]) |t| {
                                 const other = t.get2D_4(ix, iy, self.scene);
                                 color += factor * other;
+                            }
+
+                            break :blk color;
+                        },
+                        .Mul => blk: {
+                            var color = source;
+
+                            for (self.textures.items[current + 1 ..]) |t| {
+                                const other = t.get2D_4(ix, iy, self.scene);
+                                color *= other;
                             }
 
                             break :blk color;

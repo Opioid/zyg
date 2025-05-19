@@ -21,8 +21,7 @@ pub const Usage = enum {
     Emission,
     Normal,
     Opacity,
-    Roughness,
-    Surface,
+    Weight,
 };
 
 pub const Provider = struct {
@@ -46,9 +45,9 @@ pub const Provider = struct {
             swizzle = switch (usage) {
                 .ColorAndOpacity => .XYZW,
                 .Color, .Emission => .XYZ,
-                .Normal, .Surface => .XY,
+                .Normal => .XY,
                 .Opacity => .W,
-                .Roughness => .X,
+                .Weight => .X,
             };
         }
 

@@ -63,6 +63,10 @@ pub const Buffer = struct {
                 const color = Vec4f{ p.v[0], p.v[1], p.v[2], 0.0 } / @as(Vec4f, @splat(p.v[3]));
                 target[i + begin].v = Vec4f{ color[0], color[1], color[2], 1.0 };
             }
+        } else if (.Float == encoding) {
+            for (pixels[begin..end], 0..) |p, i| {
+                target[i + begin].v = Vec4f{ p.v[0] / p.v[3], 0.0, 0.0, 1.0 };
+            }
         } else {
             for (pixels[begin..end], 0..) |p, i| {
                 target[i + begin].v = Vec4f{ p.v[0], 0.0, 0.0, 1.0 };

@@ -163,10 +163,12 @@ pub const Prop = struct {
     pub fn intersect(
         self: Prop,
         entity: u32,
+        prototype: u32,
         probe: Probe,
-        isec: *Intersection,
+        sampler: *Sampler,
         scene: *const Scene,
         space: *const Space,
+        isec: *Intersection,
     ) bool {
         const properties = self.properties;
 
@@ -181,9 +183,15 @@ pub const Prop = struct {
         const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.current_time_start, properties.static);
 
         if (properties.instancer) {
-            return scene.instancer(self.resource).intersect(probe, trafo, isec, scene);
+            return scene.instancer(self.resource).intersect(probe, trafo, sampler, scene, isec);
         } else {
-            return scene.shape(self.resource).intersect(probe, trafo, isec);
+            const shape = scene.shape(self.resource);
+
+            if (properties.evaluate_visibility) {
+                return shape.intersectOpacity(probe, trafo, prototype, sampler, scene, isec);
+            } else {
+                return shape.intersect(probe, trafo, isec);
+            }
         }
     }
 
@@ -199,7 +207,6 @@ pub const Prop = struct {
         tr: *Vec4f,
     ) bool {
         const properties = self.properties;
-        const scene = context.scene;
 
         if (!properties.visible_in_shadow) {
             return true;
@@ -208,6 +215,8 @@ pub const Prop = struct {
         if (!space.intersectAABB(entity, probe.ray)) {
             return true;
         }
+
+        const scene = context.scene;
 
         const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.current_time_start, properties.static);
 

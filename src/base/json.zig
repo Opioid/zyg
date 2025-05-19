@@ -63,9 +63,12 @@ pub fn readUInt64Member(value: Value, name: []const u8, default: u64) u64 {
 }
 
 pub fn readVec2f(value: Value) Vec2f {
-    return .{
-        readFloat(f32, value.array.items[0]),
-        readFloat(f32, value.array.items[1]),
+    return switch (value) {
+        .array => |a| .{
+            readFloat(f32, a.items[0]),
+            readFloat(f32, a.items[1]),
+        },
+        else => @splat(readFloat(f32, value)),
     };
 }
 
@@ -86,10 +89,7 @@ pub fn readVec2i(value: Value) Vec2i {
 pub fn readVec2fMember(value: Value, name: []const u8, default: Vec2f) Vec2f {
     const member = value.object.get(name) orelse return default;
 
-    return .{
-        readFloat(f32, member.array.items[0]),
-        readFloat(f32, member.array.items[1]),
-    };
+    return readVec2f(member);
 }
 
 pub fn readVec2iMember(value: Value, name: []const u8, default: Vec2i) Vec2i {
@@ -246,9 +246,7 @@ fn mapColor(color: Vec4f) Vec4f {
 
 pub fn readColor(value: std.json.Value) Vec4f {
     return switch (value) {
-        .array => mapColor(readVec4f3(value)),
-        .integer => |i| mapColor(@splat(@floatFromInt(i))),
-        .float => |f| mapColor(@splat(@floatCast(f))),
+        .array, .float, .integer => mapColor(readVec4f3(value)),
         .object => |o| {
             var rgb: Vec4f = @splat(0.0);
             var linear = true;
@@ -256,7 +254,7 @@ pub fn readColor(value: std.json.Value) Vec4f {
             var iter = o.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "sRGB", entry.key_ptr.*)) {
-                    rgb = readColor(entry.value_ptr.*);
+                    rgb = readVec4f3(entry.value_ptr.*);
                 } else if (std.mem.eql(u8, "temperature", entry.key_ptr.*)) {
                     const temperature = readFloat(f32, entry.value_ptr.*);
                     rgb = spectrum.blackbody(math.max(800.0, temperature));
