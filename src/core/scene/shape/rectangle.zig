@@ -60,6 +60,44 @@ pub const Rectangle = struct {
         return false;
     }
 
+    pub fn intersectOpacity(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, isec: *Intersection) bool {
+        const n = trafo.rotation.r[2];
+        const d = math.dot3(n, trafo.position);
+        const hit_t = -(math.dot3(n, ray.origin) - d) / math.dot3(n, ray.direction);
+
+        if (hit_t >= ray.min_t and ray.max_t >= hit_t) {
+            const p = ray.point(hit_t);
+            const k = p - trafo.position;
+            const t = -trafo.rotation.r[0];
+
+            const u = math.dot3(t, k) / (0.5 * trafo.scaleX());
+            if (u > 1.0 or u < -1.0) {
+                return false;
+            }
+
+            const b = -trafo.rotation.r[1];
+
+            const v = math.dot3(b, k) / (0.5 * trafo.scaleY());
+            if (v > 1.0 or v < -1.0) {
+                return false;
+            }
+
+            if (!scene.propOpacity(entity, 0, .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) }, sampler)) {
+                return false;
+            }
+
+            isec.u = u;
+            isec.v = v;
+            isec.t = hit_t;
+            isec.primitive = 0;
+            isec.prototype = Intersection.Null;
+            isec.trafo = trafo;
+            return true;
+        }
+
+        return false;
+    }
+
     pub fn fragment(ray: Ray, frag: *Fragment) void {
         const p = ray.point(frag.isec.t);
         const n = frag.isec.trafo.rotation.r[2];

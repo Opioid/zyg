@@ -43,6 +43,10 @@ pub const Context = struct {
 
     const Self = @This();
 
+    pub fn intersect(self: Self, probe: *Probe, sampler: *Sampler, frag: *Fragment) bool {
+        return self.scene.intersect(probe, sampler, frag);
+    }
+
     pub fn visibility(self: Self, probe: Probe, sampler: *Sampler, tr: *Vec4f) bool {
         return self.scene.visibility(probe, sampler, self, tr);
     }
@@ -55,7 +59,7 @@ pub const Context = struct {
 
         const origin = vertex.probe.ray.origin;
 
-        _ = self.intersectAndResolveMask(&vertex.probe, frag, sampler);
+        _ = self.intersect(&vertex.probe, sampler, frag);
 
         const dif_t = math.distance3(origin, vertex.probe.ray.origin);
         vertex.probe.ray.origin = origin;
@@ -94,8 +98,8 @@ pub const Context = struct {
         return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: Self, entity: u32, probe: Probe, frag: *Fragment) bool {
-        if (self.scene.prop(entity).intersect(entity, probe, &frag.isec, self.scene, &self.scene.prop_space)) {
+    pub fn propIntersect(self: Self, entity: u32, probe: Probe, sampler: *Sampler, frag: *Fragment) bool {
+        if (self.scene.prop(entity).intersect(entity, entity, probe, sampler, self.scene, &self.scene.prop_space, &frag.isec)) {
             frag.prop = entity;
             return true;
         }
@@ -105,32 +109,6 @@ pub const Context = struct {
 
     pub fn propInterpolateFragment(self: Self, entity: u32, probe: Probe, frag: *Fragment) void {
         self.scene.propShape(entity).fragment(probe.ray, frag);
-    }
-
-    pub fn intersectAndResolveMask(self: Self, probe: *Probe, frag: *Fragment, sampler: *Sampler) bool {
-        // This used to be an infinite loop, with the intention of rendering potentially "intinite forests".
-        // frag.offsetP() was trusted to always advance the ray origin.
-        // But I have seen cases where probe.ray.origin == frag.offsetP(probe.ray.direction);,
-        // without exactly understanding, why it fails.
-        // Anyway, now the loop is guaranteed to exit and 256 iterations is hopefully plenty for now.
-        // I wonder if it wouldn't be better to check for that specific case and terminate then...
-
-        for (0..256) |_| {
-            if (!self.scene.intersect(probe, frag)) {
-                return false;
-            }
-
-            const o = frag.opacity(sampler, self);
-            if (1.0 == o or (o > 0.0 and o > sampler.sample1D())) {
-                break;
-            }
-
-            // Offset ray until opaque surface is found
-            probe.ray.origin = frag.offsetP(probe.ray.direction);
-            probe.ray.max_t = ro.RayMaxT;
-        }
-
-        return true;
     }
 
     pub fn sampleProcedural2D_1(self: Self, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {

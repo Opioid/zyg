@@ -247,8 +247,8 @@ pub const Scene = struct {
         self.caustic_aabb = caustic_aabb;
     }
 
-    pub fn intersect(self: *const Scene, probe: *Probe, frag: *Fragment) bool {
-        return self.solid_bvh.intersect(probe, frag, self);
+    pub fn intersect(self: *const Scene, probe: *Probe, sampler: *Sampler, frag: *Fragment) bool {
+        return self.solid_bvh.intersect(probe, sampler, self, frag);
     }
 
     pub fn visibility(self: *const Scene, probe: Probe, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
@@ -546,6 +546,10 @@ pub const Scene = struct {
     pub fn propMaterial(self: *const Scene, entity: u32, part: u32) *Material {
         const p = self.prop_parts.items[entity] + part;
         return &self.materials.items[self.material_ids.items[p]];
+    }
+
+    pub fn propOpacity(self: *const Scene, entity: u32, part: u32, uv: Vec2f, sampler: *Sampler) bool {
+        return self.propMaterial(entity, part).super().stochasticOpacity(uv, sampler, self);
     }
 
     pub fn propLightId(self: *const Scene, entity: u32, part: u32) u32 {

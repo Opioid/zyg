@@ -108,6 +108,84 @@ pub const Tree = struct {
         return true;
     }
 
+    pub fn intersectOpacity(self: Tree, ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, isec: *Intersection) bool {
+        var tray = ray;
+
+        var stack = NodeStack{};
+        var n: u32 = 0;
+
+        var hpoint: IndexedData.Fragment = undefined;
+        var primitive = Intersection.Null;
+
+        const nodes = self.nodes;
+
+        while (NodeStack.End != n) {
+            const node = nodes[n];
+
+            const num = node.numIndices();
+            if (0 != num) {
+                var i = node.indicesStart();
+                const e = i + num;
+                while (i < e) : (i += 1) {
+                    if (self.data.intersect(tray, i)) |hit| {
+                        const itri = self.data.indexTriangle(i);
+                        const material = scene.propMaterial(entity, itri.part);
+
+                        if (material.evaluateVisibility()) {
+                            const uv = self.data.interpolateUv(itri, hit.u, hit.v);
+
+                            if (material.super().stochasticOpacity(uv, sampler, scene)) {
+                                tray.max_t = hit.t;
+                                hpoint = hit;
+                                primitive = i;
+                            }
+                        } else {
+                            tray.max_t = hit.t;
+                            hpoint = hit;
+                            primitive = i;
+                        }
+                    }
+                }
+
+                n = stack.pop();
+                continue;
+            }
+
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = nodes[a].intersect(tray);
+            var distb = nodes[b].intersect(tray);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.floatMax(f32) == dista) {
+                n = stack.pop();
+            } else {
+                n = a;
+                if (std.math.floatMax(f32) != distb) {
+                    stack.push(b);
+                }
+            }
+        }
+
+        if (Intersection.Null == primitive) {
+            return false;
+        }
+
+        isec.t = hpoint.t;
+        isec.u = hpoint.u;
+        isec.v = hpoint.v;
+        isec.primitive = primitive;
+        isec.prototype = Intersection.Null;
+        isec.trafo = trafo;
+
+        return true;
+    }
+
     pub fn intersectP(self: Tree, ray: Ray) bool {
         var stack = NodeStack{};
         var n: u32 = 0;

@@ -57,6 +57,44 @@ pub const Disk = struct {
         return false;
     }
 
+    pub fn intersectOpacity(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, isec: *Intersection) bool {
+        const normal = trafo.rotation.r[2];
+        const d = math.dot3(normal, trafo.position);
+        const denom = -math.dot3(normal, ray.direction);
+        const numer = math.dot3(normal, ray.origin) - d;
+        const hit_t = numer / denom;
+
+        if (hit_t >= ray.min_t and ray.max_t >= hit_t) {
+            const p = ray.point(hit_t);
+            const k = p - trafo.position;
+            const l = math.dot3(k, k);
+            const radius = 0.5 * trafo.scaleX();
+
+            if (l <= radius * radius) {
+                const t = trafo.rotation.r[0];
+                const b = trafo.rotation.r[1];
+
+                const sk = k / @as(Vec4f, @splat(radius));
+                const u = -math.dot3(t, sk);
+                const v = -math.dot3(b, sk);
+
+                if (!scene.propOpacity(entity, 0, .{ 0.5 * (u + 1.0), 0.5 * (v + 1.0) }, sampler)) {
+                    return false;
+                }
+
+                isec.u = u;
+                isec.v = v;
+                isec.t = hit_t;
+                isec.primitive = 0;
+                isec.prototype = Intersection.Null;
+                isec.trafo = trafo;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     pub fn fragment(ray: Ray, frag: *Fragment) void {
         const u = frag.isec.u;
         const v = frag.isec.v;

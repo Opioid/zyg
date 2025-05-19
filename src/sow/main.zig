@@ -221,7 +221,7 @@ pub fn main() !void {
             );
 
             var frag: Fragment = undefined;
-            if (!graph.scene.intersect(&vertex.probe, &frag)) {
+            if (!graph.scene.intersect(&vertex.probe, &sampler, &frag)) {
                 continue;
             }
 

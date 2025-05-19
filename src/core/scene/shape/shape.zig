@@ -155,6 +155,28 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn intersectOpacity(
+        self: *const Shape,
+        probe: Probe,
+        trafo: Trafo,
+        entity: u32,
+        sampler: *Sampler,
+        scene: *const Scene,
+        isec: *Intersection,
+    ) bool {
+        return switch (self.*) {
+            .Canopy => Canopy.intersect(probe.ray, trafo, isec),
+            .Cube => Cube.intersect(probe.ray, trafo, isec),
+            .CurveMesh => |m| m.intersect(probe.ray, trafo, isec),
+            .Disk => Disk.intersectOpacity(probe.ray, trafo, entity, sampler, scene, isec),
+            .DistantSphere => DistantSphere.intersect(probe.ray, trafo, isec),
+            .InfiniteSphere => InfiniteSphere.intersect(probe.ray, trafo, isec),
+            .Rectangle => Rectangle.intersectOpacity(probe.ray, trafo, entity, sampler, scene, isec),
+            .Sphere => Sphere.intersect(probe.ray, trafo, isec),
+            .TriangleMesh => |m| m.intersectOpacity(probe.ray, trafo, entity, sampler, scene, isec),
+        };
+    }
+
     pub fn fragment(self: *const Shape, ray: Ray, frag: *Fragment) void {
         switch (self.*) {
             .Canopy => Canopy.fragment(ray, frag),

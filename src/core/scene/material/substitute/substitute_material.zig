@@ -61,7 +61,7 @@ pub const Material = struct {
     pub fn commit(self: *Material) void {
         const properties = &self.super.properties;
 
-        properties.evaluate_visibility = !self.super.mask.isUniform();
+        properties.evaluate_visibility = self.super.mask.isImage();
         properties.emissive = math.anyGreaterZero3(self.emittance.value);
         properties.color_map = !self.color.isUniform();
         properties.emission_image_map = self.emittance.emission_map.isImage();
