@@ -237,14 +237,14 @@ pub const Worker = struct {
 
                 const target_samples: u32 = @intFromFloat(@ceil(tile_qm / qm_threshold_squared));
 
-                if (target_samples > s_end or (tile_qm > 0.0 and s_end < 64)) {
-                    if (s_end == 128) {
+                if (target_samples > s_end) {
+                    if (s_end == 64) {
                         stack_b.pushQuartet(tile, offset, TileDimensions / 2 - 1);
-                    } else if (s_end == 256) {
+                    } else if (s_end == 128) {
                         stack_b.pushQuartet(tile, offset, TileDimensions / 4 - 1);
-                    } else if (s_end == 512) {
+                    } else if (s_end == 256) {
                         stack_b.pushQuartet(tile, offset, TileDimensions / 8 - 1);
-                    } else if (s_end == 1024) {
+                    } else if (s_end == 512) {
                         stack_b.pushQuartet(tile, offset, TileDimensions / 16 - 1);
                     } else {
                         stack_b.push(tile, offset);
