@@ -14,36 +14,36 @@ pub const Mix = struct {
     b: Texture,
     t: Texture,
 
-    pub fn evaluate1(self: Mix, rs: Renderstate, key: ts.Key, sampler: *Sampler, context: Context) f32 {
-        const weight = ts.sample2D_1(key, self.t, rs, sampler, context);
+    pub fn evaluate1(self: Mix, rs: Renderstate, sampler: *Sampler, context: Context) f32 {
+        const weight = ts.sample2D_1(self.t, rs, sampler, context);
 
         const r = sampler.sample1D();
 
         return if (weight < r)
-            ts.sample2D_1(key, self.a, rs, sampler, context)
+            ts.sample2D_1(self.a, rs, sampler, context)
         else
-            ts.sample2D_1(key, self.b, rs, sampler, context);
+            ts.sample2D_1(self.b, rs, sampler, context);
     }
 
-    pub fn evaluate2(self: Mix, rs: Renderstate, key: ts.Key, sampler: *Sampler, context: Context) Vec2f {
-        const weight = ts.sample2D_1(key, self.t, rs, sampler, context);
+    pub fn evaluate2(self: Mix, rs: Renderstate, sampler: *Sampler, context: Context) Vec2f {
+        const weight = ts.sample2D_1(self.t, rs, sampler, context);
 
         const r = sampler.sample1D();
 
         return if (weight < r)
-            ts.sample2D_2(key, self.a, rs, sampler, context)
+            ts.sample2D_2(self.a, rs, sampler, context)
         else
-            ts.sample2D_2(key, self.b, rs, sampler, context);
+            ts.sample2D_2(self.b, rs, sampler, context);
     }
 
-    pub fn evaluate3(self: Mix, rs: Renderstate, key: ts.Key, sampler: *Sampler, context: Context) Vec4f {
-        const weight = ts.sample2D_1(key, self.t, rs, sampler, context);
+    pub fn evaluate3(self: Mix, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
+        const weight = ts.sample2D_1(self.t, rs, sampler, context);
 
         const r = sampler.sample1D();
 
         return if (weight < r)
-            ts.sample2D_3(key, self.a, rs, sampler, context)
+            ts.sample2D_3(self.a, rs, sampler, context)
         else
-            ts.sample2D_3(key, self.b, rs, sampler, context);
+            ts.sample2D_3(self.b, rs, sampler, context);
     }
 };

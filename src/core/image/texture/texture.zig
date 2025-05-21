@@ -1,7 +1,7 @@
-const Null = @import("../../resource/cache.zig").Null;
+const enc = @import("encoding.zig");
+const SamplerMode = @import("sampler_mode.zig").Mode;
 const Description = @import("../typed_image.zig").Description;
 const Scene = @import("../../scene/scene.zig").Scene;
-const enc = @import("encoding.zig");
 
 const base = @import("base");
 const math = base.math;
@@ -15,10 +15,22 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Texture = struct {
-    pub const TexCoordMode = enum {
-        UV0,
-        Triplanar,
-        ObjectPos,
+    pub const DefaultFilter = SamplerMode.Filter.LinearStochastic;
+
+    pub const Mode = SamplerMode;
+
+    pub const DefaultMode = Mode{
+        .filter = Texture.DefaultFilter,
+        .u = .Repeat,
+        .v = .Repeat,
+        .uv_set = .UV0,
+    };
+
+    pub const DefaultClampMode = Mode{
+        .filter = Texture.DefaultFilter,
+        .u = .Clamp,
+        .v = .Clamp,
+        .uv_set = .UV0,
     };
 
     pub const Type = enum {
@@ -57,11 +69,11 @@ pub const Texture = struct {
     };
 
     type: Type,
-    uv_set: TexCoordMode = undefined,
+    mode: Mode = undefined,
     data: Data,
 
-    pub fn initImage(class: Type, image_id: u32, uv_set: TexCoordMode, scale: Vec2f) Texture {
-        return .{ .type = class, .uv_set = uv_set, .data = .{ .image = .{ .id = image_id, .scale = scale } } };
+    pub fn initImage(class: Type, image_id: u32, mode: Mode, scale: Vec2f) Texture {
+        return .{ .type = class, .mode = mode, .data = .{ .image = .{ .id = image_id, .scale = scale } } };
     }
 
     pub fn initUniform1(v: f32) Texture {
@@ -76,8 +88,8 @@ pub const Texture = struct {
         return .{ .type = .Uniform, .data = .{ .uniform = Pack3f.init3(v[0], v[1], v[2]) } };
     }
 
-    pub fn initProcedural(id: u32, data: u32, uv_set: TexCoordMode) Texture {
-        return .{ .type = .Procedural, .uv_set = uv_set, .data = .{ .procedural = .{ .id = id, .data = data } } };
+    pub fn initProcedural(id: u32, data: u32, mode: Mode) Texture {
+        return .{ .type = .Procedural, .mode = mode, .data = .{ .procedural = .{ .id = id, .data = data } } };
     }
 
     pub fn equal(self: Texture, other: Texture) bool {
@@ -93,7 +105,7 @@ pub const Texture = struct {
             return Error.IncompatibleCast;
         }
 
-        const other = Texture.initImage(target, self.data.image.id, self.uv_set, self.data.image.scale);
+        const other = Texture.initImage(target, self.data.image.id, self.mode, self.data.image.scale);
 
         if (self.numChannels() != other.numChannels() or self.bytesPerChannel() != other.bytesPerChannel()) {
             return Error.IncompatibleCast;

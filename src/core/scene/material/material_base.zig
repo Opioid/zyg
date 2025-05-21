@@ -45,11 +45,9 @@ pub const Base = struct {
 
     properties: Properties = .{},
 
-    sampler_key: ts.Key = .{},
+    priority: i8 = 0,
 
     mask: Texture = Texture.initUniform1(1.0),
-
-    priority: i8 = 0,
 
     pub fn setTwoSided(self: *Base, two_sided: bool) void {
         self.properties.two_sided = two_sided;
@@ -60,7 +58,7 @@ pub const Base = struct {
             return 1.0;
         }
 
-        return ts.sampleImage2D_1(self.sampler_key, self.mask, uv, sampler, scene);
+        return ts.sampleImage2D_1(self.mask, uv, sampler, scene);
     }
 
     pub fn stochasticOpacity(self: *const Base, uv: Vec2f, sampler: *Sampler, scene: *const Scene) bool {
@@ -68,7 +66,7 @@ pub const Base = struct {
             return true;
         }
 
-        const o = ts.sampleImage2D_1(self.sampler_key, self.mask, uv, sampler, scene);
+        const o = ts.sampleImage2D_1(self.mask, uv, sampler, scene);
         if (0.0 == o or (o < 1.0 and o <= sampler.sample1D())) {
             return false;
         }

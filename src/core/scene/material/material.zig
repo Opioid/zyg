@@ -211,7 +211,7 @@ pub const Material = union(enum) {
 
     pub fn imageRadiance(self: *const Material, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
         return switch (self.*) {
-            inline .Light, .Substitute => |*m| m.emittance.imageRadiance(uv, m.super.sampler_key, sampler, scene),
+            inline .Light, .Substitute => |*m| m.emittance.imageRadiance(uv, sampler, scene),
             else => @splat(0.0),
         };
     }

@@ -39,14 +39,14 @@ pub const Material = struct {
 
     pub fn initSky(emission_map: Texture) Material {
         return Material{
-            .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
+            .super = .{},
             .emission_map = emission_map,
         };
     }
 
     pub fn initSun(alloc: Allocator) !Material {
         return Material{
-            .super = .{ .sampler_key = .{ .address = .{ .u = .Clamp, .v = .Clamp } } },
+            .super = .{},
             .emission_map = Texture.initUniform1(0.0),
             .sun_radiance = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, Sky.Bake_dimensions_sun),
         };
@@ -159,7 +159,7 @@ pub const Material = struct {
         context: Context,
     ) Vec4f {
         if (!self.emission_map.isUniform()) {
-            return ts.sample2D_3(self.super.sampler_key, self.emission_map, rs, sampler, context);
+            return ts.sample2D_3(self.emission_map, rs, sampler, context);
         }
 
         return self.sun_radiance.eval(sunV(rs.trafo.rotation, wi));
@@ -179,7 +179,7 @@ pub const Material = struct {
 
     pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
         if (!self.emission_map.isUniform()) {
-            return self.distribution.pdf(self.super.sampler_key.address.address2(uv)) * self.total_weight;
+            return self.distribution.pdf(self.emission_map.mode.address2(uv)) * self.total_weight;
         }
 
         return 1.0;

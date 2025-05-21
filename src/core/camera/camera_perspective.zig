@@ -289,7 +289,7 @@ pub const Perspective = struct {
                     defer options.deinit(alloc);
                     options.set(alloc, "usage", .Opacity) catch {};
 
-                    const texture = try tx.Provider.loadFile(alloc, shape, options, .UV0, @splat(1.0), resources);
+                    const texture = try tx.Provider.loadFile(alloc, shape, options, tx.Texture.DefaultMode, @splat(1.0), resources);
                     try self.aperture.setShape(alloc, texture, scene);
                 } else {
                     const blades = json.readUIntMember(entry.value_ptr.*, "blades", 0);
@@ -306,7 +306,7 @@ pub const Perspective = struct {
                         shaper.resolve(img.Byte1, &image);
                         const iid = try resources.images.store(alloc, 0xFFFFFFFF, .{ .Byte1 = image });
 
-                        const texture = try tx.Provider.createTexture(iid, .Opacity, .UV0, @splat(1.0), resources);
+                        const texture = try tx.Provider.createTexture(iid, .Opacity, tx.Texture.DefaultMode, @splat(1.0), resources);
                         try self.aperture.setShape(alloc, texture, scene);
                     }
                 }

@@ -1,5 +1,5 @@
 const ts = @import("texture_sampler.zig");
-const TexCoordMode = @import("texture.zig").Texture.TexCoordMode;
+const Texture = @import("texture.zig").Texture;
 const Context = @import("../../scene/context.zig").Context;
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
 const hlp = @import("../../scene/material/material_helper.zig");
@@ -40,7 +40,7 @@ pub const Noise = struct {
 
     const Self = @This();
 
-    pub fn evaluate1(self: Self, rs: Renderstate, offset: Vec4f, uv_set: TexCoordMode) f32 {
+    pub fn evaluate1(self: Self, rs: Renderstate, offset: Vec4f, mode: Texture.Mode) f32 {
         const is_cellular = .Cellular == self.class;
         const att = self.attenuation;
 
@@ -49,7 +49,7 @@ pub const Noise = struct {
 
         var value: f32 = 0.0;
 
-        if (.ObjectPos == uv_set) {
+        if (.ObjectPos == mode.uv_set) {
             var scale = self.scale;
 
             const uvw = rs.trafo.worldToObjectPoint(rs.p - offset);
@@ -69,7 +69,7 @@ pub const Noise = struct {
             var scale: Vec2f = .{ self.scale[0], self.scale[1] };
 
             const uv_offset = Vec2f{ offset[0], offset[1] };
-            const uv = (if (.Triplanar == uv_set) rs.triplanarUv() else rs.uv()) - uv_offset;
+            const uv = (if (.Triplanar == mode.uv_set) rs.triplanarUv() else rs.uv()) - uv_offset;
 
             for (0..self.levels) |_| {
                 const local_weight = std.math.pow(f32, amplitude, att);
@@ -97,13 +97,13 @@ pub const Noise = struct {
         return if (self.flags.invert) (1.0 - result) else result;
     }
 
-    pub fn evaluateNormalmap(self: Self, rs: Renderstate, uv_set: TexCoordMode, context: Context) Vec2f {
-        if (.ObjectPos == uv_set) {
+    pub fn evaluateNormalmap(self: Self, rs: Renderstate, mode: Texture.Mode, context: Context) Vec2f {
+        if (.ObjectPos == mode.uv_set) {
             const dpdx, const dpdy = context.approximateDpDxy(rs);
 
-            const center = self.evaluate1(rs, @splat(0.0), uv_set);
-            const left = self.evaluate1(rs, dpdx, uv_set);
-            const bottom = self.evaluate1(rs, dpdy, uv_set);
+            const center = self.evaluate1(rs, @splat(0.0), mode);
+            const left = self.evaluate1(rs, dpdx, mode);
+            const bottom = self.evaluate1(rs, dpdy, mode);
 
             const nx = left - center;
             const ny = bottom - center;
@@ -112,14 +112,14 @@ pub const Noise = struct {
 
             return .{ n[0], n[1] };
         } else {
-            const dd = @abs(context.screenspaceDifferential(rs, uv_set));
+            const dd = @abs(context.screenspaceDifferential(rs, mode.uv_set));
 
             const shift_x = dd[0] + dd[2];
             const shift_y = dd[1] + dd[3];
 
-            const center = self.evaluate1(rs, @splat(0.0), uv_set);
-            const left = self.evaluate1(rs, Vec4f{ shift_x, 0.0, 0.0, 0.0 }, uv_set);
-            const top = self.evaluate1(rs, Vec4f{ 0.0, shift_y, 0.0, 0.0 }, uv_set);
+            const center = self.evaluate1(rs, @splat(0.0), mode);
+            const left = self.evaluate1(rs, Vec4f{ shift_x, 0.0, 0.0, 0.0 }, mode);
+            const top = self.evaluate1(rs, Vec4f{ 0.0, shift_y, 0.0, 0.0 }, mode);
 
             const nx = left - center;
             const ny = top - center;
@@ -130,8 +130,8 @@ pub const Noise = struct {
         }
     }
 
-    pub fn evaluate3(self: Self, rs: Renderstate, uv_set: TexCoordMode) Vec4f {
-        const noise = self.evaluate1(rs, @splat(0.0), uv_set);
+    pub fn evaluate3(self: Self, rs: Renderstate, mode: Texture.Mode) Vec4f {
+        const noise = self.evaluate1(rs, @splat(0.0), mode);
 
         return @splat(noise);
     }

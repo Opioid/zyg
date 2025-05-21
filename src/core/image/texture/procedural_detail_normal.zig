@@ -16,9 +16,9 @@ pub const DetailNormal = struct {
     // Based on a technique described here
     // https://blog.selfshadow.com/publications/blending-in-detail/
 
-    pub fn evaluate(self: DetailNormal, rs: Renderstate, key: ts.Key, sampler: *Sampler, context: Context) Vec2f {
-        const n1 = reconstructNormal(self.base, rs, key, sampler, context);
-        const n2 = reconstructNormal(self.detail, rs, key, sampler, context);
+    pub fn evaluate(self: DetailNormal, rs: Renderstate, sampler: *Sampler, context: Context) Vec2f {
+        const n1 = reconstructNormal(self.base, rs, sampler, context);
+        const n2 = reconstructNormal(self.detail, rs, sampler, context);
 
         // Construct a basis
         const xy = math.orthonormalBasis3(n1);
@@ -29,8 +29,8 @@ pub const DetailNormal = struct {
         return .{ r[0], r[1] };
     }
 
-    fn reconstructNormal(map: Texture, rs: Renderstate, key: ts.Key, sampler: *Sampler, context: Context) Vec4f {
-        const nm = ts.sample2D_2(key, map, rs, sampler, context);
+    fn reconstructNormal(map: Texture, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
+        const nm = ts.sample2D_2(map, rs, sampler, context);
         const nmz = @sqrt(math.max(1.0 - math.dot2(nm, nm), 0.01));
         return math.normalize3(.{ nm[0], nm[1], nmz, 0.0 });
     }

@@ -69,7 +69,7 @@ pub fn main() !void {
     for (options.inputs.items, 0..) |input, i| {
         log.info("Loading file {s}", .{input});
 
-        const texture = core.tx.Provider.loadFile(alloc, input, image_options, .UV0, @splat(1.0), &resources) catch |e| {
+        const texture = core.tx.Provider.loadFile(alloc, input, image_options, core.tx.Texture.DefaultMode, @splat(1.0), &resources) catch |e| {
             log.err("Could not load texture \"{s}\": {}", .{ input, e });
             continue;
         };

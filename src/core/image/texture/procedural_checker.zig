@@ -1,5 +1,5 @@
 const ts = @import("texture_sampler.zig");
-const TexCoordMode = @import("texture.zig").Texture.TexCoordMode;
+const Texture = @import("texture.zig").Texture;
 const Context = @import("../../scene/context.zig").Context;
 const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
 
@@ -40,17 +40,17 @@ pub const Checker = struct {
     // https://iquilezles.org/articles/checkerfiltering/
     // https://iquilezles.org/articles/morecheckerfiltering/
 
-    pub fn evaluate(self: Checker, rs: Renderstate, key: ts.Key, uv_set: TexCoordMode, context: Context) Vec4f {
-        const dd = context.screenspaceDifferential(rs, uv_set);
+    pub fn evaluate(self: Checker, rs: Renderstate, mode: Texture.Mode, context: Context) Vec4f {
+        const dd = context.screenspaceDifferential(rs, mode.uv_set);
         const ddx: Vec2f = .{ dd[0], dd[1] };
         const ddy: Vec2f = .{ dd[2], dd[3] };
 
-        const uv = if (.Triplanar == uv_set) rs.triplanarUv() else rs.uv();
+        const uv = if (.Triplanar == mode.uv_set) rs.triplanarUv() else rs.uv();
 
         const scale: Vec2f = @splat(self.scale);
 
         const t = checkersGrad(
-            scale * key.address.address2(uv),
+            scale * mode.address2(uv),
             scale * ddx,
             scale * ddy,
         );
