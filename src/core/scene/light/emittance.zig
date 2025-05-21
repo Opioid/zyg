@@ -76,29 +76,23 @@ pub const Emittance = struct {
         self: Emittance,
         wi: Vec4f,
         rs: Renderstate,
-        key: ts.Key,
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
         var pf: f32 = 1.0;
         if (self.profile.isImage()) {
-            const profile_key = ts.Key{
-                .filter = ts.DefaultFilter,
-                .address = .{ .u = .Clamp, .v = .Clamp },
-            };
-
             const lwi = -math.normalize3(rs.trafo.worldToObjectPoint(rs.origin));
             const o = math.smpl.octEncode(lwi);
             const ouv = (o + @as(Vec2f, @splat(1.0))) * @as(Vec2f, @splat(0.5));
 
-            pf = ts.sampleImage2D_1(profile_key, self.profile, ouv, sampler, context.scene);
+            pf = ts.sampleImage2D_1(self.profile, ouv, sampler, context.scene);
         }
 
         if (-math.dot3(wi, rs.trafo.rotation.r[2]) < self.cos_a) {
             return @splat(0.0);
         }
 
-        const intensity = self.value * ts.sample2D_3(key, self.emission_map, rs, sampler, context);
+        const intensity = self.value * ts.sample2D_3(self.emission_map, rs, sampler, context);
 
         if (self.quantity == .Intensity) {
             const area = context.scene.propShape(rs.prop).area(rs.part, rs.trafo.scale());
@@ -116,8 +110,8 @@ pub const Emittance = struct {
         return self.value;
     }
 
-    pub fn imageRadiance(self: Emittance, uv: Vec2f, key: ts.Key, sampler: *Sampler, scene: *const Scene) Vec4f {
-        return self.value * ts.sampleImage2D_3(key, self.emission_map, uv, sampler, scene);
+    pub fn imageRadiance(self: Emittance, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
+        return self.value * ts.sampleImage2D_3(self.emission_map, uv, sampler, scene);
     }
 
     pub fn angleFromProfile(self: Emittance, scene: *const Scene) f32 {

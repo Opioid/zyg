@@ -121,7 +121,7 @@ pub const Material = struct {
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
-        return self.emittance.radiance(wi, rs, self.super.sampler_key, sampler, context);
+        return self.emittance.radiance(wi, rs, sampler, context);
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
@@ -132,7 +132,7 @@ pub const Material = struct {
 
     pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
         if (!self.emittance.emission_map.isUniform()) {
-            return self.distribution.pdf(self.super.sampler_key.address.address2(uv)) * self.total_weight;
+            return self.distribution.pdf(self.emittance.emission_map.mode.address2(uv)) * self.total_weight;
         }
 
         return 1.0;

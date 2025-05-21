@@ -111,23 +111,23 @@ pub const Context = struct {
         self.scene.propShape(entity).fragment(probe.ray, frag);
     }
 
-    pub fn sampleProcedural2D_1(self: Self, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {
-        return self.scene.procedural.sample2D_1(key, texture, rs, sampler, self);
+    pub fn sampleProcedural2D_1(self: Self, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {
+        return self.scene.procedural.sample2D_1(texture, rs, sampler, self);
     }
 
-    pub fn sampleProcedural2D_2(self: Self, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec2f {
-        return self.scene.procedural.sample2D_2(key, texture, rs, sampler, self);
+    pub fn sampleProcedural2D_2(self: Self, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec2f {
+        return self.scene.procedural.sample2D_2(texture, rs, sampler, self);
     }
 
-    pub fn sampleProcedural2D_3(self: Self, key: ts.Key, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec4f {
-        return self.scene.procedural.sample2D_3(key, texture, rs, sampler, self);
+    pub fn sampleProcedural2D_3(self: Self, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec4f {
+        return self.scene.procedural.sample2D_3(texture, rs, sampler, self);
     }
 
     pub fn absoluteTime(self: Self, frame: u32, frame_delta: f32) u64 {
         return self.camera.super().absoluteTime(frame, frame_delta);
     }
 
-    pub fn screenspaceDifferential(self: Self, rs: Renderstate, texcoord: Texture.TexCoordMode) Vec4f {
+    pub fn screenspaceDifferential(self: Self, rs: Renderstate, texcoord: Texture.Mode.TexCoord) Vec4f {
         const rd = self.camera.calculateRayDifferential(self.layer, rs.p, rs.time, self.scene);
 
         const ds: DifferentialSurface =

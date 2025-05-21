@@ -13,23 +13,23 @@ pub const Max = struct {
     a: Texture,
     b: Texture,
 
-    pub fn evaluate1(self: Max, rs: Renderstate, key: ts.Key, sampler: *Sampler, context: Context) f32 {
-        const a = ts.sample2D_1(key, self.a, rs, sampler, context);
-        const b = ts.sample2D_1(key, self.b, rs, sampler, context);
+    pub fn evaluate1(self: Max, rs: Renderstate, sampler: *Sampler, context: Context) f32 {
+        const a = ts.sample2D_1(self.a, rs, sampler, context);
+        const b = ts.sample2D_1(self.b, rs, sampler, context);
 
         return math.max(a, b);
     }
 
-    pub fn evaluate2(self: Max, rs: Renderstate, key: ts.Key, sampler: *Sampler, context: Context) Vec2f {
-        const a = ts.sample2D_2(key, self.a, rs, sampler, context);
-        const b = ts.sample2D_2(key, self.b, rs, sampler, context);
+    pub fn evaluate2(self: Max, rs: Renderstate, sampler: *Sampler, context: Context) Vec2f {
+        const a = ts.sample2D_2(self.a, rs, sampler, context);
+        const b = ts.sample2D_2(self.b, rs, sampler, context);
 
         return math.max2(a, b);
     }
 
-    pub fn evaluate3(self: Max, rs: Renderstate, key: ts.Key, sampler: *Sampler, context: Context) Vec4f {
-        const a = ts.sample2D_3(key, self.a, rs, sampler, context);
-        const b = ts.sample2D_3(key, self.b, rs, sampler, context);
+    pub fn evaluate3(self: Max, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
+        const a = ts.sample2D_3(self.a, rs, sampler, context);
+        const b = ts.sample2D_3(self.b, rs, sampler, context);
 
         return math.max4(a, b);
     }

@@ -108,17 +108,15 @@ pub const Material = struct {
             return .{ .Volumetric = Volumetric.init(wo, rs, g) };
         }
 
-        const key = self.super.sampler_key;
+        const color = ts.sample2D_3(self.color, rs, sampler, context);
 
-        const color = ts.sample2D_3(key, self.color, rs, sampler, context);
-
-        const roughness = ggx.clampRoughness(ts.sample2D_1(key, self.roughness, rs, sampler, context));
-        const metallic = ts.sample2D_1(key, self.metallic, rs, sampler, context);
-        const specular = ts.sample2D_1(key, self.specular, rs, sampler, context);
+        const roughness = ggx.clampRoughness(ts.sample2D_1(self.roughness, rs, sampler, context));
+        const metallic = ts.sample2D_1(self.metallic, rs, sampler, context);
+        const specular = ts.sample2D_1(self.specular, rs, sampler, context);
 
         const alpha = anisotropicAlpha(roughness, self.anisotropy);
 
-        const coating_scale = ts.sample2D_1(key, self.coating_scale, rs, sampler, context);
+        const coating_scale = ts.sample2D_1(self.coating_scale, rs, sampler, context);
         const coating_thickness = coating_scale * self.coating_thickness;
         const coating_weight = if (coating_scale > 0.1) 1.0 else coating_scale;
         const coating_ior = math.lerp(rs.ior, self.coating_ior, coating_weight);
@@ -126,9 +124,9 @@ pub const Material = struct {
         const ior = self.ior;
         const ior_outer = if (coating_thickness > 0.0) coating_ior else rs.ior;
         const attenuation_distance = self.attenuation_distance;
-        const attenuation_color = ts.sample2D_3(key, self.attenuation_color, rs, sampler, context);
+        const attenuation_color = ts.sample2D_3(self.attenuation_color, rs, sampler, context);
 
-        const translucency = ts.sample2D_1(key, self.translucency, rs, sampler, context);
+        const translucency = ts.sample2D_1(self.translucency, rs, sampler, context);
 
         var result = Surface.init(
             rs,
@@ -148,7 +146,7 @@ pub const Material = struct {
         );
 
         if (!self.normal_map.isUniform()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, context);
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, sampler, context);
             result.super.frame = Frame.init(n);
         } else {
             result.super.frame = .{ .x = rs.t, .y = rs.b, .z = rs.n };
@@ -158,13 +156,13 @@ pub const Material = struct {
             if (self.normal_map.equal(self.coating_normal_map)) {
                 result.coating.n = result.super.frame.z;
             } else if (!self.coating_normal_map.isUniform()) {
-                const n = hlp.sampleNormal(wo, rs, self.coating_normal_map, key, sampler, context);
+                const n = hlp.sampleNormal(wo, rs, self.coating_normal_map, sampler, context);
                 result.coating.n = n;
             } else {
                 result.coating.n = rs.n;
             }
 
-            const r = ggx.clampRoughness(ts.sample2D_1(key, self.coating_roughness, rs, sampler, context));
+            const r = ggx.clampRoughness(ts.sample2D_1(self.coating_roughness, rs, sampler, context));
 
             result.coating.absorption_coef = self.coating_absorption_coef;
             result.coating.thickness = coating_thickness;
@@ -174,13 +172,13 @@ pub const Material = struct {
         }
 
         // Apply rotation to base frame after coating is calculated, so that coating is not affected
-        const rotation = ts.sample2D_1(key, self.rotation, rs, sampler, context) * (2.0 * std.math.pi);
+        const rotation = ts.sample2D_1(self.rotation, rs, sampler, context) * (2.0 * std.math.pi);
 
         if (rotation > 0.0) {
             result.super.frame.rotateTangenFrame(rotation);
         }
 
-        const flakes_coverage = ts.sample2D_1(key, self.flakes_coverage, rs, sampler, context);
+        const flakes_coverage = ts.sample2D_1(self.flakes_coverage, rs, sampler, context);
         if (flakes_coverage > 0.0) {
             const op = rs.trafo.worldToObjectNormal(rs.p - rs.trafo.position);
             const on = rs.trafo.worldToObjectNormal(result.super.frame.z);
@@ -266,11 +264,9 @@ pub const Material = struct {
     }
 
     pub fn evaluateRadiance(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
-        const key = self.super.sampler_key;
+        const rad = self.emittance.radiance(wi, rs, sampler, context);
 
-        const rad = self.emittance.radiance(wi, rs, key, sampler, context);
-
-        const coating_scale = ts.sample2D_1(key, self.coating_scale, rs, sampler, context);
+        const coating_scale = ts.sample2D_1(self.coating_scale, rs, sampler, context);
         const coating_thickness = coating_scale * self.coating_thickness;
 
         if (coating_thickness > 0.0) {

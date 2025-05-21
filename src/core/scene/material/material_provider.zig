@@ -193,8 +193,6 @@ pub const Provider = struct {
                 material.abbe = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "thickness", entry.key_ptr.*)) {
                 material.thickness = json.readFloat(f32, entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
-                material.super.sampler_key = readSamplerKey(entry.value_ptr.*);
             }
         }
 
@@ -248,8 +246,6 @@ pub const Provider = struct {
                 loadEmittance(alloc, entry.value_ptr.*, self.tex, resources, &material.emittance);
             } else if (std.mem.eql(u8, "two_sided", entry.key_ptr.*)) {
                 material.super.setTwoSided(json.readBool(entry.value_ptr.*));
-            } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
-                material.super.sampler_key = readSamplerKey(entry.value_ptr.*);
             }
         }
     }
@@ -303,8 +299,6 @@ pub const Provider = struct {
                 material.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "volumetric_anisotropy", entry.key_ptr.*)) {
                 material.setVolumetricAnisotropy(json.readFloat(f32, entry.value_ptr.*));
-            } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
-                material.super.sampler_key = readSamplerKey(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "coating", entry.key_ptr.*)) {
                 var coating_color: Vec4f = @splat(1.0);
                 var coating_attenuation_distance: f32 = 0.1;
@@ -376,8 +370,6 @@ pub const Provider = struct {
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "density", entry.key_ptr.*)) {
                 material.density_map = readTexture(alloc, entry.value_ptr.*, .Weight, self.tex, resources);
-            } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {
-                material.super.sampler_key = readSamplerKey(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "color", entry.key_ptr.*)) {
                 color = json.readColor(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "emittance", entry.key_ptr.*)) {
@@ -463,7 +455,8 @@ const TextureDescriptor = struct {
 
     swizzle: ?img.Swizzle = null,
 
-    sampler: Texture.TexCoordMode = .UV0,
+    sampler: Texture.Mode = Texture.DefaultMode,
+
     scale: Vec2f = .{ 1.0, 1.0 },
 
     invert: bool = false,
@@ -639,43 +632,7 @@ const TextureDescriptor = struct {
     }
 };
 
-fn readSamplerKey(value: std.json.Value) ts.Key {
-    var key = ts.Key{};
-
-    switch (value) {
-        .object => |o| {
-            var iter = o.iterator();
-            while (iter.next()) |entry| {
-                if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
-                    const filter = json.readString(entry.value_ptr.*);
-
-                    if (std.mem.eql(u8, "Nearest", filter)) {
-                        key.filter = .Nearest;
-                    } else if (std.mem.eql(u8, "Linear", filter)) {
-                        key.filter = .LinearStochastic;
-                    }
-                } else if (std.mem.eql(u8, "address", entry.key_ptr.*)) {
-                    switch (entry.value_ptr.*) {
-                        .array => |a| {
-                            key.address.u = readAddress(a.items[0]);
-                            key.address.v = readAddress(a.items[1]);
-                        },
-                        else => {
-                            const adr = readAddress(entry.value_ptr.*);
-                            key.address.u = adr;
-                            key.address.v = adr;
-                        },
-                    }
-                }
-            }
-        },
-        else => {},
-    }
-
-    return key;
-}
-
-fn readAddress(value: std.json.Value) ts.AddressMode {
+fn readAddress(value: std.json.Value) Texture.Mode.Address {
     const address = json.readString(value);
 
     if (std.mem.eql(u8, "Clamp", address)) {
@@ -685,22 +642,42 @@ fn readAddress(value: std.json.Value) ts.AddressMode {
     return .Repeat;
 }
 
-fn readTextureSampler(value: std.json.Value) Texture.TexCoordMode {
-    var sampler: Texture.TexCoordMode = .UV0;
+fn readTextureSampler(value: std.json.Value) Texture.Mode {
+    var sampler: Texture.Mode = Texture.DefaultMode;
 
     switch (value) {
         .object => |o| {
             var iter = o.iterator();
             while (iter.next()) |entry| {
-                if (std.mem.eql(u8, "texcoord", entry.key_ptr.*)) {
+                if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
+                    const filter = json.readString(entry.value_ptr.*);
+
+                    if (std.mem.eql(u8, "Nearest", filter)) {
+                        sampler.filter = .Nearest;
+                    } else if (std.mem.eql(u8, "Linear", filter)) {
+                        sampler.filter = .LinearStochastic;
+                    }
+                } else if (std.mem.eql(u8, "address", entry.key_ptr.*)) {
+                    switch (entry.value_ptr.*) {
+                        .array => |a| {
+                            sampler.u = readAddress(a.items[0]);
+                            sampler.v = readAddress(a.items[1]);
+                        },
+                        else => {
+                            const adr = readAddress(entry.value_ptr.*);
+                            sampler.u = adr;
+                            sampler.v = adr;
+                        },
+                    }
+                } else if (std.mem.eql(u8, "texcoord", entry.key_ptr.*)) {
                     const set = json.readString(entry.value_ptr.*);
 
                     if (std.mem.eql(u8, "UV0", set)) {
-                        sampler = .UV0;
+                        sampler.uv_set = .UV0;
                     } else if (std.mem.eql(u8, "Triplanar", set)) {
-                        sampler = .Triplanar;
+                        sampler.uv_set = .Triplanar;
                     } else if (std.mem.eql(u8, "ObjectPos", set)) {
-                        sampler = .ObjectPos;
+                        sampler.uv_set = .ObjectPos;
                     }
                 }
             }

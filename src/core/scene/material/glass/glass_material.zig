@@ -42,11 +42,9 @@ pub const Material = struct {
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, context: Context) Sample {
-        const key = self.super.sampler_key;
-
         const use_roughness = !self.super.properties.caustic and (0.0 == self.thickness or rs.primary);
         const r = if (use_roughness)
-            ggx.clampRoughness(ts.sample2D_1(key, self.roughness, rs, sampler, context))
+            ggx.clampRoughness(ts.sample2D_1(self.roughness, rs, sampler, context))
         else
             0.0;
 
@@ -64,7 +62,7 @@ pub const Material = struct {
         );
 
         if (!self.normal_map.isUniform()) {
-            const n = hlp.sampleNormal(wo, rs, self.normal_map, key, sampler, context);
+            const n = hlp.sampleNormal(wo, rs, self.normal_map, sampler, context);
             result.super.frame = Frame.init(n);
         } else {
             result.super.frame = .{ .x = rs.t, .y = rs.b, .z = rs.n };
