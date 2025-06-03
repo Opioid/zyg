@@ -39,7 +39,7 @@ pub const Builder = struct {
         scene: *const Scene,
         threads: *Threads,
     ) !void {
-        const d = texture.description(scene).dimensions;
+        const d = texture.dimensions(scene);
 
         var num_cells = d >> Gridtree.Log2_cell_dim4;
 
@@ -130,7 +130,7 @@ const Splitter = struct {
         depth: u32,
         scene: *const Scene,
     ) !void {
-        const d = texture.description(scene).dimensions;
+        const d = texture.dimensions(scene);
 
         // Include 1 additional voxel on each border to account for filtering
         const minb = @max(box.bounds[0] - @as(Vec4i, @splat(1)), @as(Vec4i, @splat(0)));

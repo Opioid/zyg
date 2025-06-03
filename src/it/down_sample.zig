@@ -19,7 +19,7 @@ pub const DownSample = struct {
         begin: u32,
         end: u32,
     ) void {
-        const dim = target.description.dimensions;
+        const dim = target.dimensions;
         const width = dim[0];
 
         var y = begin;

@@ -132,7 +132,7 @@ pub const Part = struct {
             }
         }
 
-        const dimensions: Vec4i = if (m.usefulTexture()) |t| t.description(scene).dimensions else @splat(0);
+        const dimensions: Vec4i = if (m.usefulTexture()) |t| t.dimensions(scene) else @splat(0);
         var context = EvalContext{
             .temps = try alloc.alloc(Temp, threads.numThreads()),
             .powers = try alloc.alloc(f32, num),

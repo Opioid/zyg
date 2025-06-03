@@ -18,7 +18,7 @@ pub const Writer = struct {
     }
 
     fn writeHeader(writer: anytype, image: Float4) !void {
-        const d = image.description.dimensions;
+        const d = image.dimensions;
 
         try writer.writeAll("#?RGBE\n");
         try writer.writeAll("FORMAT=32-bit_rle_rgbe\n\n");
@@ -29,7 +29,7 @@ pub const Writer = struct {
     }
 
     fn writePixelsRle(alloc: Allocator, writer: anytype, image: Float4, crop: Vec4i) !void {
-        const d = image.description.dimensions;
+        const d = image.dimensions;
 
         const width: u32 = @intCast(d[0]);
         const height: u32 = @intCast(d[1]);
@@ -91,7 +91,7 @@ pub const Writer = struct {
     }
 
     fn writePixels(writer: anytype, image: Float4, crop: Vec4i) !void {
-        const d = image.description.dimensions;
+        const d = image.dimensions;
 
         var i: u32 = 0;
 

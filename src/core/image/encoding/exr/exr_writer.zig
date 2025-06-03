@@ -105,7 +105,7 @@ pub const Writer = struct {
         }
 
         {
-            const d = image.description().dimensions;
+            const d = image.dimensions();
 
             try writeString(writer, "displayWindow");
             try writeString(writer, "box2i");
@@ -406,7 +406,7 @@ pub const Writer = struct {
         }
 
         fn blockHalf(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width: u32 = @intCast(image.description.dimensions[0]);
+            const data_width: u32 = @intCast(image.dimensions[0]);
 
             var halfs = std.mem.bytesAsSlice(f16, destination);
 
@@ -442,7 +442,7 @@ pub const Writer = struct {
         }
 
         fn blockUint(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width = @as(u32, @intCast(image.description.dimensions[0]));
+            const data_width = @as(u32, @intCast(image.dimensions[0]));
 
             var uints = std.mem.bytesAsSlice(u32, destination);
 
@@ -464,7 +464,7 @@ pub const Writer = struct {
         }
 
         fn blockFloat(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width: u32 = @intCast(image.description.dimensions[0]);
+            const data_width: u32 = @intCast(image.dimensions[0]);
 
             var floats = std.mem.bytesAsSlice(f32, destination);
 

@@ -65,7 +65,7 @@ pub const Blur = struct {
     }
 
     pub fn process(self: Blur, target: *image.Float4, source: core.tx.Texture, scene: *const scn.Scene, begin: u32, end: u32) void {
-        const dim = source.description(scene).dimensions;
+        const dim = source.dimensions(scene);
         const dim2 = Vec2i{ dim[0], dim[1] };
         const width = dim[0];
 

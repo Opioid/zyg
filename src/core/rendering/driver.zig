@@ -203,7 +203,7 @@ pub const Driver = struct {
     }
 
     pub fn resolve(self: *Driver, camera_id: u32, layer_id: u32) void {
-        const num_pixels: u32 = @intCast(self.target.description.numPixels());
+        const num_pixels: u32 = @intCast(img.Description.numPixels(self.target.dimensions));
         self.resolveToBuffer(camera_id, layer_id, self.target.pixels.ptr, num_pixels);
     }
 
@@ -218,7 +218,7 @@ pub const Driver = struct {
     }
 
     pub fn resolveAov(self: *Driver, layer_id: u32, class: View.AovValue.Class) bool {
-        const num_pixels: u32 = @intCast(self.target.description.numPixels());
+        const num_pixels: u32 = @intCast(img.Description.numPixels(self.target.dimensions));
         return self.resolveAovToBuffer(layer_id, class, self.target.pixels.ptr, num_pixels);
     }
 
@@ -281,7 +281,7 @@ pub const Driver = struct {
 
         // If there will be a forward pass later...
         if (self.view.num_samples_per_pixel > 0) {
-            const num_pixels: u32 = @intCast(self.target.description.numPixels());
+            const num_pixels: u32 = @intCast(img.Description.numPixels(self.target.dimensions));
 
             for (0..num_layers) |l| {
                 sensor.resolve(@truncate(l), self.target.pixels.ptr, num_pixels, self.threads);

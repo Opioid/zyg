@@ -146,7 +146,7 @@ pub const Denoise = struct {
         begin: u32,
         end: u32,
     ) void {
-        const dim = source.description(scene).dimensions;
+        const dim = source.dimensions(scene);
         const dim2 = Vec2i{ dim[0], dim[1] };
         const width = dim[0];
 
