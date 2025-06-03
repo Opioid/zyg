@@ -4,6 +4,7 @@ const DownSample = @import("down_sample.zig").DownSample;
 
 const core = @import("core");
 const scn = core.scn;
+const img = core.image;
 
 const base = @import("base");
 const math = base.math;
@@ -45,15 +46,14 @@ pub const Operator = struct {
             return;
         }
 
-        var desc = self.textures.items[0].description(self.scene);
+        var dim = self.textures.items[0].dimensions(self.scene);
 
         if (.DownSample == self.class) {
-            const d = desc.dimensions;
-            desc.dimensions[0] = @intFromFloat(@floor(@as(f32, @floatFromInt(d[0])) / 2.0));
-            desc.dimensions[1] = @intFromFloat(@floor(@as(f32, @floatFromInt(d[1])) / 2.0));
+            dim[0] = @intFromFloat(@floor(@as(f32, @floatFromInt(dim[0])) / 2.0));
+            dim[1] = @intFromFloat(@floor(@as(f32, @floatFromInt(dim[1])) / 2.0));
         }
 
-        try self.target.resize(alloc, desc);
+        try self.target.resize(alloc, img.Description.init3D(dim));
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
@@ -90,7 +90,7 @@ pub const Operator = struct {
 
         // const dim = self.texture.description(self.scene).dimensions;
 
-        const dim = self.target.description.dimensions;
+        const dim = self.target.dimensions;
 
         _ = threads.runRange(self, runRange, 0, @intCast(dim[1]), 0);
     }
@@ -105,7 +105,7 @@ pub const Operator = struct {
             const texture_a = self.textures.items[offset];
             const texture_b = self.textures.items[offset + 1];
 
-            const dim = texture_a.description(self.scene).dimensions;
+            const dim = texture_a.dimensions(self.scene);
             const width = dim[0];
 
             var y = begin;
@@ -142,7 +142,7 @@ pub const Operator = struct {
             const texture_a = self.textures.items[0];
             const texture_b = self.textures.items[self.current + 1];
 
-            const dim = texture_a.description(self.scene).dimensions;
+            const dim = texture_a.dimensions(self.scene);
             const width = dim[0];
 
             var y = begin;
@@ -170,7 +170,7 @@ pub const Operator = struct {
             const current = self.current;
             const texture = self.textures.items[current];
 
-            const dim = texture.description(self.scene).dimensions;
+            const dim = texture.dimensions(self.scene);
             const width = dim[0];
 
             const factor: Vec4f = @splat(if (.Average == self.class) 1.0 / @as(f32, @floatFromInt(self.textures.items.len)) else 1.0);

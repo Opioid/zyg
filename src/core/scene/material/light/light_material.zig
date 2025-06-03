@@ -62,7 +62,7 @@ pub const Material = struct {
             return self.average_emission;
         }
 
-        const d = self.emittance.emission_map.description(scene).dimensions;
+        const d = self.emittance.emission_map.dimensions(scene);
 
         const luminance = alloc.alloc(f32, @intCast(d[0] * d[1])) catch return @splat(0.0);
         defer alloc.free(luminance);
@@ -149,7 +149,7 @@ const LuminanceContext = struct {
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         const self: *LuminanceContext = @ptrCast(context);
 
-        const d = self.texture.description(self.scene).dimensions;
+        const d = self.texture.dimensions(self.scene);
         const width: u32 = @intCast(d[0]);
 
         const idf = @as(Vec2f, @splat(1.0)) / Vec2f{

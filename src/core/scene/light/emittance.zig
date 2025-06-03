@@ -119,7 +119,7 @@ pub const Emittance = struct {
             return std.math.pi;
         }
 
-        const d = self.profile.description(scene).dimensions;
+        const d = self.profile.dimensions(scene);
 
         const idf = @as(Vec4f, @splat(1.0)) / @as(Vec4f, @floatFromInt(d));
 

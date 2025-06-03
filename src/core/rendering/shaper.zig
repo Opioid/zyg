@@ -36,7 +36,7 @@ pub const Shaper = struct {
 
     pub fn resolve(self: Self, comptime T: type, image: *T) void {
         const dim = self.dimensions;
-        const len = @min(@as(usize, @intCast(dim[0] * dim[1])), image.description.numPixels());
+        const len = @min(@as(usize, @intCast(dim[0] * dim[1])), img.Description.numPixels(image.dimensions));
 
         const source = self.pixels;
 

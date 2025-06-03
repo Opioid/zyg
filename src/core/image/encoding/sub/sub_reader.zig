@@ -101,7 +101,9 @@ pub const Reader = struct {
             try meta.set(alloc, "offset", offset);
             errdefer meta.deinit(alloc);
 
-            var field = try Bitfield.init(alloc, description.numPixels());
+            const num_pixels = img.Description.numPixels(description.dimensions);
+
+            var field = try Bitfield.init(alloc, num_pixels);
             defer field.deinit(alloc);
 
             try stream.seekTo(binary_start + topology_offset);
@@ -113,7 +115,7 @@ pub const Reader = struct {
                 var image = try img.Byte1.init(alloc, description);
 
                 var i: u64 = 0;
-                const len = description.numPixels();
+                const len = num_pixels;
                 while (i < len) : (i += 1) {
                     if (field.get(i)) {
                         var val: u8 = undefined;
@@ -131,7 +133,7 @@ pub const Reader = struct {
                 var image = try img.Float1Sparse.init(alloc, description);
 
                 var i: u64 = 0;
-                const len = description.numPixels();
+                const len = num_pixels;
                 while (i < len) : (i += 1) {
                     if (field.get(i)) {
                         var val: f32 = undefined;
@@ -145,7 +147,7 @@ pub const Reader = struct {
                 // var image = try img.Float1.init(alloc, description);
 
                 // var i: u64 = 0;
-                // const len = description.numPixels();
+                // const len = num_pixels;
                 // while (i < len) : (i += 1) {
                 //     if (field.get(i)) {
                 //         var val: f32 = undefined;
@@ -163,7 +165,7 @@ pub const Reader = struct {
                 var image = try img.Float2.init(alloc, description);
 
                 var i: u64 = 0;
-                const len = description.numPixels();
+                const len = num_pixels;
                 while (i < len) : (i += 1) {
                     if (field.get(i)) {
                         var val: Vec2f = undefined;

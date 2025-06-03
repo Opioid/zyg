@@ -4,6 +4,7 @@ const Vec2f = math.Vec2f;
 const Pack3b = math.Pack3b;
 const Pack3h = math.Pack3h;
 const Pack3f = math.Pack3f;
+const Vec4i = math.Vec4i;
 const Pack4b = math.Pack4b;
 const Pack4h = math.Pack4h;
 const Pack4f = math.Pack4f;
@@ -67,9 +68,9 @@ pub const Image = union(enum) {
         }
     }
 
-    pub fn description(self: Image) Description {
+    pub fn dimensions(self: Image) Vec4i {
         return switch (self) {
-            inline else => |i| i.description,
+            inline else => |i| i.dimensions,
         };
     }
 };

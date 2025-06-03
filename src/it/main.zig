@@ -3,6 +3,7 @@ const Operator = @import("operator.zig").Operator;
 
 const core = @import("core");
 const log = core.log;
+const img = core.image;
 const resource = core.resource;
 const scn = core.scn;
 const tk = core.tk;
@@ -134,10 +135,9 @@ fn write(
         var file = try std.fs.cwd().createFile(output_name, .{});
         defer file.close();
 
-        const desc = target.description;
-        const dim = desc.dimensions;
+        const dim = target.dimensions;
 
-        const num_pixels = desc.numPixels();
+        const num_pixels = img.Description.numPixels(dim);
 
         var buffered = std.io.bufferedWriter(file.writer());
         var txt_writer = buffered.writer();
@@ -175,9 +175,9 @@ fn write(
             var min: f32 = std.math.floatMax(f32);
             var max: f32 = 0.0;
 
-            const desc = target.description;
+            const dim = target.dimensions;
 
-            const buffer = try alloc.alloc(f32, desc.numPixels());
+            const buffer = try alloc.alloc(f32, img.Description.numPixels(dim));
             defer alloc.free(buffer);
 
             for (target.pixels, 0..) |p, i| {
@@ -191,8 +191,8 @@ fn write(
 
             try core.ImageWriter.PngWriter.writeHeatmap(
                 alloc,
-                desc.dimensions[0],
-                desc.dimensions[1],
+                dim[0],
+                dim[1],
                 buffer,
                 min,
                 max,
@@ -202,7 +202,7 @@ fn write(
             var file = try std.fs.cwd().createFile(output_name, .{});
             defer file.close();
 
-            const d = target.description.dimensions;
+            const d = target.dimensions;
 
             var buffered = std.io.bufferedWriter(file.writer());
             try writer.write(alloc, buffered.writer(), target, .{ 0, 0, d[0], d[1] }, encoding, threads);

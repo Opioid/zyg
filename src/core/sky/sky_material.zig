@@ -111,7 +111,7 @@ pub const Material = struct {
         var avg: Vec4f = @splat(0.0);
 
         {
-            const d = self.emission_map.description(scene).dimensions;
+            const d = self.emission_map.dimensions(scene);
             const height: u32 = @intCast(d[1]);
 
             var context = EvalContext{
