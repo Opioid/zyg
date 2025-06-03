@@ -70,7 +70,8 @@ pub const Image = union(enum) {
 
     pub fn dimensions(self: Image) Vec4i {
         return switch (self) {
-            inline else => |i| i.dimensions,
+            .Float1Sparse => |i| i.dimensions,
+            inline else => |i| i.dimensions[0],
         };
     }
 };

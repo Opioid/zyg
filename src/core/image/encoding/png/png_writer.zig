@@ -39,7 +39,7 @@ pub const Writer = struct {
         encoding: Encoding,
         threads: *Threads,
     ) !void {
-        const d = image.dimensions;
+        const d = image.dimensions[0];
 
         const num_channels = try self.srgb.toSrgb(alloc, image, crop, encoding, threads);
 

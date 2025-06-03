@@ -406,7 +406,7 @@ pub const Writer = struct {
         }
 
         fn blockHalf(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width: u32 = @intCast(image.dimensions[0]);
+            const data_width: u32 = @intCast(image.dimensions[0][0]);
 
             var halfs = std.mem.bytesAsSlice(f16, destination);
 
@@ -418,7 +418,7 @@ pub const Writer = struct {
 
                 var x: u32 = 0;
                 while (x < num_x) : (x += 1) {
-                    const c = image.pixels[current];
+                    const c = image.pixels[0][current];
 
                     if (4 == num_channels) {
                         if (Float4 == T) {
@@ -442,7 +442,7 @@ pub const Writer = struct {
         }
 
         fn blockUint(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width = @as(u32, @intCast(image.dimensions[0]));
+            const data_width = @as(u32, @intCast(image.dimensions[0][0]));
 
             var uints = std.mem.bytesAsSlice(u32, destination);
 
@@ -454,7 +454,7 @@ pub const Writer = struct {
 
                 var x: u32 = 0;
                 while (x < num_x) : (x += 1) {
-                    const c = image.pixels[current];
+                    const c = image.pixels[0][current];
 
                     uints[o + num_x * 0 + x] = @intFromFloat(c.v[0]);
 
@@ -464,7 +464,7 @@ pub const Writer = struct {
         }
 
         fn blockFloat(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width: u32 = @intCast(image.dimensions[0]);
+            const data_width: u32 = @intCast(image.dimensions[0][0]);
 
             var floats = std.mem.bytesAsSlice(f32, destination);
 
@@ -476,7 +476,7 @@ pub const Writer = struct {
 
                 var x: u32 = 0;
                 while (x < num_x) : (x += 1) {
-                    const c = image.pixels[current];
+                    const c = image.pixels[0][current];
 
                     if (4 == num_channels) {
                         if (Float4 == T) {

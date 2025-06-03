@@ -90,7 +90,7 @@ pub const Operator = struct {
 
         // const dim = self.texture.description(self.scene).dimensions;
 
-        const dim = self.target.dimensions;
+        const dim = self.target.dimensions[0];
 
         _ = threads.runRange(self, runRange, 0, @intCast(dim[1]), 0);
     }

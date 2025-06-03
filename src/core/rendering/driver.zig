@@ -203,8 +203,8 @@ pub const Driver = struct {
     }
 
     pub fn resolve(self: *Driver, camera_id: u32, layer_id: u32) void {
-        const num_pixels: u32 = @intCast(img.Description.numPixels(self.target.dimensions));
-        self.resolveToBuffer(camera_id, layer_id, self.target.pixels.ptr, num_pixels);
+        const num_pixels: u32 = @intCast(img.Description.numPixels(self.target.dimensions[0]));
+        self.resolveToBuffer(camera_id, layer_id, self.target.pixels[0].ptr, num_pixels);
     }
 
     pub fn resolveAovToBuffer(self: *Driver, layer_id: u32, class: View.AovValue.Class, target: [*]Pack4f, num_pixels: u32) bool {
@@ -218,8 +218,8 @@ pub const Driver = struct {
     }
 
     pub fn resolveAov(self: *Driver, layer_id: u32, class: View.AovValue.Class) bool {
-        const num_pixels: u32 = @intCast(img.Description.numPixels(self.target.dimensions));
-        return self.resolveAovToBuffer(layer_id, class, self.target.pixels.ptr, num_pixels);
+        const num_pixels: u32 = @intCast(img.Description.numPixels(self.target.dimensions[0]));
+        return self.resolveAovToBuffer(layer_id, class, self.target.pixels[0].ptr, num_pixels);
     }
 
     pub fn exportFrame(self: *Driver, alloc: Allocator, camera_id: u32, frame: u32, exporters: []Sink) !void {
@@ -281,10 +281,10 @@ pub const Driver = struct {
 
         // If there will be a forward pass later...
         if (self.view.num_samples_per_pixel > 0) {
-            const num_pixels: u32 = @intCast(img.Description.numPixels(self.target.dimensions));
+            const num_pixels: u32 = @intCast(img.Description.numPixels(self.target.dimensions[0]));
 
             for (0..num_layers) |l| {
-                sensor.resolve(@truncate(l), self.target.pixels.ptr, num_pixels, self.threads);
+                sensor.resolve(@truncate(l), self.target.pixels[0].ptr, num_pixels, self.threads);
             }
         }
 

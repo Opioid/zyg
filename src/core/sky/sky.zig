@@ -206,7 +206,7 @@ pub const Sky = struct {
 
         var rng = RNG.init(0, 0);
 
-        for (sun_image.pixels, 0..) |*s, i| {
+        for (sun_image.pixels[0], 0..) |*s, i| {
             const v = @as(f32, @floatFromInt(i)) / n;
             var wi = sunWi(self.sun_rotation, v);
             wi[1] = math.max(wi[1], 0.0);

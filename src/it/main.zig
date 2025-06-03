@@ -135,7 +135,7 @@ fn write(
         var file = try std.fs.cwd().createFile(output_name, .{});
         defer file.close();
 
-        const dim = target.dimensions;
+        const dim = target.dimensions[0];
 
         const num_pixels = img.Description.numPixels(dim);
 
@@ -147,7 +147,7 @@ fn write(
         var line = try std.fmt.bufPrint(&buffer, "[{} * {}] = {{\n    ", .{ dim[0], dim[1] });
         _ = try txt_writer.write(line);
 
-        for (target.pixels, 0..) |p, i| {
+        for (target.pixels[0], 0..) |p, i| {
             line = try std.fmt.bufPrint(&buffer, "{d:.8},", .{p.v[0]});
             _ = try txt_writer.write(line);
 
@@ -175,12 +175,12 @@ fn write(
             var min: f32 = std.math.floatMax(f32);
             var max: f32 = 0.0;
 
-            const dim = target.dimensions;
+            const dim = target.dimensions[0];
 
             const buffer = try alloc.alloc(f32, img.Description.numPixels(dim));
             defer alloc.free(buffer);
 
-            for (target.pixels, 0..) |p, i| {
+            for (target.pixels[0], 0..) |p, i| {
                 const v = math.hmax3(.{ p.v[0], p.v[1], p.v[2], p.v[3] });
 
                 buffer[i] = v;
@@ -202,7 +202,7 @@ fn write(
             var file = try std.fs.cwd().createFile(output_name, .{});
             defer file.close();
 
-            const d = target.dimensions;
+            const d = target.dimensions[0];
 
             var buffered = std.io.bufferedWriter(file.writer());
             try writer.write(alloc, buffered.writer(), target, .{ 0, 0, d[0], d[1] }, encoding, threads);

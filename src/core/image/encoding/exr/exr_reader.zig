@@ -226,9 +226,9 @@ pub const Reader = struct {
 
                             if (color) {
                                 const rgbf = math.vec3hTo4f(Pack3h.init3(r, g, b));
-                                half3.pixels[p] = math.vec4fTo3h(spectrum.sRGBtoAP1(rgbf));
+                                half3.pixels[0][p] = math.vec4fTo3h(spectrum.sRGBtoAP1(rgbf));
                             } else {
-                                half3.pixels[p] = Pack3h.init3(r, g, b);
+                                half3.pixels[0][p] = Pack3h.init3(r, g, b);
                             }
 
                             p += 1;
@@ -250,9 +250,9 @@ pub const Reader = struct {
                             const b = floats[o + b_o * width + x];
 
                             if (color) {
-                                float3.pixels[p] = math.vec4fTo3f(spectrum.sRGBtoAP1(.{ r, g, b, 0.0 }));
+                                float3.pixels[0][p] = math.vec4fTo3f(spectrum.sRGBtoAP1(.{ r, g, b, 0.0 }));
                             } else {
-                                float3.pixels[p] = Pack3f.init3(r, g, b);
+                                float3.pixels[0][p] = Pack3f.init3(r, g, b);
                             }
 
                             p += 1;
@@ -277,10 +277,10 @@ pub const Reader = struct {
                             if (color) {
                                 const ap = spectrum.sRGBtoAP1(.{ r, g, b, 0.0 });
                                 const rgbf = Vec4f{ ap[0], ap[1], ap[2], a };
-                                half4.pixels[p] = math.vec4fTo4h(rgbf);
+                                half4.pixels[0][p] = math.vec4fTo4h(rgbf);
                             } else {
                                 const rgbf = Vec4f{ r, g, b, a };
-                                half4.pixels[p] = math.vec4fTo4h(rgbf);
+                                half4.pixels[0][p] = math.vec4fTo4h(rgbf);
                             }
 
                             p += 1;
@@ -304,9 +304,9 @@ pub const Reader = struct {
 
                             if (color) {
                                 const ap = spectrum.sRGBtoAP1(.{ r, g, b, 0.0 });
-                                float4.pixels[p] = Pack4f.init4(ap[0], ap[1], ap[2], a);
+                                float4.pixels[0][p] = Pack4f.init4(ap[0], ap[1], ap[2], a);
                             } else {
-                                float4.pixels[p] = Pack4f.init4(r, g, b, a);
+                                float4.pixels[0][p] = Pack4f.init4(r, g, b, a);
                             }
 
                             p += 1;

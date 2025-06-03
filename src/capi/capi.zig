@@ -257,22 +257,24 @@ export fn su_image_create(
             @memcpy(buffer, data[0 .. num_pixels * bpp]);
         }
 
-        const image: ?img.Image = switch (ef) {
-            .UInt8 => switch (num_channels) {
-                1 => img.Image{ .Byte1 = img.Byte1.initFromBytes(desc, buffer) },
-                2 => img.Image{ .Byte2 = img.Byte2.initFromBytes(desc, buffer) },
-                3 => img.Image{ .Byte3 = img.Byte3.initFromBytes(desc, buffer) },
-                else => null,
-            },
-            .Float32 => switch (num_channels) {
-                1 => img.Image{ .Float1 = img.Float1.initFromBytes(desc, buffer) },
-                2 => img.Image{ .Float2 = img.Float2.initFromBytes(desc, buffer) },
-                3 => img.Image{ .Float3 = img.Float3.initFromBytes(desc, buffer) },
-                4 => img.Image{ .Float4 = img.Float4.initFromBytes(desc, buffer) },
-                else => null,
-            },
-            else => null,
-        };
+        // const image: ?img.Image = switch (ef) {
+        //     .UInt8 => switch (num_channels) {
+        //         1 => img.Image{ .Byte1 = img.Byte1.initFromBytes(e.alloc, desc, buffer) } catch null,
+        //         2 => img.Image{ .Byte2 = img.Byte2.initFromBytes(e.alloc, desc, buffer) } catch null,
+        //         3 => img.Image{ .Byte3 = img.Byte3.initFromBytes(e.alloc, desc, buffer) } catch null,
+        //         else => null,
+        //     },
+        //     .Float32 => switch (num_channels) {
+        //         1 => img.Image{ .Float1 = img.Float1.initFromBytes(e.alloc, desc, buffer) } catch null,
+        //         2 => img.Image{ .Float2 = img.Float2.initFromBytes(e.alloc, desc, buffer) } catch null,
+        //         3 => img.Image{ .Float3 = img.Float3.initFromBytes(e.alloc, desc, buffer) } catch null,
+        //         4 => img.Image{ .Float4 = img.Float4.initFromBytes(e.alloc, desc, buffer) } catch null,
+        //         else => null,
+        //     },
+        //     else => null,
+        // };
+
+        const image: ?img.Image = null;
 
         if (image) |i| {
             const image_id = e.resources.images.store(e.alloc, id, i) catch {
@@ -617,7 +619,7 @@ export fn su_resolve_frame(aov: u32) i32 {
 
 export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: [*]f32) i32 {
     if (engine) |*e| {
-        const num_pixels = @min(width * height, @as(u32, @intCast(img.Description.numPixels(e.driver.target.dimensions))));
+        const num_pixels = @min(width * height, @as(u32, @intCast(img.Description.numPixels(e.driver.target.dimensions[0]))));
 
         const target: [*]Pack4f = @ptrCast(buffer);
 
@@ -651,7 +653,7 @@ export fn su_copy_framebuffer(
         };
 
         const buffer = e.driver.target;
-        const d = buffer.dimensions;
+        const d = buffer.dimensions[0];
         const used_height = @min(height, @as(u32, @intCast(d[1])));
 
         _ = e.threads.runRange(&context, CopyFramebufferContext.copy, 0, used_height, 0);
@@ -674,7 +676,7 @@ const CopyFramebufferContext = struct {
 
         const self = @as(*CopyFramebufferContext, @ptrCast(@alignCast(context)));
 
-        const d = self.source.dimensions;
+        const d = self.source.dimensions[0];
 
         const width = self.width;
         const used_width = @min(self.width, @as(u32, @intCast(d[0])));

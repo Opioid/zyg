@@ -120,9 +120,9 @@ pub const Reader = struct {
                     if (field.get(i)) {
                         var val: u8 = undefined;
                         _ = try stream.read(std.mem.asBytes(&val));
-                        image.pixels[i] = val;
+                        image.pixels[0][i] = val;
                     } else {
-                        image.pixels[i] = 0;
+                        image.pixels[0][i] = 0;
                     }
                 }
 
@@ -170,9 +170,9 @@ pub const Reader = struct {
                     if (field.get(i)) {
                         var val: Vec2f = undefined;
                         _ = try stream.read(std.mem.asBytes(&val));
-                        image.pixels[i] = val;
+                        image.pixels[0][i] = val;
                     } else {
-                        image.pixels[i] = @splat(0.0);
+                        image.pixels[0][i] = @splat(0.0);
                     }
                 }
 

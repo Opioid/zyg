@@ -36,7 +36,7 @@ pub const Shaper = struct {
 
     pub fn resolve(self: Self, comptime T: type, image: *T) void {
         const dim = self.dimensions;
-        const len = @min(@as(usize, @intCast(dim[0] * dim[1])), img.Description.numPixels(image.dimensions));
+        const len = @min(@as(usize, @intCast(dim[0] * dim[1])), img.Description.numPixels(image.dimensions[0]));
 
         const source = self.pixels;
 
@@ -44,13 +44,13 @@ pub const Shaper = struct {
             var i: usize = 0;
             while (i < len) : (i += 1) {
                 const p = source[i];
-                image.pixels[i] = enc.floatToUnorm8(math.clamp(p.v[3], 0.0, 1.0));
+                image.pixels[0][i] = enc.floatToUnorm8(math.clamp(p.v[3], 0.0, 1.0));
             }
         } else if (img.Byte2 == T) {
             var i: usize = 0;
             while (i < len) : (i += 1) {
                 const p = source[i];
-                image.pixels[i] = Vec2b{
+                image.pixels[0][i] = Vec2b{
                     enc.floatToSnorm8(math.clamp(p.v[0], -1.0, 1.0)),
                     enc.floatToSnorm8(math.clamp(p.v[1], -1.0, 1.0)),
                 };
@@ -59,7 +59,7 @@ pub const Shaper = struct {
             var i: usize = 0;
             while (i < len) : (i += 1) {
                 const p = source[i];
-                image.pixels[i] = Pack3f.init3(p.v[0], p.v[1], p.v[2]);
+                image.pixels[0][i] = Pack3f.init3(p.v[0], p.v[1], p.v[2]);
             }
         }
     }

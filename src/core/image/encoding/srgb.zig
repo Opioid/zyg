@@ -32,7 +32,7 @@ pub const Srgb = struct {
     }
 
     pub fn toSrgb(self: *Srgb, alloc: Allocator, image: Float4, crop: Vec4i, encoding: Encoding, threads: *Threads) !u32 {
-        const d = image.dimensions;
+        const d = image.dimensions[0];
         const num_pixels: u32 = @intCast(d[0] * d[1]);
 
         const xy = Vec2i{ crop[0], crop[1] };
@@ -56,7 +56,7 @@ pub const Srgb = struct {
 
                     var x = crop[1];
                     while (x < crop[2]) : (x += 1) {
-                        const depth = image.pixels[i].v[0];
+                        const depth = image.pixels[0][i].v[0];
 
                         mind = math.min(mind, depth);
 
@@ -103,7 +103,7 @@ pub const Srgb = struct {
     }
 
     fn toSrgbBuffer(self: *Srgb, begin: u32, end: u32) void {
-        const d = self.image.dimensions;
+        const d = self.image.dimensions[0];
         const data_width: u32 = @intCast(d[0]);
 
         const crop = self.crop;
@@ -133,7 +133,7 @@ pub const Srgb = struct {
                         var i = y * data_width + x_start;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const p = image.pixels[i];
+                            const p = image.pixels[0][i];
 
                             const color = Vec4f{
                                 spectrum.linearToGamma_sRGB(p.v[0]),
@@ -160,7 +160,7 @@ pub const Srgb = struct {
                         var i = y * data_width + x_start;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const p = image.pixels[i];
+                            const p = image.pixels[0][i];
 
                             buffer[i * 4 + 0] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[0]));
                             buffer[i * 4 + 1] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[1]));
@@ -179,7 +179,7 @@ pub const Srgb = struct {
                         var i = y * data_width + x_start;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const p = image.pixels[i];
+                            const p = image.pixels[0][i];
 
                             const color = Vec4f{
                                 spectrum.linearToGamma_sRGB(p.v[0]),
@@ -205,7 +205,7 @@ pub const Srgb = struct {
                         var i = y * data_width + x_start;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const p = image.pixels[i];
+                            const p = image.pixels[0][i];
 
                             buffer[i * 3 + 0] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[0]));
                             buffer[i * 3 + 1] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[1]));
@@ -225,7 +225,7 @@ pub const Srgb = struct {
                     var i = y * data_width + x_start;
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const depth = image.pixels[i].v[0];
+                        const depth = image.pixels[0][i].v[0];
 
                         buffer[i] = enc.floatToUnorm8(math.saturate(1.0 - (depth - mind) / range));
 
@@ -237,7 +237,7 @@ pub const Srgb = struct {
                     var i = y * data_width + x_start;
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const f = image.pixels[i].v[0];
+                        const f = image.pixels[0][i].v[0];
 
                         buffer[i] = enc.floatToUnorm8(math.saturate(f));
 
@@ -249,7 +249,7 @@ pub const Srgb = struct {
                     var i = y * data_width + x_start;
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const id: u32 = @intFromFloat(image.pixels[i].v[0]);
+                        const id: u32 = @intFromFloat(image.pixels[0][i].v[0]);
                         const mid = (id *% 9795927) % 16777216;
 
                         buffer[i * 3 + 0] = @truncate(mid >> 16);
@@ -264,7 +264,7 @@ pub const Srgb = struct {
                     var i = y * data_width + x_start;
                     var x: u32 = 0;
                     while (x < width) : (x += 1) {
-                        const p = image.pixels[i];
+                        const p = image.pixels[0][i];
 
                         buffer[i * 3 + 0] = enc.floatToUnorm8(math.saturate(0.5 * (p.v[0] + 1.0)));
                         buffer[i * 3 + 1] = enc.floatToUnorm8(math.saturate(0.5 * (p.v[1] + 1.0)));

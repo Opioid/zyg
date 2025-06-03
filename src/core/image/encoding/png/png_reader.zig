@@ -264,7 +264,7 @@ pub const Reader = struct {
                                 color = 255 - color;
                             }
 
-                            image.pixels[i] = color;
+                            image.pixels[0][i] = color;
                         }
                     }
                 },
@@ -278,24 +278,24 @@ pub const Reader = struct {
                         if (.YX == swizzle) {
                             while (i < len) : (i += 1) {
                                 const o = i * self.num_channels;
-                                image.pixels[i] = Vec2b{ buffer[o + 1], buffer[o + 0] };
+                                image.pixels[0][i] = Vec2b{ buffer[o + 1], buffer[o + 0] };
                             }
                         } else if (.YZ == swizzle and self.num_channels >= 3) {
                             while (i < len) : (i += 1) {
                                 const o = i * self.num_channels;
-                                image.pixels[i] = Vec2b{ buffer[o + 1], buffer[o + 2] };
+                                image.pixels[0][i] = Vec2b{ buffer[o + 1], buffer[o + 2] };
                             }
                         } else {
                             while (i < len) : (i += 1) {
                                 const o = i * self.num_channels;
-                                image.pixels[i] = Vec2b{ buffer[o + 0], buffer[o + 1] };
+                                image.pixels[0][i] = Vec2b{ buffer[o + 0], buffer[o + 1] };
                             }
                         }
                     }
                 },
                 .Byte3 => |image| {
                     if (byte_compatible) {
-                        @memcpy(std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
+                        @memcpy(std.mem.sliceAsBytes(image.pixels[0]), buffer[0..self.numPixelBytes()]);
                     } else {
                         var color = Pack3b.init1(0);
 
@@ -309,13 +309,13 @@ pub const Reader = struct {
                                 color.v[c] = buffer[o + c];
                             }
 
-                            image.pixels[i] = color;
+                            image.pixels[0][i] = color;
                         }
                     }
                 },
                 .Byte4 => |image| {
                     if (byte_compatible) {
-                        @memcpy(std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
+                        @memcpy(std.mem.sliceAsBytes(image.pixels[0]), buffer[0..self.numPixelBytes()]);
                     }
                 },
                 else => {},

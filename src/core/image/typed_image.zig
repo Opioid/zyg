@@ -25,15 +25,15 @@ pub const Description = struct {
 
 pub fn TypedImage(comptime T: type) type {
     return struct {
-        dimensions: Vec4i,
+        dimensions: []Vec4i,
 
-        pixels: []T,
+        pixels: [][]T,
 
         const Self = @This();
 
         pub fn initEmpty() Self {
             return Self{
-                .dimensions = @splat(0.0),
+                .dimensions = &.{},
                 .pixels = &.{},
             };
         }
@@ -41,52 +41,75 @@ pub fn TypedImage(comptime T: type) type {
         pub fn init(alloc: Allocator, description: Description) !Self {
             const dim = description.dimensions;
 
-            return Self{
-                .dimensions = dim,
-                .pixels = try alloc.alloc(T, Description.numPixels(dim)),
-            };
+            var self: Self = undefined;
+            self.dimensions = try alloc.alloc(Vec4i, 1);
+            self.pixels = try alloc.alloc([]T, 1);
+
+            self.dimensions[0] = dim;
+            self.pixels[0] = try alloc.alloc(T, Description.numPixels(dim));
+
+            return self;
         }
 
-        pub fn initFromBytes(description: Description, data: []align(@alignOf(T)) u8) Self {
-            return Self{
-                .dimensions = description.dimensions,
-                .pixels = std.mem.bytesAsSlice(T, data),
-            };
+        pub fn initFromBytes(alloc: Allocator, description: Description, data: []align(@alignOf(T)) u8) !Self {
+            var self: Self = undefined;
+            self.dimensions = try alloc.alloc(Vec4i, 1);
+            self.pixels = try alloc.alloc([]T, 1);
+
+            self.dimensions[0] = description.dimensions;
+            self.pixels[0] = std.mem.bytesAsSlice(T, data);
+
+            return self;
         }
 
         pub fn deinit(self: *Self, alloc: Allocator) void {
+            alloc.free(self.dimensions);
+
+            for (self.pixels) |p| {
+                alloc.free(p);
+            }
+
             alloc.free(self.pixels);
         }
 
         pub fn resize(self: *Self, alloc: Allocator, description: Description) !void {
             const dim = description.dimensions;
 
-            self.dimensions = dim;
+            if (self.dimensions.len < 1) {
+                self.dimensions = try alloc.realloc(self.dimensions, 1);
+            }
+
+            self.dimensions[0] = dim;
+
+            if (self.pixels.len < 1) {
+                self.pixels = try alloc.realloc(self.pixels, 1);
+                self.pixels[0] = &.{};
+            }
 
             const len = Description.numPixels(dim);
-            if (self.pixels.len < len) {
-                self.pixels = try alloc.realloc(self.pixels, len);
+            if (self.pixels[0].len < len) {
+                self.pixels[0] = try alloc.realloc(self.pixels[0], len);
             }
         }
 
         pub fn get2D(self: Self, x: i32, y: i32) T {
-            const i = y * self.dimensions[0] + x;
+            const i = y * self.dimensions[0][0] + x;
 
-            return self.pixels[@intCast(i)];
+            return self.pixels[0][@intCast(i)];
         }
 
         pub fn set2D(self: *Self, x: i32, y: i32, v: T) void {
-            const i = y * self.dimensions[0] + x;
+            const i = y * self.dimensions[0][0] + x;
 
-            self.pixels[@intCast(i)] = v;
+            self.pixels[0][@intCast(i)] = v;
         }
 
         pub fn get3D(self: Self, x: i32, y: i32, z: i32) T {
-            const d = self.dimensions;
+            const d = self.dimensions[0];
             const i = (@as(u64, @intCast(z)) * @as(u64, @intCast(d[1])) + @as(u64, @intCast(y))) *
                 @as(u64, @intCast(d[0])) + @as(u64, @intCast(x));
 
-            return self.pixels[i];
+            return self.pixels[0][i];
         }
     };
 }

@@ -64,7 +64,7 @@ pub const Material = struct {
 
     pub fn setSunRadiance(self: *Material, rotation: Mat3x3, image: img.Float3) void {
         for (self.sun_radiance.samples, 0..) |*s, i| {
-            s.* = math.vec3fTo4f(image.pixels[i]);
+            s.* = math.vec3fTo4f(image.pixels[0][i]);
         }
 
         var total: Vec4f = @splat(0.0);

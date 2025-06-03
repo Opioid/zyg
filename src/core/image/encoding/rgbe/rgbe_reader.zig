@@ -122,7 +122,7 @@ pub const Reader = struct {
                 // this file is not run length encoded
 
                 const color = rgbeTofloat3(rgbe);
-                image.pixels[offset] = Pack3h.init3(
+                image.pixels[0][offset] = Pack3h.init3(
                     @as(f16, @floatCast(color.v[0])),
                     @as(f16, @floatCast(color.v[1])),
                     @as(f16, @floatCast(color.v[2])),
@@ -183,7 +183,7 @@ pub const Reader = struct {
                 rgbe[3] = scanline_buffer[i + 3 * scanline_width];
 
                 const color = rgbeTofloat3(rgbe);
-                image.pixels[offset] = Pack3h.init3(
+                image.pixels[0][offset] = Pack3h.init3(
                     @floatCast(color.v[0]),
                     @floatCast(color.v[1]),
                     @floatCast(color.v[2]),
@@ -203,7 +203,7 @@ pub const Reader = struct {
             _ = try stream.read(&rgbe);
 
             const color = rgbeTofloat3(rgbe);
-            image.pixels[o] = Pack3h.init3(
+            image.pixels[0][o] = Pack3h.init3(
                 @floatCast(color.v[0]),
                 @floatCast(color.v[1]),
                 @floatCast(color.v[2]),

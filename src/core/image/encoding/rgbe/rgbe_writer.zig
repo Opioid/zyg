@@ -29,7 +29,7 @@ pub const Writer = struct {
     }
 
     fn writePixelsRle(alloc: Allocator, writer: anytype, image: Float4, crop: Vec4i) !void {
-        const d = image.dimensions;
+        const d = image.dimensions[0];
 
         const width: u32 = @intCast(d[0]);
         const height: u32 = @intCast(d[1]);
@@ -67,7 +67,7 @@ pub const Writer = struct {
                         buffer[x * 4 + 2] = 0;
                         buffer[x * 4 + 3] = 0;
                     } else {
-                        const rgbe = floatToRgbe(math.max4(@as(Vec4f, image.pixels[current_pixel].v), @splat(0.0)));
+                        const rgbe = floatToRgbe(math.max4(@as(Vec4f, image.pixels[0][current_pixel].v), @splat(0.0)));
 
                         buffer[x + width * 0] = rgbe[0];
                         buffer[x + width * 1] = rgbe[1];
@@ -91,7 +91,7 @@ pub const Writer = struct {
     }
 
     fn writePixels(writer: anytype, image: Float4, crop: Vec4i) !void {
-        const d = image.dimensions;
+        const d = image.dimensions[0];
 
         var i: u32 = 0;
 
@@ -103,7 +103,7 @@ pub const Writer = struct {
                     const zero = [_]u8{0} ** 4;
                     try writer.writeAll(&zero);
                 } else {
-                    const p = image.pixels[i];
+                    const p = image.pixels[0][i];
 
                     const rgbe = floatToRgbe(math.max4(@as(Vec4f, p.v), @splat(0.0)));
 
