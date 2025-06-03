@@ -1,5 +1,6 @@
 const Blur = @import("blur.zig").Blur;
 const Denoise = @import("denoise.zig").Denoise;
+const DownSample = @import("down_sample.zig").DownSample;
 
 const core = @import("core");
 const scn = core.scn;
@@ -21,6 +22,7 @@ pub const Operator = struct {
         Blur: Blur,
         Denoise: Denoise,
         Diff,
+        DownSample,
         MaxValue: Vec4f,
         Mul,
         Over,
@@ -43,7 +45,13 @@ pub const Operator = struct {
             return;
         }
 
-        const desc = self.textures.items[0].description(self.scene);
+        var desc = self.textures.items[0].description(self.scene);
+
+        if (.DownSample == self.class) {
+            const d = desc.dimensions;
+            desc.dimensions[0] = @intFromFloat(@floor(@as(f32, @floatFromInt(d[0])) / 2.0));
+            desc.dimensions[1] = @intFromFloat(@floor(@as(f32, @floatFromInt(d[1])) / 2.0));
+        }
 
         try self.target.resize(alloc, desc);
     }
@@ -51,6 +59,7 @@ pub const Operator = struct {
     pub fn deinit(self: *Self, alloc: Allocator) void {
         self.input_ids.deinit(alloc);
         self.textures.deinit(alloc);
+        self.target.deinit(alloc);
 
         switch (self.class) {
             inline .Blur, .Denoise => |*op| op.deinit(alloc),
@@ -77,9 +86,11 @@ pub const Operator = struct {
     }
 
     pub fn run(self: *Self, threads: *Threads) void {
-        const texture = self.textures.items[self.current];
+        // const texture = self.textures.items[self.current];
 
-        const dim = texture.description(self.scene).dimensions;
+        // const dim = self.texture.description(self.scene).dimensions;
+
+        const dim = self.target.description.dimensions;
 
         _ = threads.runRange(self, runRange, 0, @intCast(dim[1]), 0);
     }
@@ -150,6 +161,11 @@ pub const Operator = struct {
                     self.target.set2D(ix, iy, Pack4f.init4(dif[0], dif[1], dif[2], dif[3]));
                 }
             }
+        } else if (.DownSample == self.class) {
+            const current = self.current;
+            const texture = self.textures.items[current];
+
+            DownSample.process(&self.target, texture, self.scene, begin, end);
         } else {
             const current = self.current;
             const texture = self.textures.items[current];

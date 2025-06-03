@@ -49,7 +49,7 @@ pub const Noise = struct {
 
         var value: f32 = 0.0;
 
-        if (.ObjectPos == mode.uv_set) {
+        if (.ObjectPos == mode.tex_coord) {
             var scale = self.scale;
 
             const uvw = rs.trafo.worldToObjectPoint(rs.p - offset);
@@ -69,7 +69,7 @@ pub const Noise = struct {
             var scale: Vec2f = .{ self.scale[0], self.scale[1] };
 
             const uv_offset = Vec2f{ offset[0], offset[1] };
-            const uv = (if (.Triplanar == mode.uv_set) rs.triplanarUv() else rs.uv()) - uv_offset;
+            const uv = (if (.Triplanar == mode.tex_coord) rs.triplanarSt() else rs.uv()) - uv_offset;
 
             for (0..self.levels) |_| {
                 const local_weight = std.math.pow(f32, amplitude, att);
@@ -98,7 +98,7 @@ pub const Noise = struct {
     }
 
     pub fn evaluateNormalmap(self: Self, rs: Renderstate, mode: Texture.Mode, context: Context) Vec2f {
-        if (.ObjectPos == mode.uv_set) {
+        if (.ObjectPos == mode.tex_coord) {
             const dpdx, const dpdy = context.approximateDpDxy(rs);
 
             const center = self.evaluate1(rs, @splat(0.0), mode);
@@ -112,7 +112,7 @@ pub const Noise = struct {
 
             return .{ n[0], n[1] };
         } else {
-            const dd = @abs(context.screenspaceDifferential(rs, mode.uv_set));
+            const dd = @abs(context.screenspaceDifferential(rs, mode.tex_coord));
 
             const shift_x = dd[0] + dd[2];
             const shift_y = dd[1] + dd[3];

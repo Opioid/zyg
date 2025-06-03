@@ -41,16 +41,16 @@ pub const Checker = struct {
     // https://iquilezles.org/articles/morecheckerfiltering/
 
     pub fn evaluate(self: Checker, rs: Renderstate, mode: Texture.Mode, context: Context) Vec4f {
-        const dd = context.screenspaceDifferential(rs, mode.uv_set);
+        const dd = context.screenspaceDifferential(rs, mode.tex_coord);
         const ddx: Vec2f = .{ dd[0], dd[1] };
         const ddy: Vec2f = .{ dd[2], dd[3] };
 
-        const uv = if (.Triplanar == mode.uv_set) rs.triplanarUv() else rs.uv();
+        const st = if (.Triplanar == mode.tex_coord) rs.triplanarSt() else rs.uv();
 
         const scale: Vec2f = @splat(self.scale);
 
         const t = checkersGrad(
-            scale * mode.address2(uv),
+            scale * mode.address2(st),
             scale * ddx,
             scale * ddy,
         );

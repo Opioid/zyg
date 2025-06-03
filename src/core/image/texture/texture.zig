@@ -23,14 +23,14 @@ pub const Texture = struct {
         .filter = Texture.DefaultFilter,
         .u = .Repeat,
         .v = .Repeat,
-        .uv_set = .UV0,
+        .tex_coord = .UV0,
     };
 
     pub const DefaultClampMode = Mode{
         .filter = Texture.DefaultFilter,
         .u = .Clamp,
         .v = .Clamp,
-        .uv_set = .UV0,
+        .tex_coord = .UV0,
     };
 
     pub const Type = enum {

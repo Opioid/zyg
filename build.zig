@@ -134,7 +134,7 @@ pub fn build(b: *std.Build) void {
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            "takes/cornell.take",
+            //"takes/cornell.take",
             //"takes/cornell_nd.take",
             //"takes/curve_test.take",
             //"takes/imrod.take",
@@ -158,6 +158,8 @@ pub fn build(b: *std.Build) void {
             //"takes/sss.take",
             //"scenes/island/shot_cam.take",
             //"takes/shadow_catcher.take",
+            //"scenes/bamboo/bamboo.take",
+            "models/plants/bamboo/bamboo_leaves.take",
             "-t",
             "-1",
             //"--no-tex",
@@ -183,14 +185,16 @@ pub fn build(b: *std.Build) void {
     // } else {
     //     run_exe.addArgs(&[_][]const u8{
     //         "-i",
-    //         "image_00_indirect.png",
-    //         "image_00_ns.png",
-    //         "image_00_albedo.png",
-    //         "image_00_depth.png",
+    //         // "image_00_indirect.png",
+    //         // "image_00_ns.png",
+    //         // "image_00_albedo.png",
+    //         // "image_00_depth.png",
+    //         // "--denoise",
+    //         // "2.0",
+    //         "leaves_1024.png",
+    //         "--down-sample",
     //         "-t",
     //         "-1",
-    //         "--denoise",
-    //         "2.0",
     //     });
     // }
 
@@ -207,9 +211,11 @@ pub fn build(b: *std.Build) void {
     // } else {
     //     run_exe.addArgs(&[_][]const u8{
     //         "-i",
-    //         "sow/bamboo.json",
+    //         // "sow/bamboo_forest.json",
+    //         "sow/bamboo_leaves.json",
     //         "-o",
-    //         "../data/models/plants/bamboo/bamboo.instancer",
+    //         //  "../data/models/plants/bamboo/bamboo.instancer",
+    //         "../data/models/plants/bamboo/bamboo_leaves.instancer",
     //         "-t",
     //         "-1",
     //     });

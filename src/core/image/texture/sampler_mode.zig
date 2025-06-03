@@ -49,7 +49,7 @@ pub const Mode = packed struct {
         }
     };
 
-    uv_set: TexCoord,
+    tex_coord: TexCoord,
     u: Address,
     v: Address,
     filter: Filter,

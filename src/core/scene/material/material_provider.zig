@@ -673,11 +673,11 @@ fn readTextureSampler(value: std.json.Value) Texture.Mode {
                     const set = json.readString(entry.value_ptr.*);
 
                     if (std.mem.eql(u8, "UV0", set)) {
-                        sampler.uv_set = .UV0;
+                        sampler.tex_coord = .UV0;
                     } else if (std.mem.eql(u8, "Triplanar", set)) {
-                        sampler.uv_set = .Triplanar;
+                        sampler.tex_coord = .Triplanar;
                     } else if (std.mem.eql(u8, "ObjectPos", set)) {
-                        sampler.uv_set = .ObjectPos;
+                        sampler.tex_coord = .ObjectPos;
                     }
                 }
             }

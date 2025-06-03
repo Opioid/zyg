@@ -45,7 +45,7 @@ pub const Renderstate = struct {
         return .{ uvw[0], uvw[1] };
     }
 
-    pub fn triplanarUv(self: Renderstate) Vec2f {
+    pub fn triplanarSt(self: Renderstate) Vec2f {
         const op = self.trafo.worldToObjectPoint(self.p);
         const on = self.trafo.worldToObjectNormal(self.geo_n);
 
