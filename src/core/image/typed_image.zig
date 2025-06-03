@@ -25,23 +25,30 @@ pub const Description = struct {
 
 pub fn TypedImage(comptime T: type) type {
     return struct {
-        dimensions: Vec4i = @splat(0.0),
+        dimensions: Vec4i,
 
-        pixels: []T = &.{},
+        pixels: []T,
 
         const Self = @This();
 
-        pub fn init(alloc: Allocator, description: Description) !TypedImage(T) {
+        pub fn initEmpty() Self {
+            return Self{
+                .dimensions = @splat(0.0),
+                .pixels = &.{},
+            };
+        }
+
+        pub fn init(alloc: Allocator, description: Description) !Self {
             const dim = description.dimensions;
 
-            return TypedImage(T){
+            return Self{
                 .dimensions = dim,
                 .pixels = try alloc.alloc(T, Description.numPixels(dim)),
             };
         }
 
-        pub fn initFromBytes(description: Description, data: []align(@alignOf(T)) u8) TypedImage(T) {
-            return TypedImage(T){
+        pub fn initFromBytes(description: Description, data: []align(@alignOf(T)) u8) Self {
+            return Self{
                 .dimensions = description.dimensions,
                 .pixels = std.mem.bytesAsSlice(T, data),
             };
