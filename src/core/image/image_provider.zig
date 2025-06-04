@@ -38,10 +38,10 @@ pub const Provider = struct {
 
         const file_type = file.queryType(stream);
 
-        const swizzle = options.queryOrDef("swizzle", Swizzle.XYZ);
+        const swizzle = options.queryOr("swizzle", Swizzle.XYZ);
 
         if (.EXR == file_type) {
-            const color = options.queryOrDef("color", false);
+            const color = options.queryOr("color", false);
             return .{ .data = try ExrReader.read(alloc, stream, swizzle, color) };
         }
 
@@ -50,7 +50,7 @@ pub const Provider = struct {
         }
 
         if (.PNG == file_type) {
-            const invert = options.queryOrDef("invert", false);
+            const invert = options.queryOr("invert", false);
             return .{ .data = try self.png_reader.read(alloc, stream, swizzle, invert, resources.threads) };
         }
 
