@@ -33,7 +33,7 @@ pub const Provider = struct {
         scale: Vec2f,
         resources: *Resources,
     ) !Texture {
-        const usage = options.queryOrDef("usage", Usage.Color);
+        const usage = options.queryOr("usage", Usage.Color);
 
         const color = switch (usage) {
             .Color, .ColorAndOpacity, .Emission => true,

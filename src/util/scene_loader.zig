@@ -343,7 +343,7 @@ pub const Loader = struct {
                         var offset: Vec4i = @splat(0);
 
                         if (self.resources.images.meta(t.data.image.id)) |meta| {
-                            offset = meta.queryOrDef("offset", offset);
+                            offset = meta.queryOr("offset", offset);
 
                             // HACK, where do those values come from?!?!
                             if (offset[0] == 0x7FFFFFFF) {
