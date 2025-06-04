@@ -12,6 +12,10 @@ pub const Description = struct {
         return .{ .dimensions = .{ dim[0], dim[1], 1, 1 } };
     }
 
+    pub fn init2DLevels(dim: Vec2i, levels: i32) Description {
+        return .{ .dimensions = .{ dim[0], dim[1], 1, levels } };
+    }
+
     pub fn init3D(dim: Vec4i) Description {
         return .{ .dimensions = dim };
     }
@@ -39,14 +43,32 @@ pub fn TypedImage(comptime T: type) type {
         }
 
         pub fn init(alloc: Allocator, description: Description) !Self {
-            const dim = description.dimensions;
+            var dim = description.dimensions;
+
+            var levels: usize = @intCast(dim[3]);
+
+            if (levels > 1) {
+                levels = @intCast(std.math.log2(@min(dim[0], dim[1])) + 1);
+
+                //    std.debug.print("{} -> {}\n", .{ dim, levels });
+            }
 
             var self: Self = undefined;
-            self.dimensions = try alloc.alloc(Vec4i, 1);
-            self.pixels = try alloc.alloc([]T, 1);
+            self.dimensions = try alloc.alloc(Vec4i, levels);
+            self.pixels = try alloc.alloc([]T, levels);
 
             self.dimensions[0] = dim;
             self.pixels[0] = try alloc.alloc(T, Description.numPixels(dim));
+
+            for (1..levels) |l| {
+                dim[0] = @intFromFloat(@floor(@as(f32, @floatFromInt(dim[0])) / 2.0));
+                dim[1] = @intFromFloat(@floor(@as(f32, @floatFromInt(dim[1])) / 2.0));
+
+                self.dimensions[l] = dim;
+                self.pixels[l] = try alloc.alloc(T, Description.numPixels(dim));
+
+                //    std.debug.print("{}: {}\n", .{ l, dim });
+            }
 
             return self;
         }
@@ -98,10 +120,16 @@ pub fn TypedImage(comptime T: type) type {
             return self.pixels[0][@intCast(i)];
         }
 
-        pub fn set2D(self: *Self, x: i32, y: i32, v: T) void {
-            const i = y * self.dimensions[0][0] + x;
+        pub fn get2DLevel(self: Self, level: u32, x: i32, y: i32) T {
+            const i = y * self.dimensions[level][0] + x;
 
-            self.pixels[0][@intCast(i)] = v;
+            return self.pixels[level][@intCast(i)];
+        }
+
+        pub fn set2D(self: *Self, level: u32, x: i32, y: i32, v: T) void {
+            const i = y * self.dimensions[level][0] + x;
+
+            self.pixels[level][@intCast(i)] = v;
         }
 
         pub fn get3D(self: Self, x: i32, y: i32, z: i32) T {

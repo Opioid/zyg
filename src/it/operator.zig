@@ -119,7 +119,7 @@ pub const Operator = struct {
                     const color_a = self.tonemapper.tonemap(texture_a.get2D_4(ix, iy, self.scene));
                     const color_b = self.tonemapper.tonemap(texture_b.get2D_4(ix, iy, self.scene));
 
-                    self.target.set2D(ix, iy, Pack4f.init4(color_a[0], color_b[1], color_b[2], 0.5 * (color_a[3] + color_b[3])));
+                    self.target.set2D(0, ix, iy, Pack4f.init4(color_a[0], color_b[1], color_b[2], 0.5 * (color_a[3] + color_b[3])));
                 }
             }
         } else if (.Blur == self.class) {
@@ -158,7 +158,7 @@ pub const Operator = struct {
 
                     const dif = @abs(color_a - color_b);
 
-                    self.target.set2D(ix, iy, Pack4f.init4(dif[0], dif[1], dif[2], dif[3]));
+                    self.target.set2D(0, ix, iy, Pack4f.init4(dif[0], dif[1], dif[2], dif[3]));
                 }
             }
         } else if (.DownSample == self.class) {
@@ -222,7 +222,7 @@ pub const Operator = struct {
                     };
 
                     const tm = self.tonemapper.tonemap(color);
-                    self.target.set2D(ix, iy, Pack4f.init4(tm[0], tm[1], tm[2], color[3]));
+                    self.target.set2D(0, ix, iy, Pack4f.init4(tm[0], tm[1], tm[2], color[3]));
                 }
             }
         }

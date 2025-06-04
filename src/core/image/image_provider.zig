@@ -50,8 +50,9 @@ pub const Provider = struct {
         }
 
         if (.PNG == file_type) {
+            const levels = options.queryOr("levels", @as(u32, 1));
             const invert = options.queryOr("invert", false);
-            return .{ .data = try self.png_reader.read(alloc, stream, swizzle, invert, resources.threads) };
+            return .{ .data = try self.png_reader.read(alloc, stream, levels, swizzle, invert, resources.threads) };
         }
 
         if (.RGBE == file_type) {

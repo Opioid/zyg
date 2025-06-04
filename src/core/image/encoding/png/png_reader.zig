@@ -135,7 +135,7 @@ pub const Reader = struct {
             }
         }
 
-        pub fn allocateImage(self: *Info, alloc: Allocator, swizzle: Swizzle, invert: bool) !Image {
+        pub fn allocateImage(self: *Info, alloc: Allocator, levels: u32, swizzle: Swizzle, invert: bool) !Image {
             var num_channels = swizzle.numChannels();
 
             self.swizzle = swizzle;
@@ -146,23 +146,25 @@ pub const Reader = struct {
 
             const dimensions = Vec2i{ self.width, self.height };
 
+            const description = img.Description.init2DLevels(dimensions, @intCast(levels));
+
             if (1 == num_channels) {
-                const image = try img.Byte1.init(alloc, img.Description.init2D(dimensions));
+                const image = try img.Byte1.init(alloc, description);
                 self.image = .{ .Byte1 = image };
             }
 
             if (2 == num_channels) {
-                const image = try img.Byte2.init(alloc, img.Description.init2D(dimensions));
+                const image = try img.Byte2.init(alloc, description);
                 self.image = .{ .Byte2 = image };
             }
 
             if (3 == num_channels) {
-                const image = try img.Byte3.init(alloc, img.Description.init2D(dimensions));
+                const image = try img.Byte3.init(alloc, description);
                 self.image = .{ .Byte3 = image };
             }
 
             if (4 == num_channels) {
-                const image = try img.Byte4.init(alloc, img.Description.init2D(dimensions));
+                const image = try img.Byte4.init(alloc, description);
                 self.image = .{ .Byte4 = image };
             }
 
@@ -412,7 +414,7 @@ pub const Reader = struct {
         self.chunk.deinit(alloc);
     }
 
-    pub fn read(self: *Reader, alloc: Allocator, stream: ReadStream, swizzle: Swizzle, invert: bool, threads: *Threads) !Image {
+    pub fn read(self: *Reader, alloc: Allocator, stream: ReadStream, levels: u32, swizzle: Swizzle, invert: bool, threads: *Threads) !Image {
         var signature: [Signature.len]u8 = undefined;
         _ = try stream.read(&signature);
 
@@ -424,7 +426,7 @@ pub const Reader = struct {
 
         while (try self.handleChunk(alloc, stream, info)) {}
 
-        const image = try info.allocateImage(alloc, swizzle, invert);
+        const image = try info.allocateImage(alloc, levels, swizzle, invert);
 
         if (threads.runningAsync()) {
             try info.process();

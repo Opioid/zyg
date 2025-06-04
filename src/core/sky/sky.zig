@@ -188,7 +188,7 @@ pub const Sky = struct {
             while (y < Bake_dimensions[1]) : (y += 1) {
                 var x: i32 = 0;
                 while (x < Bake_dimensions[0]) : (x += 1) {
-                    image.set2D(x, y, math.Pack3f.init1(0.0));
+                    image.set2D(0, x, y, math.Pack3f.init1(0.0));
                 }
             }
 
@@ -299,9 +299,9 @@ const SkyContext = struct {
                 if (clippedCanopyMapping(self.trafo, uv, 3.5 * idf[0])) |wi| {
                     const li = self.model.evaluateSky(math.normalize3(wi), &rng);
 
-                    self.image.set2D(@intCast(x), @intCast(y), math.vec4fTo3f(li));
+                    self.image.set2D(0, @intCast(x), @intCast(y), math.vec4fTo3f(li));
                 } else {
-                    self.image.set2D(@intCast(x), @intCast(y), Pack3f.init1(0.0));
+                    self.image.set2D(0, @intCast(x), @intCast(y), Pack3f.init1(0.0));
                 }
             }
         }

@@ -377,7 +377,7 @@ pub const Reader = struct {
 
                 const value = data.sample(ll[0], ll[1]);
 
-                image.set2D(x, y, @floatCast(math.saturate(value * imi)));
+                image.set2D(0, x, y, @floatCast(math.saturate(value * imi)));
             }
         }
 

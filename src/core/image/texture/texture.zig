@@ -7,9 +7,11 @@ const base = @import("base");
 const math = base.math;
 const spectrum = base.spectrum;
 const Vec2f = math.Vec2f;
+const Pack3b = math.Pack3b;
 const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
 const Vec4i = math.Vec4i;
+const baseenc = base.encoding;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -174,6 +176,15 @@ pub const Texture = struct {
         };
     }
 
+    pub fn image2DLevel_1(self: Texture, level: u32, x: i32, y: i32, scene: *const Scene) f32 {
+        const image = scene.image(self.data.image.id);
+
+        return switch (self.type) {
+            .Byte1_unorm => enc.cachedUnormToFloat(image.Byte1.get2DLevel(level, x, y)),
+            else => 0.0,
+        };
+    }
+
     pub fn image2D_2(self: Texture, x: i32, y: i32, scene: *const Scene) Vec2f {
         const image = scene.image(self.data.image.id);
 
@@ -181,6 +192,17 @@ pub const Texture = struct {
             .Byte2_unorm => enc.cachedUnormToFloat2(image.Byte2.get2D(x, y)),
             .Byte2_snorm => enc.cachedSnormToFloat2(image.Byte2.get2D(x, y)),
             .Float2 => image.Float2.get2D(x, y),
+            else => @splat(0.0),
+        };
+    }
+
+    pub fn image2DLevel_2(self: Texture, level: u32, x: i32, y: i32, scene: *const Scene) Vec2f {
+        const image = scene.image(self.data.image.id);
+
+        return switch (self.type) {
+            .Byte2_unorm => enc.cachedUnormToFloat2(image.Byte2.get2DLevel(level, x, y)),
+            .Byte2_snorm => enc.cachedSnormToFloat2(image.Byte2.get2DLevel(level, x, y)),
+            .Float2 => image.Float2.get2DLevel(level, x, y),
             else => @splat(0.0),
         };
     }
@@ -214,6 +236,19 @@ pub const Texture = struct {
                 const value = image.Float3.get2D(x, y);
                 return .{ value.v[0], value.v[1], value.v[2], 0.0 };
             },
+            else => @splat(0.0),
+        };
+    }
+
+    pub fn image2DLevel_3(self: Texture, level: u32, x: i32, y: i32, scene: *const Scene) Vec4f {
+        const image = scene.image(self.data.image.id);
+
+        return switch (self.type) {
+            .Byte3_sRGB => {
+                const value = image.Byte3.get2DLevel(level, x, y);
+                return spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
+            },
+
             else => @splat(0.0),
         };
     }
@@ -291,8 +326,16 @@ pub const Texture = struct {
         };
     }
 
+    pub fn levels(self: Texture, scene: *const Scene) u32 {
+        return scene.image(self.data.image.id).levels();
+    }
+
     pub fn dimensions(self: Texture, scene: *const Scene) Vec4i {
         return scene.image(self.data.image.id).dimensions();
+    }
+
+    pub fn dimensionsLevel(self: Texture, level: u32, scene: *const Scene) Vec4i {
+        return scene.image(self.data.image.id).dimensionsLevel(level);
     }
 
     pub fn average_3(self: Texture, scene: *const Scene) Vec4f {
@@ -309,5 +352,46 @@ pub const Texture = struct {
 
         const area = @as(f32, @floatFromInt(d[0])) * @as(f32, @floatFromInt(d[1]));
         return average / @as(Vec4f, @splat(area));
+    }
+
+    pub fn calculalateMipChain(self: *Texture, scene: *const Scene) void {
+        const image = scene.imagePtr(self.data.image.id);
+
+        if (.Byte3_sRGB == self.type) {
+            // const average = self.average_3(scene);
+
+            // const srgb = spectrum.AP1tosRGB(average);
+
+            // const bytes = Pack3b.init3(
+            //     baseenc.floatToUnorm8(spectrum.linearToGamma_sRGB(srgb[0])),
+            //     baseenc.floatToUnorm8(spectrum.linearToGamma_sRGB(srgb[1])),
+            //     baseenc.floatToUnorm8(spectrum.linearToGamma_sRGB(srgb[2])),
+            // );
+
+            const dim = image.Byte3.dimensions[1];
+
+            var y: i32 = 0;
+            while (y < dim[1]) : (y += 1) {
+                var x: i32 = 0;
+                while (x < dim[0]) : (x += 1) {
+                    const a = self.get2D_4(x * 2 + 0, y * 2 + 0, scene);
+                    const b = self.get2D_4(x * 2 + 1, y * 2 + 0, scene);
+                    const c = self.get2D_4(x * 2 + 0, y * 2 + 1, scene);
+                    const d = self.get2D_4(x * 2 + 1, y * 2 + 1, scene);
+
+                    const average = @as(Vec4f, @splat(0.25)) * (a + b + c + d);
+
+                    const srgb = spectrum.AP1tosRGB(average);
+
+                    const bytes = Pack3b.init3(
+                        baseenc.floatToUnorm8(spectrum.linearToGamma_sRGB(srgb[0])),
+                        baseenc.floatToUnorm8(spectrum.linearToGamma_sRGB(srgb[1])),
+                        baseenc.floatToUnorm8(spectrum.linearToGamma_sRGB(srgb[2])),
+                    );
+
+                    image.Byte3.set2D(1, x, y, bytes);
+                }
+            }
+        }
     }
 };

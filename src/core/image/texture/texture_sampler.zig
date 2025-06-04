@@ -28,7 +28,7 @@ pub fn sample2D_1(texture: Texture, rs: Renderstate, sampler: *Sampler, context:
 
             return switch (texture.mode.filter) {
                 .Nearest => Nearest2D.sample_1(texture, st, context.scene),
-                .LinearStochastic => LinearStochastic2D.sample_1(texture, st, sampler, context.scene),
+                .LinearStochastic => LinearStochastic2D.sampleMip_1(texture, st, rs, sampler, context),
             };
         },
     }
@@ -43,7 +43,7 @@ pub fn sample2D_2(texture: Texture, rs: Renderstate, sampler: *Sampler, context:
 
             return switch (texture.mode.filter) {
                 .Nearest => Nearest2D.sample_2(texture, st, context.scene),
-                .LinearStochastic => LinearStochastic2D.sample_2(texture, st, sampler, context.scene),
+                .LinearStochastic => LinearStochastic2D.sampleMip_2(texture, st, rs, sampler, context),
             };
         },
     }
@@ -65,7 +65,7 @@ pub fn sample2D_3(texture: Texture, rs: Renderstate, sampler: *Sampler, context:
 
             return switch (texture.mode.filter) {
                 .Nearest => Nearest2D.sample_3(texture, st, context.scene),
-                .LinearStochastic => LinearStochastic2D.sample_3(texture, st, sampler, context.scene),
+                .LinearStochastic => LinearStochastic2D.sampleMip_3(texture, st, rs, sampler, context),
             };
         },
     }
@@ -126,16 +126,106 @@ const LinearStochastic2D = struct {
         return texture.image2D_1(m[0], m[1], scene);
     }
 
+    pub fn sampleMip_1(texture: Texture, st: Vec2f, rs: Renderstate, sampler: *Sampler, context: Context) f32 {
+        const num_levels = texture.levels(context.scene);
+
+        if (num_levels > 1) {
+            const dd = context.screenspaceDifferential(rs, texture.mode.tex_coord);
+            const ddx: Vec2f = .{ dd[0], dd[1] };
+            const ddy: Vec2f = .{ dd[2], dd[3] };
+
+            const dst0 = texture.data.image.scale * ddx;
+            const dst1 = texture.data.image.scale * ddy;
+
+            const width = 2.0 * math.min(@abs(dst0[0]), math.max(@abs(dst0[1]), math.max(@abs(dst1[0]), @abs(dst1[1]))));
+
+            const nl: f32 = @floatFromInt(num_levels);
+
+            const level = @floor(nl - 1.0 + std.math.log2(math.max(width, 1e-8)));
+
+            const ilevel = @min(@max(@as(i32, @intFromFloat(level)), 0), num_levels - 1);
+
+            const d = texture.dimensionsLevel(ilevel, context.scene);
+            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, sampler);
+            return texture.image2DLevel_1(ilevel, m[0], m[1], context.scene);
+        } else {
+            const d = texture.dimensions(context.scene);
+            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, sampler);
+            return texture.image2D_1(m[0], m[1], context.scene);
+        }
+    }
+
     pub fn sample_2(texture: Texture, st: Vec2f, sampler: *Sampler, scene: *const Scene) Vec2f {
         const d = texture.dimensions(scene);
         const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, sampler);
         return texture.image2D_2(m[0], m[1], scene);
     }
 
+    pub fn sampleMip_2(texture: Texture, st: Vec2f, rs: Renderstate, sampler: *Sampler, context: Context) Vec2f {
+        const num_levels = texture.levels(context.scene);
+
+        if (num_levels > 1) {
+            const dd = context.screenspaceDifferential(rs, texture.mode.tex_coord);
+            const ddx: Vec2f = .{ dd[0], dd[1] };
+            const ddy: Vec2f = .{ dd[2], dd[3] };
+
+            const dst0 = texture.data.image.scale * ddx;
+            const dst1 = texture.data.image.scale * ddy;
+
+            const width = 2.0 * math.min(@abs(dst0[0]), math.max(@abs(dst0[1]), math.max(@abs(dst1[0]), @abs(dst1[1]))));
+
+            const nl: f32 = @floatFromInt(num_levels);
+
+            const level = @floor(nl - 1.0 + std.math.log2(math.max(width, 1e-8)));
+
+            const ilevel = @min(@max(@as(i32, @intFromFloat(level)), 0), num_levels - 1);
+
+            // const ilevel = 10; // @min(@max(@as(i32, @intFromFloat(level)), 0), num_levels - 1);
+            // _ = rs;
+
+            const d = texture.dimensionsLevel(ilevel, context.scene);
+            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, sampler);
+            return texture.image2DLevel_2(ilevel, m[0], m[1], context.scene);
+        } else {
+            const d = texture.dimensions(context.scene);
+            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, sampler);
+            return texture.image2D_2(m[0], m[1], context.scene);
+        }
+    }
+
     pub fn sample_3(texture: Texture, st: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
         const d = texture.dimensions(scene);
         const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, sampler);
         return texture.image2D_3(m[0], m[1], scene);
+    }
+
+    pub fn sampleMip_3(texture: Texture, st: Vec2f, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
+        const num_levels = texture.levels(context.scene);
+
+        if (num_levels > 1) {
+            const dd = context.screenspaceDifferential(rs, texture.mode.tex_coord);
+            const ddx: Vec2f = .{ dd[0], dd[1] };
+            const ddy: Vec2f = .{ dd[2], dd[3] };
+
+            const dst0 = texture.data.image.scale * ddx;
+            const dst1 = texture.data.image.scale * ddy;
+
+            const width = 2.0 * math.min(@abs(dst0[0]), math.max(@abs(dst0[1]), math.max(@abs(dst1[0]), @abs(dst1[1]))));
+
+            const nl: f32 = @floatFromInt(num_levels);
+
+            const level = @floor(nl - 1.0 + std.math.log2(math.max(width, 1e-8)));
+
+            const ilevel = @min(@max(@as(i32, @intFromFloat(level)), 0), num_levels - 1);
+
+            const d = texture.dimensionsLevel(ilevel, context.scene);
+            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, sampler);
+            return texture.image2DLevel_3(ilevel, m[0], m[1], context.scene);
+        } else {
+            const d = texture.dimensions(context.scene);
+            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, sampler);
+            return texture.image2D_3(m[0], m[1], context.scene);
+        }
     }
 
     fn map(d: Vec2i, st: Vec2f, mode: Texture.Mode, sampler: *Sampler) Vec2i {

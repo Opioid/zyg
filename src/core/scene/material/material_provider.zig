@@ -729,6 +729,10 @@ fn createTexture(
             options.set(alloc, "swizzle", swizzle) catch {};
         }
 
+        if (.Color == usage or .Weight == usage or .Normal == usage) {
+            options.set(alloc, "levels", 7) catch {};
+        }
+
         return tx.Provider.loadFile(alloc, filename, options, desc.sampler, desc.scale, resources) catch |e| {
             log.err("Could not load texture \"{s}\": {}", .{ filename, e });
             return TextureError.NoTexture;

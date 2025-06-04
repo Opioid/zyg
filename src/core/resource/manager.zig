@@ -96,6 +96,10 @@ pub const Manager = struct {
         self.threads.waitAsync();
 
         self.shapes.provider.commitAsync(self);
+
+        for (self.images.resources.items) |*image| {
+            image.calculalateMipChain();
+        }
     }
 
     pub fn get(self: *const Manager, comptime T: type, id: u32) ?*T {

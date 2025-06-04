@@ -81,7 +81,7 @@ pub const Blur = struct {
 
                 const srgb = spectrum.AP1tosRGB(color);
 
-                target.set2D(ix, iy, Pack4f.init4(srgb[0], srgb[1], srgb[2], color[3]));
+                target.set2D(0, ix, iy, Pack4f.init4(srgb[0], srgb[1], srgb[2], color[3]));
             }
         }
     }

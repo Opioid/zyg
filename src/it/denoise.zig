@@ -165,7 +165,7 @@ pub const Denoise = struct {
 
                 const srgb = spectrum.AP1tosRGB(color);
 
-                target.set2D(ix, iy, Pack4f.init4(srgb[0], srgb[1], srgb[2], 1.0));
+                target.set2D(0, ix, iy, Pack4f.init4(srgb[0], srgb[1], srgb[2], 1.0));
             }
         }
     }
