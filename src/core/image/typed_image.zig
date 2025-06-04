@@ -16,31 +16,40 @@ pub const Description = struct {
         return .{ .dimensions = dim };
     }
 
-    pub fn numPixels(self: Description) u64 {
-        return @as(u64, @intCast(self.dimensions[0])) *
-            @as(u64, @intCast(self.dimensions[1])) *
-            @as(u64, @intCast(self.dimensions[2]));
+    pub fn numPixels(dim: Vec4i) u64 {
+        return @as(u64, @intCast(dim[0])) *
+            @as(u64, @intCast(dim[1])) *
+            @as(u64, @intCast(dim[2]));
     }
 };
 
 pub fn TypedImage(comptime T: type) type {
     return struct {
-        description: Description = .{},
+        dimensions: Vec4i,
 
-        pixels: []T = &.{},
+        pixels: []T,
 
         const Self = @This();
 
-        pub fn init(alloc: Allocator, description: Description) !TypedImage(T) {
-            return TypedImage(T){
-                .description = description,
-                .pixels = try alloc.alloc(T, description.numPixels()),
+        pub fn initEmpty() Self {
+            return Self{
+                .dimensions = @splat(0.0),
+                .pixels = &.{},
             };
         }
 
-        pub fn initFromBytes(description: Description, data: []align(@alignOf(T)) u8) TypedImage(T) {
-            return TypedImage(T){
-                .description = description,
+        pub fn init(alloc: Allocator, description: Description) !Self {
+            const dim = description.dimensions;
+
+            return Self{
+                .dimensions = dim,
+                .pixels = try alloc.alloc(T, Description.numPixels(dim)),
+            };
+        }
+
+        pub fn initFromBytes(description: Description, data: []align(@alignOf(T)) u8) Self {
+            return Self{
+                .dimensions = description.dimensions,
                 .pixels = std.mem.bytesAsSlice(T, data),
             };
         }
@@ -50,28 +59,30 @@ pub fn TypedImage(comptime T: type) type {
         }
 
         pub fn resize(self: *Self, alloc: Allocator, description: Description) !void {
-            self.description = description;
+            const dim = description.dimensions;
 
-            const len = description.numPixels();
+            self.dimensions = dim;
+
+            const len = Description.numPixels(dim);
             if (self.pixels.len < len) {
                 self.pixels = try alloc.realloc(self.pixels, len);
             }
         }
 
         pub fn get2D(self: Self, x: i32, y: i32) T {
-            const i = y * self.description.dimensions[0] + x;
+            const i = y * self.dimensions[0] + x;
 
             return self.pixels[@intCast(i)];
         }
 
         pub fn set2D(self: *Self, x: i32, y: i32, v: T) void {
-            const i = y * self.description.dimensions[0] + x;
+            const i = y * self.dimensions[0] + x;
 
             self.pixels[@intCast(i)] = v;
         }
 
         pub fn get3D(self: Self, x: i32, y: i32, z: i32) T {
-            const d = self.description.dimensions;
+            const d = self.dimensions;
             const i = (@as(u64, @intCast(z)) * @as(u64, @intCast(d[1])) + @as(u64, @intCast(y))) *
                 @as(u64, @intCast(d[0])) + @as(u64, @intCast(x));
 
@@ -87,7 +98,7 @@ pub fn TypedSparseImage(comptime T: type) type {
             value: T,
         };
 
-        description: Description,
+        dimensions: Vec4i,
 
         num_cells: Vec4i,
 
@@ -108,7 +119,7 @@ pub fn TypedSparseImage(comptime T: type) type {
             const cells_len: usize = @intCast(num_cells[0] * num_cells[1] * num_cells[2]);
 
             const result = Self{
-                .description = description,
+                .dimensions = d,
                 .num_cells = num_cells,
                 .cells = try alloc.alloc(Cell, cells_len),
             };
@@ -195,7 +206,7 @@ pub fn TypedSparseImage(comptime T: type) type {
         }
 
         fn coordinates3(self: Self, index: i64) Vec4i {
-            const d = self.description.dimensions;
+            const d = self.dimensions;
             const w: i64 = d[0];
             const h: i64 = d[1];
 

@@ -251,8 +251,10 @@ export fn su_image_create(
 
         const bpp = bpc * num_channels;
 
+        const num_pixels = img.Description.numPixels(desc.dimensions);
+
         if (bpp == pixel_stride) {
-            @memcpy(buffer, data[0 .. desc.numPixels() * bpp]);
+            @memcpy(buffer, data[0 .. num_pixels * bpp]);
         }
 
         const image: ?img.Image = switch (ef) {
@@ -306,8 +308,6 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
             const bpp = bpc * num_channels;
 
             if (bpp == pixel_stride) {
-                const desc = image.description();
-
                 const buffer = switch (image.*) {
                     .Byte1 => |i| std.mem.sliceAsBytes(i.pixels),
                     .Byte2 => |i| std.mem.sliceAsBytes(i.pixels),
@@ -320,7 +320,8 @@ export fn su_image_update(id: u32, pixel_stride: u32, data: [*]u8) i32 {
                     else => return -1,
                 };
 
-                @memcpy(buffer, data[0 .. desc.numPixels() * bpp]);
+                const num_pixels = img.Description.numPixels(image.dimensions());
+                @memcpy(buffer, data[0 .. num_pixels * bpp]);
             }
 
             return 0;
@@ -616,7 +617,7 @@ export fn su_resolve_frame(aov: u32) i32 {
 
 export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: [*]f32) i32 {
     if (engine) |*e| {
-        const num_pixels = @min(width * height, @as(u32, @intCast(e.driver.target.description.numPixels())));
+        const num_pixels = @min(width * height, @as(u32, @intCast(img.Description.numPixels(e.driver.target.dimensions))));
 
         const target: [*]Pack4f = @ptrCast(buffer);
 
@@ -650,7 +651,7 @@ export fn su_copy_framebuffer(
         };
 
         const buffer = e.driver.target;
-        const d = buffer.description.dimensions;
+        const d = buffer.dimensions;
         const used_height = @min(height, @as(u32, @intCast(d[1])));
 
         _ = e.threads.runRange(&context, CopyFramebufferContext.copy, 0, used_height, 0);
@@ -673,7 +674,7 @@ const CopyFramebufferContext = struct {
 
         const self = @as(*CopyFramebufferContext, @ptrCast(@alignCast(context)));
 
-        const d = self.source.description.dimensions;
+        const d = self.source.dimensions;
 
         const width = self.width;
         const used_width = @min(self.width, @as(u32, @intCast(d[0])));

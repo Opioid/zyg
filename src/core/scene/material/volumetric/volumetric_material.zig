@@ -136,7 +136,7 @@ pub const Material = struct {
             return self.average_emission;
         }
 
-        const d = self.density_map.description(scene).dimensions;
+        const d = self.density_map.dimensions(scene);
 
         const luminance = alloc.alloc(f32, @intCast(d[0] * d[1] * d[2])) catch return @splat(0.0);
         defer alloc.free(luminance);
@@ -306,7 +306,7 @@ const LuminanceContext = struct {
         const self: *LuminanceContext = @ptrCast(context);
         const mat = self.material;
 
-        const d = self.material.density_map.description(self.scene).dimensions;
+        const d = self.material.density_map.dimensions(self.scene);
         const width: u32 = @intCast(d[0]);
         const height: u32 = @intCast(d[1]);
 

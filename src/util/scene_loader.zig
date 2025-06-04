@@ -339,11 +339,11 @@ pub const Loader = struct {
                 if (material.heterogeneousVolume()) {
                     if (material.usefulTexture()) |t| {
                         const voxel_scale: Vec4f = @splat(trafo.scale[0]);
-                        const dimensions = t.description(scene).dimensions;
+                        const dimensions = t.dimensions(scene);
                         var offset: Vec4i = @splat(0);
 
                         if (self.resources.images.meta(t.data.image.id)) |meta| {
-                            offset = meta.queryOrDef("offset", offset);
+                            offset = meta.queryOr("offset", offset);
 
                             // HACK, where do those values come from?!?!
                             if (offset[0] == 0x7FFFFFFF) {

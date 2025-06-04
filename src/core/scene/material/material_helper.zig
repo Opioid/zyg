@@ -25,13 +25,13 @@ pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, sampler: *Sampler,
 
     var n: Vec4f = undefined;
 
-    if (.ObjectPos == map.mode.uv_set) {
+    if (.ObjectPos == map.mode.tex_coord) {
         const t, const b = math.orthonormalBasis3(rs.n);
 
         const frame: Frame = .{ .x = t, .y = b, .z = rs.n };
 
         n = math.normalize3(frame.frameToWorld(nm));
-    } else if (.Triplanar == map.mode.uv_set) {
+    } else if (.Triplanar == map.mode.tex_coord) {
         const wt = triplanarTangent(rs.n, rs.trafo);
 
         const bt = math.cross3(rs.n, wt);

@@ -32,7 +32,7 @@ pub const Srgb = struct {
     }
 
     pub fn toSrgb(self: *Srgb, alloc: Allocator, image: Float4, crop: Vec4i, encoding: Encoding, threads: *Threads) !u32 {
-        const d = image.description.dimensions;
+        const d = image.dimensions;
         const num_pixels: u32 = @intCast(d[0] * d[1]);
 
         const xy = Vec2i{ crop[0], crop[1] };
@@ -103,7 +103,7 @@ pub const Srgb = struct {
     }
 
     fn toSrgbBuffer(self: *Srgb, begin: u32, end: u32) void {
-        const d = self.image.description.dimensions;
+        const d = self.image.dimensions;
         const data_width: u32 = @intCast(d[0]);
 
         const crop = self.crop;

@@ -90,13 +90,14 @@ pub const VariantMap = struct {
         return null;
     }
 
-    pub fn queryOrDef(self: Self, key: []const u8, def: anytype) @TypeOf(def) {
+    pub fn queryOr(self: Self, key: []const u8, def: anytype) @TypeOf(def) {
         return self.query(@TypeOf(def), key) orelse def;
     }
 
     pub fn set(self: *Self, alloc: Allocator, key: []const u8, val: anytype) !void {
         switch (@typeInfo(@TypeOf(val))) {
             .bool => try self.map.put(alloc, key, .{ .Bool = val }),
+            .int, .comptime_int => try self.map.put(alloc, key, .{ .UInt = val }),
             .@"enum" => try self.map.put(alloc, key, .{ .UInt = @intFromEnum(val) }),
             .vector => try self.map.put(alloc, key, .{ .Vec4i = val }),
             else => {},

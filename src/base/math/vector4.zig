@@ -137,24 +137,24 @@ pub inline fn clamp4(v: Vec4f, mi: f32, ma: f32) Vec4f {
 }
 
 pub inline fn hmin3(v: Vec4f) f32 {
-    return math.min(math.min(v[0], v[1]), v[2]);
+    return math.min(v[0], math.min(v[1], v[2]));
 }
 
 pub inline fn hmax3(v: Vec4f) f32 {
-    return math.max(math.max(v[0], v[1]), v[2]);
+    return math.max(v[0], math.max(v[1], v[2]));
 }
 
 pub inline fn hmin4(v: Vec4f) f32 {
     return switch (builtin.target.cpu.arch) {
         .aarch64, .aarch64_be => @reduce(.Min, v),
-        inline else => math.min(math.min(math.min(v[0], v[1]), v[2]), v[3]),
+        inline else => math.min(v[0], math.min(v[1], math.min(v[2], v[3]))),
     };
 }
 
 pub inline fn hmax4(v: Vec4f) f32 {
     return switch (builtin.target.cpu.arch) {
         .aarch64, .aarch64_be => @reduce(.Max, v),
-        inline else => math.max(math.max(math.max(v[0], v[1]), v[2]), v[3]),
+        inline else => math.max(v[0], math.max(v[1], math.max(v[2], v[3]))),
     };
 }
 

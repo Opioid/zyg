@@ -23,14 +23,14 @@ pub const Texture = struct {
         .filter = Texture.DefaultFilter,
         .u = .Repeat,
         .v = .Repeat,
-        .uv_set = .UV0,
+        .tex_coord = .UV0,
     };
 
     pub const DefaultClampMode = Mode{
         .filter = Texture.DefaultFilter,
         .u = .Clamp,
         .v = .Clamp,
-        .uv_set = .UV0,
+        .tex_coord = .UV0,
     };
 
     pub const Type = enum {
@@ -291,14 +291,14 @@ pub const Texture = struct {
         };
     }
 
-    pub fn description(self: Texture, scene: *const Scene) Description {
-        return scene.image(self.data.image.id).description();
+    pub fn dimensions(self: Texture, scene: *const Scene) Vec4i {
+        return scene.image(self.data.image.id).dimensions();
     }
 
     pub fn average_3(self: Texture, scene: *const Scene) Vec4f {
         var average: Vec4f = @splat(0.0);
 
-        const d = self.description(scene).dimensions;
+        const d = self.dimensions(scene);
         var y: i32 = 0;
         while (y < d[1]) : (y += 1) {
             var x: i32 = 0;
