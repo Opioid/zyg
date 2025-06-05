@@ -220,7 +220,7 @@ pub const Material = struct {
         return (1.0 - g) / (1.0 - gs);
     }
 
-    pub fn evaluateRadiance(self: *const Material, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
+    pub fn evaluateRadiance(self: *const Material, rs: Renderstate, context: Context) Vec4f {
         if (self.density_map.isUniform()) {
             return self.average_emission;
         }
@@ -228,17 +228,17 @@ pub const Material = struct {
         const uvw = rs.uvw;
 
         const emission = if (!self.emittance.emission_map.isUniform())
-            self.blackbody.eval(ts.sample3D_1(self.emittance.emission_map, uvw, sampler, context))
+            self.blackbody.eval(ts.sample3D_1(self.emittance.emission_map, uvw, rs.stochastic_r, context))
         else
             self.emittance.value;
 
         const norm_emission = self.a_norm * emission;
 
         if (2 == self.density_map.numChannels()) {
-            const d = ts.sample3D_2(self.density_map, uvw, sampler, context);
+            const d = ts.sample3D_2(self.density_map, uvw, rs.stochastic_r, context);
             return @as(Vec4f, @splat(d[0] * d[1])) * norm_emission;
         } else {
-            const d = ts.sample3D_1(self.density_map, uvw, sampler, context);
+            const d = ts.sample3D_1(self.density_map, uvw, rs.stochastic_r, context);
             return @as(Vec4f, @splat(d)) * norm_emission;
         }
     }
@@ -260,27 +260,28 @@ pub const Material = struct {
         return 1.0;
     }
 
-    pub fn density(self: *const Material, uvw: Vec4f, sampler: *Sampler, context: Context) f32 {
+    pub fn density(self: *const Material, uvw: Vec4f, r: f32, context: Context) f32 {
         if (!self.density_map.isUniform()) {
-            return ts.sample3D_1(self.density_map, uvw, sampler, context);
+            return ts.sample3D_1(self.density_map, uvw, r, context);
         }
 
         return 1.0;
     }
 
     pub fn collisionCoefficientsEmission(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, context: Context) CCE {
+        const r = sampler.sample1D();
         if (!self.density_map.isUniform() and !self.emittance.emission_map.isUniform()) {
-            const t = ts.sample3D_1(self.emittance.emission_map, uvw, sampler, context);
+            const t = ts.sample3D_1(self.emittance.emission_map, uvw, r, context);
             const e = self.blackbody.eval(t);
 
             if (2 == self.density_map.numChannels()) {
-                const d = ts.sample3D_2(self.density_map, uvw, sampler, context);
+                const d = ts.sample3D_2(self.density_map, uvw, r, context);
                 return .{
                     .cc = cc.scaled(@splat(d[0])),
                     .e = @as(Vec4f, @splat(d[1])) * e,
                 };
             } else {
-                const d: Vec4f = @splat(ts.sample3D_1(self.density_map, uvw, sampler, context));
+                const d: Vec4f = @splat(ts.sample3D_1(self.density_map, uvw, r, context));
                 return .{
                     .cc = cc.scaled(d),
                     .e = d * e,
@@ -288,7 +289,7 @@ pub const Material = struct {
             }
         }
 
-        const d = self.density(uvw, sampler, context);
+        const d = self.density(uvw, r, context);
         return .{
             .cc = cc.scaled(@splat(d)),
             .e = self.emittance.value,

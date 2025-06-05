@@ -122,6 +122,7 @@ pub const Light = struct {
         rs.origin = p;
         rs.geo_n = sample.n;
         rs.uvw = sample.uvw;
+        rs.stochastic_r = sampler.sample1D();
         rs.prop = self.prop;
         rs.part = self.part;
 
@@ -136,6 +137,7 @@ pub const Light = struct {
         rs.origin = p;
         rs.geo_n = sample.n;
         rs.uvw = sample.uvw;
+        rs.stochastic_r = sampler.sample1D();
         rs.prop = self.prop;
         rs.part = self.part;
 

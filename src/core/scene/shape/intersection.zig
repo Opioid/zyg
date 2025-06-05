@@ -108,12 +108,6 @@ pub const Fragment = struct {
         return scene.prop(self.prop).visibleInCamera();
     }
 
-    pub fn opacity(self: Self, sampler: *Sampler, context: Context) f32 {
-        var rs: Renderstate = undefined;
-        rs.uvw = self.uvw;
-        return self.material(context.scene).super().opacity(rs, sampler, context);
-    }
-
     pub inline fn subsurface(self: Self) bool {
         return .Scatter == self.event;
     }
@@ -148,6 +142,7 @@ pub const Fragment = struct {
         rs.origin = shading_p;
         rs.geo_n = self.geo_n;
         rs.uvw = self.uvw;
+        rs.stochastic_r = sampler.sample1D();
         rs.prop = self.prop;
         rs.part = self.part;
 
