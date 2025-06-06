@@ -127,32 +127,11 @@ const LinearStochastic2D = struct {
     }
 
     pub fn sampleMip_1(texture: Texture, st: Vec2f, rs: Renderstate, r: f32, context: Context) f32 {
-        const num_levels = texture.levels(context.scene);
+        const ilevel, const pr = selectLod(texture, rs, r, context);
 
-        if (num_levels > 1) {
-            const dd = context.screenspaceDifferential(rs, texture.mode.tex_coord);
-            const ddx: Vec2f = .{ dd[0], dd[1] };
-            const ddy: Vec2f = .{ dd[2], dd[3] };
-
-            const dst0 = texture.data.image.scale * ddx;
-            const dst1 = texture.data.image.scale * ddy;
-
-            const width = 2.0 * math.min(@abs(dst0[0]), math.max(@abs(dst0[1]), math.max(@abs(dst1[0]), @abs(dst1[1]))));
-
-            const nl: f32 = @floatFromInt(num_levels);
-
-            const level = @floor(nl - 1.0 + std.math.log2(math.max(width, 1e-8)));
-
-            const ilevel = @min(@max(@as(i32, @intFromFloat(level)), 0), num_levels - 1);
-
-            const d = texture.dimensionsLevel(ilevel, context.scene);
-            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, r);
-            return texture.image2DLevel_1(ilevel, m[0], m[1], context.scene);
-        } else {
-            const d = texture.dimensions(context.scene);
-            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, r);
-            return texture.image2D_1(m[0], m[1], context.scene);
-        }
+        const d = texture.dimensionsLevel(ilevel, context.scene);
+        const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, pr);
+        return texture.image2DLevel_1(ilevel, m[0], m[1], context.scene);
     }
 
     pub fn sample_2(texture: Texture, st: Vec2f, r: f32, scene: *const Scene) Vec2f {
@@ -162,35 +141,11 @@ const LinearStochastic2D = struct {
     }
 
     pub fn sampleMip_2(texture: Texture, st: Vec2f, rs: Renderstate, r: f32, context: Context) Vec2f {
-        const num_levels = texture.levels(context.scene);
+        const ilevel, const pr = selectLod(texture, rs, r, context);
 
-        if (num_levels > 1) {
-            const dd = context.screenspaceDifferential(rs, texture.mode.tex_coord);
-            const ddx: Vec2f = .{ dd[0], dd[1] };
-            const ddy: Vec2f = .{ dd[2], dd[3] };
-
-            const dst0 = texture.data.image.scale * ddx;
-            const dst1 = texture.data.image.scale * ddy;
-
-            const width = 2.0 * math.min(@abs(dst0[0]), math.max(@abs(dst0[1]), math.max(@abs(dst1[0]), @abs(dst1[1]))));
-
-            const nl: f32 = @floatFromInt(num_levels);
-
-            const level = @floor(nl - 1.0 + std.math.log2(math.max(width, 1e-8)));
-
-            const ilevel = @min(@max(@as(i32, @intFromFloat(level)), 0), num_levels - 1);
-
-            // const ilevel = 10; // @min(@max(@as(i32, @intFromFloat(level)), 0), num_levels - 1);
-            // _ = rs;
-
-            const d = texture.dimensionsLevel(ilevel, context.scene);
-            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, r);
-            return texture.image2DLevel_2(ilevel, m[0], m[1], context.scene);
-        } else {
-            const d = texture.dimensions(context.scene);
-            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, r);
-            return texture.image2D_2(m[0], m[1], context.scene);
-        }
+        const d = texture.dimensionsLevel(ilevel, context.scene);
+        const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, pr);
+        return texture.image2DLevel_2(ilevel, m[0], m[1], context.scene);
     }
 
     pub fn sample_3(texture: Texture, st: Vec2f, r: f32, scene: *const Scene) Vec4f {
@@ -200,32 +155,51 @@ const LinearStochastic2D = struct {
     }
 
     pub fn sampleMip_3(texture: Texture, st: Vec2f, rs: Renderstate, r: f32, context: Context) Vec4f {
+        const ilevel, const pr = selectLod(texture, rs, r, context);
+
+        const d = texture.dimensionsLevel(ilevel, context.scene);
+        const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, pr);
+        return texture.image2DLevel_3(ilevel, m[0], m[1], context.scene);
+    }
+
+    fn selectLod(texture: Texture, rs: Renderstate, r: f32, context: Context) struct { u32, f32 } {
         const num_levels = texture.levels(context.scene);
 
-        if (num_levels > 1) {
-            const dd = context.screenspaceDifferential(rs, texture.mode.tex_coord);
-            const ddx: Vec2f = .{ dd[0], dd[1] };
-            const ddy: Vec2f = .{ dd[2], dd[3] };
-
-            const dst0 = texture.data.image.scale * ddx;
-            const dst1 = texture.data.image.scale * ddy;
-
-            const width = 2.0 * math.min(@abs(dst0[0]), math.max(@abs(dst0[1]), math.max(@abs(dst1[0]), @abs(dst1[1]))));
-
-            const nl: f32 = @floatFromInt(num_levels);
-
-            const level = @floor(nl - 1.0 + std.math.log2(math.max(width, 1e-8)));
-
-            const ilevel = @min(@max(@as(i32, @intFromFloat(level)), 0), num_levels - 1);
-
-            const d = texture.dimensionsLevel(ilevel, context.scene);
-            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, r);
-            return texture.image2DLevel_3(ilevel, m[0], m[1], context.scene);
-        } else {
-            const d = texture.dimensions(context.scene);
-            const m = map(.{ d[0], d[1] }, texture.data.image.scale * st, texture.mode, r);
-            return texture.image2D_3(m[0], m[1], context.scene);
+        if (1 == num_levels) {
+            return .{ 0, r };
         }
+
+        const dd = context.screenspaceDifferential(rs, texture.mode.tex_coord);
+        const ddx: Vec2f = .{ dd[0], dd[1] };
+        const ddy: Vec2f = .{ dd[2], dd[3] };
+
+        const dst0 = texture.data.image.scale * ddx;
+        const dst1 = texture.data.image.scale * ddy;
+
+        // const width = 2.0 * math.max(@abs(dst0[0]), math.max(@abs(dst0[1]), math.max(@abs(dst1[0]), @abs(dst1[1]))));
+        // const width = 2.0 * math.min(@abs(dst0[0]), math.max(@abs(dst0[1]), math.max(@abs(dst1[0]), @abs(dst1[1]))));
+        // const width = 2.0 * math.min(@abs(dst0[0]), math.min(@abs(dst0[1]), math.min(@abs(dst1[0]), @abs(dst1[1]))));
+        const width = math.min(math.length2(dst0), math.length2(dst1));
+
+        const nl: f32 = @floatFromInt(num_levels);
+
+        const level = math.min(nl - 1.0 + std.math.log2(math.max(width, 1e-8)), nl - 1.0);
+
+        const flevel = math.max(@floor(level), 0.0);
+
+        const t = level - flevel;
+
+        var pr = r;
+        var ilevel: u32 = @intFromFloat(flevel);
+
+        if (pr < t) {
+            ilevel += 1;
+            pr /= t;
+        } else {
+            pr = math.min((pr - t) / (1.0 - t), 1.0);
+        }
+
+        return .{ ilevel, pr };
     }
 
     fn map(d: Vec2i, st: Vec2f, mode: Texture.Mode, r: f32) Vec2i {

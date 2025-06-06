@@ -243,7 +243,7 @@ pub const Reader = struct {
             switch (self.image) {
                 .Byte1 => |image| {
                     if (byte_compatible) {
-                        @memcpy(std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
+                        @memcpy(std.mem.sliceAsBytes(image.pixels[0]), buffer[0..self.numPixelBytes()]);
                     } else {
                         var c: u32 = switch (swizzle) {
                             .Y => 1,
@@ -272,7 +272,7 @@ pub const Reader = struct {
                 },
                 .Byte2 => |image| {
                     if (byte_compatible) {
-                        @memcpy(std.mem.sliceAsBytes(image.pixels), buffer[0..self.numPixelBytes()]);
+                        @memcpy(std.mem.sliceAsBytes(image.pixels[0]), buffer[0..self.numPixelBytes()]);
                     } else {
                         var i: u32 = 0;
                         const len: u32 = @intCast(self.width * self.height);
