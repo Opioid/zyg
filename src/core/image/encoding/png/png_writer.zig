@@ -22,6 +22,8 @@ const c = @cImport({
 pub const Writer = struct {
     srgb: Srgb,
 
+    const CompressionLevel = 10;
+
     pub fn init(error_diffusion: bool) Writer {
         return .{ .srgb = .{ .error_diffusion = error_diffusion } };
     }
@@ -44,12 +46,14 @@ pub const Writer = struct {
         const num_channels = try self.srgb.toSrgb(alloc, image, crop, encoding, threads);
 
         var buffer_len: usize = 0;
-        const png = c.tdefl_write_image_to_png_file_in_memory(
+        const png = c.tdefl_write_image_to_png_file_in_memory_ex(
             @as(*const anyopaque, @ptrCast(self.srgb.buffer.ptr)),
             d[0],
             d[1],
             @intCast(num_channels),
             &buffer_len,
+            CompressionLevel,
+            0,
         );
 
         try writer.writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
@@ -76,12 +80,14 @@ pub const Writer = struct {
         }
 
         var buffer_len: usize = 0;
-        const png = c.tdefl_write_image_to_png_file_in_memory(
+        const png = c.tdefl_write_image_to_png_file_in_memory_ex(
             @as(*const anyopaque, @ptrCast(buffer.ptr)),
             d[0],
             d[1],
             3,
             &buffer_len,
+            CompressionLevel,
+            0,
         );
 
         var file = try std.fs.cwd().createFile("temp_image.png", .{});
@@ -107,12 +113,14 @@ pub const Writer = struct {
         }
 
         var buffer_len: usize = 0;
-        const png = c.tdefl_write_image_to_png_file_in_memory(
+        const png = c.tdefl_write_image_to_png_file_in_memory_ex(
             @as(*const anyopaque, @ptrCast(buffer.ptr)),
             d[0],
             d[1],
             3,
             &buffer_len,
+            CompressionLevel,
+            0,
         );
 
         var file = try std.fs.cwd().createFile("temp_image.png", .{});
@@ -147,12 +155,14 @@ pub const Writer = struct {
         }
 
         var buffer_len: usize = 0;
-        const png = c.tdefl_write_image_to_png_file_in_memory(
+        const png = c.tdefl_write_image_to_png_file_in_memory_ex(
             @as(*const anyopaque, @ptrCast(buffer.ptr)),
             width,
             height,
             3,
             &buffer_len,
+            CompressionLevel,
+            0,
         );
 
         var file = try std.fs.cwd().createFile(name, .{});
