@@ -25,6 +25,7 @@ const math = base.math;
 const AABB = math.AABB;
 const Transformation = math.Transformation;
 const Ray = math.Ray;
+const Mat3x3 = math.Mat3x3;
 const Vec2u = math.Vec2u;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
@@ -233,6 +234,10 @@ pub fn main() !void {
                 continue;
             }
 
+            const Y = Vec4f{ 0.0, 1.0, 0.0, 0.0 };
+            const up = if (project.align_to_normal) mat_sample.super().shadingNormal() else Y;
+            const basis = math.quaternion.initFromMat3x3(Mat3x3.initRotationAlign(Y, up));
+
             const rotation = math.quaternion.initRotationY((2.0 * std.math.pi) * rotation_r);
 
             const incline_x = math.quaternion.initRotationX(std.math.pi * prototype.incline_jitter[0] * incline_x_r);
@@ -243,7 +248,7 @@ pub fn main() !void {
             const local_trafo: Transformation = .{
                 .position = frag.p + Vec4f{ 0.0, y_order[id] + depth_offset, 0.0, 0.0 },
                 .scale = @splat(math.lerp(prototype.scale_range[0], prototype.scale_range[1], scale_r)),
-                .rotation = math.quaternion.mul(math.quaternion.mul(incline_x, incline_z), rotation),
+                .rotation = math.quaternion.mul(math.quaternion.mul(math.quaternion.mul(incline_x, incline_z), rotation), basis),
             };
 
             const trafo = local_trafo.transform(prototype.trafo);
