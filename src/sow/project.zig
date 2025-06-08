@@ -53,6 +53,7 @@ pub const Project = struct {
 
     align_to_normal: bool = true,
     tileable: bool = false,
+    triplanar: bool = false,
 
     const Self = @This();
 
