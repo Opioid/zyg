@@ -302,7 +302,7 @@ pub const Noise = struct {
     }
 
     fn worley_cell_position2(xy: Vec2i, offset: Vec2i, jitter: f32) Vec2f {
-        var off = cell_noise2_vec(@floatFromInt(xy + offset));
+        var off = cellNoise2(@floatFromInt(xy + offset));
 
         off -= @splat(0.5);
         off *= @splat(jitter);
@@ -312,7 +312,7 @@ pub const Noise = struct {
     }
 
     fn worley_cell_position3(xyz: Vec4i, offset: Vec4i, jitter: f32) Vec4f {
-        var off = cell_noise3_vec(@floatFromInt(xyz + offset));
+        var off = cellNoise3(@floatFromInt(xyz + offset));
 
         off -= @splat(0.5);
         off *= @splat(jitter);
@@ -321,50 +321,67 @@ pub const Noise = struct {
         return @as(Vec4f, @floatFromInt(xyz)) + off;
     }
 
-    fn cell_noise2_float(p: Vec2f) f32 {
-        // integer part of float might be out of bounds for u32, but we don't care
-        @setRuntimeSafety(false);
-
-        const ip: Vec2u = @intFromFloat(@floor(p));
-
-        return bits_to_01(hash2(ip[0], ip[1]));
-    }
-
-    fn cell_noise2_vec(p: Vec2f) Vec2f {
+    fn cellNoise2(p: Vec2f) Vec2f {
         // integer part of float might be out of bounds for u32, but we don't care
         @setRuntimeSafety(false);
 
         const ip: Vec2i = @intFromFloat(@floor(p));
+        const h = pcg2d(@bitCast(ip));
 
-        return .{
-            bits_to_01(hash3(ip[0], ip[1], 0)),
-            bits_to_01(hash3(ip[0], ip[1], 1)),
-        };
+        return vecTo01(h);
     }
 
-    fn cell_noise3_vec(p: Vec4f) Vec4f {
+    fn cellNoise3(p: Vec4f) Vec4f {
         // integer part of float might be out of bounds for u32, but we don't care
         @setRuntimeSafety(false);
 
         const ip: Vec4i = @intFromFloat(@floor(p));
+        const h = pcg3d(@bitCast(ip));
 
-        return .{
-            bits_to_01(hash4(ip[0], ip[1], ip[2], 0)),
-            bits_to_01(hash4(ip[0], ip[1], ip[2], 1)),
-            bits_to_01(hash4(ip[0], ip[1], ip[2], 2)),
-            0,
-        };
+        return vecTo01(h);
     }
 
-    fn bits_to_01(in: u32) f32 {
-        // return @as(f32, @floatFromInt(bits)) / @as(f32, @floatFromInt(0xffffffff));
+    fn pcg2d(in: Vec2u) Vec2u {
+        var v = in * @as(Vec2u, @splat(1664525)) + @as(Vec2u, @splat(1013904223));
 
+        v[0] += v[1] * 1664525;
+        v[1] += v[0] * 1664525;
+
+        v ^= v >> @as(Vec2u, @splat(16));
+
+        v[0] += v[1] * 1664525;
+        v[1] += v[0] * 1664525;
+
+        v = v ^ (v >> @as(Vec2u, @splat(16)));
+
+        return v;
+    }
+
+    fn pcg3d(in: Vec4u) Vec4u {
+        var v = in * @as(Vec4u, @splat(1664525)) + @as(Vec4u, @splat(1013904223));
+
+        v[0] += v[1] * v[2];
+        v[1] += v[2] * v[0];
+        v[2] += v[0] * v[1];
+
+        v ^= v >> @as(Vec4u, @splat(16));
+
+        v[0] += v[1] * v[2];
+        v[1] += v[2] * v[0];
+        v[2] += v[0] * v[1];
+
+        return v;
+    }
+
+    fn vecTo01(in: anytype) @Vector(@typeInfo(@TypeOf(in)).vector.len, f32) {
         var bits = in;
 
-        bits &= 0x007FFFFF;
-        bits |= 0x3F800000;
+        bits &= @as(@TypeOf(in), @splat(0x007FFFFF));
+        bits |= @as(@TypeOf(in), @splat(0x3F800000));
 
-        return @as(f32, @bitCast(bits)) - 1.0;
+        const OutT = @Vector(@typeInfo(@TypeOf(in)).vector.len, f32);
+
+        return @as(OutT, @bitCast(bits)) - @as(OutT, @splat(1.0));
     }
 
     fn floorfrac2(v: Vec2f) struct { Vec2f, Vec2i } {
@@ -466,18 +483,6 @@ pub const Noise = struct {
         const c = start_val +% @as(u32, @bitCast(z));
 
         return bjfinal(a, b, c);
-    }
-
-    fn hash4(x: i32, y: i32, z: i32, xx: i32) u32 {
-        const start_val: u32 = 0xdeadbeef + (4 << 2) + 13;
-
-        const a, const b, const c = bjmix(
-            start_val +% @as(u32, @bitCast(x)),
-            start_val +% @as(u32, @bitCast(y)),
-            start_val +% @as(u32, @bitCast(z)),
-        );
-
-        return bjfinal(a +% @as(u32, @bitCast(xx)), b, c);
     }
 
     fn hash3v(x: Vec4i, y: Vec4i, z: Vec4i) [2]Vec4u {
