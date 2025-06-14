@@ -16,7 +16,7 @@ const Probe = @import("../scene/shape/probe.zig").Probe;
 const MediumStack = @import("../scene/prop/medium.zig").Stack;
 const Resources = @import("../resource/manager.zig").Manager;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
-const tx = @import("../image/texture/texture_provider.zig");
+const tx = @import("../texture/texture_provider.zig");
 const img = @import("../image/image.zig");
 
 const base = @import("base");

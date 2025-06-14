@@ -8,8 +8,8 @@ const Shape = @import("../scene/shape/shape.zig").Shape;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const Resources = @import("../resource/manager.zig").Manager;
 
-const ts = @import("../image/texture/texture_sampler.zig");
-const Texture = @import("../image/texture/texture.zig").Texture;
+const ts = @import("../texture/texture_sampler.zig");
+const Texture = @import("../texture/texture.zig").Texture;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 const img = @import("../image/image.zig");
 

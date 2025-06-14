@@ -1,8 +1,8 @@
 const Rainbow = @import("rainbow_integral.zig");
 const fresnel = @import("fresnel.zig");
 const Scene = @import("../scene.zig").Scene;
-const Texture = @import("../../image/texture/texture.zig").Texture;
-const ts = @import("../../image/texture/texture_sampler.zig");
+const Texture = @import("../../texture/texture.zig").Texture;
+const ts = @import("../../texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");

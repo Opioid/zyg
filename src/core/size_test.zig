@@ -11,7 +11,7 @@ const Renderstate = @import("scene/renderstate.zig").Renderstate;
 const Vertex = @import("scene/vertex.zig").Vertex;
 const TriangleMesh = @import("scene/shape/triangle/triangle_mesh.zig").Mesh;
 const TriangleBvh = @import("scene/shape/triangle/triangle_tree.zig").Tree;
-const Texture = @import("image/texture/texture.zig").Texture;
+const Texture = @import("texture/texture.zig").Texture;
 const Worker = @import("rendering/worker.zig").Worker;
 
 const base = @import("base");

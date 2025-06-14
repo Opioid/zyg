@@ -27,28 +27,28 @@ pub const testing = @import("test_image.zig");
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Swizzle = enum {
-    X,
-    Y,
-    Z,
-    W,
-    XY,
-    YX,
-    YZ,
-    XYZ,
-    XYZW,
-
-    pub fn numChannels(self: Swizzle) u32 {
-        return switch (self) {
-            .X, .Y, .Z, .W => 1,
-            .XY, .YX, .YZ => 2,
-            .XYZ => 3,
-            .XYZW => 4,
-        };
-    }
-};
-
 pub const Image = union(enum) {
+    pub const Swizzle = enum {
+        X,
+        Y,
+        Z,
+        W,
+        XY,
+        YX,
+        YZ,
+        XYZ,
+        XYZW,
+
+        pub fn numChannels(self: Swizzle) u32 {
+            return switch (self) {
+                .X, .Y, .Z, .W => 1,
+                .XY, .YX, .YZ => 2,
+                .XYZ => 3,
+                .XYZW => 4,
+            };
+        }
+    };
+
     Byte1: Byte1,
     Byte2: Byte2,
     Byte3: Byte3,

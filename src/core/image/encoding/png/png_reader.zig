@@ -1,6 +1,6 @@
 const img = @import("../../image.zig");
 const Image = img.Image;
-const Swizzle = img.Swizzle;
+const Swizzle = Image.Swizzle;
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 
 const base = @import("base");

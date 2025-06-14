@@ -1,8 +1,8 @@
 const Texture = @import("texture.zig").Texture;
 const ts = @import("texture_sampler.zig");
-const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Context = @import("../../scene//context.zig").Context;
-const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
+const Sampler = @import("../sampler/sampler.zig").Sampler;
+const Context = @import("../scene//context.zig").Context;
+const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 
 const base = @import("base");
 const math = base.math;

@@ -3,7 +3,6 @@ const Graph = @import("scene_graph.zig").Graph;
 
 const core = @import("core");
 const log = core.log;
-const img = core.img;
 const scn = core.scn;
 const Scene = scn.Scene;
 const Prop = scn.Prop;

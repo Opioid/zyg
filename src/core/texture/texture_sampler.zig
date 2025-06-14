@@ -1,8 +1,8 @@
 const Texture = @import("texture.zig").Texture;
-const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const Context = @import("../../scene/context.zig").Context;
-const Renderstate = @import("../../scene/renderstate.zig").Renderstate;
-const Scene = @import("../../scene/scene.zig").Scene;
+const Sampler = @import("../sampler/sampler.zig").Sampler;
+const Context = @import("../scene/context.zig").Context;
+const Renderstate = @import("../scene/renderstate.zig").Renderstate;
+const Scene = @import("../scene/scene.zig").Scene;
 
 const math = @import("base").math;
 const Vec2i = math.Vec2i;

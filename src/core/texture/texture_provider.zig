@@ -1,7 +1,6 @@
 pub const Texture = @import("texture.zig").Texture;
-const img = @import("../image.zig");
-const Image = img.Image;
-const Resources = @import("../../resource/manager.zig").Manager;
+const Image = @import("../image/image.zig").Image;
+const Resources = @import("../resource/manager.zig").Manager;
 
 const base = @import("base");
 const Variants = base.memory.VariantMap;
@@ -40,7 +39,7 @@ pub const Provider = struct {
             else => false,
         };
 
-        var swizzle = options.query(img.Swizzle, "swizzle");
+        var swizzle = options.query(Image.Swizzle, "swizzle");
         if (null == swizzle) {
             swizzle = switch (usage) {
                 .ColorAndOpacity => .XYZW,

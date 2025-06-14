@@ -5,16 +5,16 @@ const metal = @import("metal_presets.zig");
 const fresnel = @import("fresnel.zig");
 const Shape = @import("../shape/shape.zig").Shape;
 const Emittance = @import("../light/emittance.zig").Emittance;
-const img = @import("../../image/image.zig");
-const tx = @import("../../image/texture/texture_provider.zig");
+const Image = @import("../../image/image.zig").Image;
+const tx = @import("../../texture/texture_provider.zig");
 const Texture = tx.Texture;
 const TexUsage = tx.Usage;
-const ts = @import("../../image/texture/texture_sampler.zig");
+const ts = @import("../../texture/texture_sampler.zig");
+const prcd = @import("../../texture/procedural.zig");
+const Procedural = prcd.Procedural;
 const rsc = @import("../../resource/manager.zig");
 const Resources = rsc.Manager;
 const Result = @import("../../resource/result.zig").Result;
-const prcd = @import("../../image/texture/procedural.zig");
-const Procedural = prcd.Procedural;
 
 const base = @import("base");
 const math = base.math;
@@ -453,7 +453,7 @@ const TextureDescriptor = struct {
     procedural_data: u32 = rsc.Null,
     id: u32 = rsc.Null,
 
-    swizzle: ?img.Swizzle = null,
+    swizzle: ?Image.Swizzle = null,
 
     sampler: Texture.Mode = Texture.DefaultMode,
 
