@@ -56,6 +56,11 @@ pub inline fn frac(x: anytype) @TypeOf(x) {
     return x - @floor(x);
 }
 
+pub inline fn floorfrac(v: anytype) struct { @TypeOf(v), @Vector(@typeInfo(@TypeOf(v)).vector.len, i32) } {
+    const flv = @floor(v);
+    return .{ v - flv, @intFromFloat(flv) };
+}
+
 pub fn pow2(x: f32) f32 {
     return x * x;
 }
