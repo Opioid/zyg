@@ -1,5 +1,6 @@
 const base = @import("base");
 const math = base.math;
+const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 const Vec4u = math.Vec4u;
@@ -7,13 +8,26 @@ const Vec4f = math.Vec4f;
 
 const std = @import("std");
 
-pub fn perlin2D_1(p: Vec2f) f32 {
+pub fn perlin2D_1(p: Vec2f, period: Vec2f) f32 {
     const fp, const P = math.floorfrac(p);
 
     const uv = fade(Vec2f, fp);
 
-    const P0: Vec4i = .{ P[0], P[0] +% 1, P[0], P[0] +% 1 };
-    const P1: Vec4i = .{ P[1], P[1], P[1] +% 1, P[1] +% 1 };
+    var P01 = Vec2i{ P[0], P[0] +% 1 };
+    var P11 = Vec2i{ P[1], P[1] +% 1 };
+
+    const periodi: Vec2i = @intFromFloat(period);
+
+    if (periodi[0] > 0) {
+        P01 = @mod(P01, @as(Vec2i, @splat(periodi[0])));
+    }
+
+    if (periodi[1] > 0) {
+        P11 = @mod(P11, @as(Vec2i, @splat(periodi[1])));
+    }
+
+    const P0: Vec4i = .{ P01[0], P01[1], P01[0], P01[1] };
+    const P1: Vec4i = .{ P11[0], P11[0], P11[1], P11[1] };
 
     const fp0: Vec4f = .{ fp[0], fp[0] - 1.0, fp[0], fp[0] - 1.0 };
     const fp1: Vec4f = .{ fp[1], fp[1], fp[1] - 1.0, fp[1] - 1.0 };

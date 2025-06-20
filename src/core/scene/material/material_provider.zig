@@ -584,6 +584,7 @@ const TextureDescriptor = struct {
                         noise.ratio = json.readFloatMember(entry.value_ptr.*, "ratio", 0.5);
                         noise.transition = json.readFloatMember(entry.value_ptr.*, "transition", 0.5);
                         noise.scale = json.readVec4f3Member(entry.value_ptr.*, "scale", @splat(1.0));
+                        noise.period = json.readVec4f3Member(entry.value_ptr.*, "period", @splat(0.0));
 
                         desc.procedural = @intFromEnum(Procedural.Type.Noise);
                         desc.procedural_data = try resources.scene.procedural.append(alloc, noise);
