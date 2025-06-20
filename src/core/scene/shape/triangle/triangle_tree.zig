@@ -342,6 +342,58 @@ pub const Tree = struct {
         return true;
     }
 
+    pub fn scatter(
+        self: Tree,
+        ray: Ray,
+        trafo: Trafo,
+        throughput: Vec4f,
+        entity: u32,
+        depth: u32,
+        sampler: *Sampler,
+        context: Context,
+    ) Volume {
+        const material = context.scene.propMaterial(entity, 0);
+        const data = self.data;
+        const RayMaxT = ray.max_t;
+
+        var tray = ray;
+        tray.max_t = ro.RayMaxT;
+
+        var tr: Vec4f = @splat(1.0);
+
+        var isec: Intersection = undefined;
+
+        while (true) {
+            if (!self.intersect(tray, trafo, &isec)) {
+                break;
+            }
+
+            const n = data.normal(data.indexTriangle(isec.primitive));
+
+            if (math.dot3(n, ray.direction) > 0.0) {
+                tray.max_t = math.min(isec.t, RayMaxT);
+
+                var result = context.propScatter(tray, throughput, material, entity, depth, sampler);
+
+                tr *= result.tr;
+
+                if (.Pass != result.event) {
+                    result.tr = tr;
+                    return result;
+                }
+            }
+
+            const ray_min_t = ro.offsetF(isec.t);
+            if (ray_min_t > RayMaxT) {
+                break;
+            }
+
+            tray.setMinMaxT(ray_min_t, ro.RayMaxT);
+        }
+
+        return Volume.initPass(tr);
+    }
+
     pub fn emission(
         self: Tree,
         ray: Ray,
@@ -422,57 +474,5 @@ pub const Tree = struct {
         }
 
         return energy;
-    }
-
-    pub fn scatter(
-        self: Tree,
-        ray: Ray,
-        trafo: Trafo,
-        throughput: Vec4f,
-        entity: u32,
-        depth: u32,
-        sampler: *Sampler,
-        context: Context,
-    ) Volume {
-        const material = context.scene.propMaterial(entity, 0);
-        const data = self.data;
-        const RayMaxT = ray.max_t;
-
-        var tray = ray;
-        tray.max_t = ro.RayMaxT;
-
-        var tr: Vec4f = @splat(1.0);
-
-        var isec: Intersection = undefined;
-
-        while (true) {
-            if (!self.intersect(tray, trafo, &isec)) {
-                break;
-            }
-
-            const n = data.normal(data.indexTriangle(isec.primitive));
-
-            if (math.dot3(n, ray.direction) > 0.0) {
-                tray.max_t = math.min(isec.t, RayMaxT);
-
-                var result = context.propScatter(tray, throughput, material, entity, depth, sampler);
-
-                tr *= result.tr;
-
-                if (.Pass != result.event) {
-                    result.tr = tr;
-                    return result;
-                }
-            }
-
-            const ray_min_t = ro.offsetF(isec.t);
-            if (ray_min_t > RayMaxT) {
-                break;
-            }
-
-            tray.setMinMaxT(ray_min_t, ro.RayMaxT);
-        }
-
-        return Volume.initPass(tr);
     }
 };

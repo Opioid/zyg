@@ -39,6 +39,7 @@ pub const Noise = struct {
     transition: f32,
 
     scale: Vec4f,
+    period: Vec4f,
 
     const Self = @This();
 
@@ -69,6 +70,7 @@ pub const Noise = struct {
             }
         } else {
             var scale: Vec2f = .{ self.scale[0], self.scale[1] };
+            var perdiod: Vec2f = .{ self.period[0], self.period[1] };
 
             const uv_offset = Vec2f{ offset[0], offset[1] };
             const uv = (if (.Triplanar == mode.tex_coord) rs.triplanarSt() else rs.uv()) - uv_offset;
@@ -76,13 +78,14 @@ pub const Noise = struct {
             for (0..self.levels) |_| {
                 const local_weight = std.math.pow(f32, amplitude, att);
 
-                const local = if (is_cellular) worley.worley2D_1(uv * scale, 1.0) else perlin.perlin2D_1(uv * scale);
+                const local = if (is_cellular) worley.worley2D_1(uv * scale, 1.0) else perlin.perlin2D_1(uv * scale, perdiod);
 
                 value += local * local_weight;
 
                 weight += local_weight;
                 amplitude *= 0.5;
                 scale *= @splat(2.0);
+                perdiod *= @splat(2.0);
             }
         }
 
