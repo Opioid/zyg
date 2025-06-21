@@ -1,8 +1,8 @@
 const Rainbow = @import("rainbow_integral.zig");
 const fresnel = @import("fresnel.zig");
 const Scene = @import("../scene.zig").Scene;
-const Texture = @import("../../image/texture/texture.zig").Texture;
-const ts = @import("../../image/texture/texture_sampler.zig");
+const Texture = @import("../../texture/texture.zig").Texture;
+const ts = @import("../../texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -58,7 +58,7 @@ pub const Base = struct {
             return 1.0;
         }
 
-        return ts.sampleImage2D_1(self.mask, uv, sampler, scene);
+        return ts.sampleImage2D_1(self.mask, uv, sampler.sample1D(), scene);
     }
 
     pub fn stochasticOpacity(self: *const Base, uv: Vec2f, sampler: *Sampler, scene: *const Scene) bool {
@@ -66,7 +66,7 @@ pub const Base = struct {
             return true;
         }
 
-        const o = ts.sampleImage2D_1(self.mask, uv, sampler, scene);
+        const o = ts.sampleImage2D_1(self.mask, uv, sampler.sample1D(), scene);
         if (0.0 == o or (o < 1.0 and o <= sampler.sample1D())) {
             return false;
         }

@@ -15,12 +15,14 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
 
-const c = @cImport({
+const mz = @cImport({
     @cInclude("miniz/miniz.h");
 });
 
 pub const Writer = struct {
     srgb: Srgb,
+
+    const CompressionLevel = mz.MZ_UBER_COMPRESSION;
 
     pub fn init(error_diffusion: bool) Writer {
         return .{ .srgb = .{ .error_diffusion = error_diffusion } };
@@ -44,17 +46,19 @@ pub const Writer = struct {
         const num_channels = try self.srgb.toSrgb(alloc, image, crop, encoding, threads);
 
         var buffer_len: usize = 0;
-        const png = c.tdefl_write_image_to_png_file_in_memory(
+        const png = mz.tdefl_write_image_to_png_file_in_memory_ex(
             @as(*const anyopaque, @ptrCast(self.srgb.buffer.ptr)),
             d[0],
             d[1],
             @intCast(num_channels),
             &buffer_len,
+            CompressionLevel,
+            0,
         );
 
         try writer.writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
 
-        c.mz_free(png);
+        mz.mz_free(png);
     }
 
     pub fn writeFloat3Scaled(alloc: Allocator, image: Float3, factor: f32) !void {
@@ -76,12 +80,14 @@ pub const Writer = struct {
         }
 
         var buffer_len: usize = 0;
-        const png = c.tdefl_write_image_to_png_file_in_memory(
+        const png = mz.tdefl_write_image_to_png_file_in_memory_ex(
             @as(*const anyopaque, @ptrCast(buffer.ptr)),
             d[0],
             d[1],
             3,
             &buffer_len,
+            CompressionLevel,
+            0,
         );
 
         var file = try std.fs.cwd().createFile("temp_image.png", .{});
@@ -89,7 +95,7 @@ pub const Writer = struct {
 
         try file.writer().writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
 
-        c.mz_free(png);
+        mz.mz_free(png);
     }
 
     pub fn writeFloat3Normal(alloc: Allocator, image: Float3) !void {
@@ -107,12 +113,14 @@ pub const Writer = struct {
         }
 
         var buffer_len: usize = 0;
-        const png = c.tdefl_write_image_to_png_file_in_memory(
+        const png = mz.tdefl_write_image_to_png_file_in_memory_ex(
             @as(*const anyopaque, @ptrCast(buffer.ptr)),
             d[0],
             d[1],
             3,
             &buffer_len,
+            CompressionLevel,
+            0,
         );
 
         var file = try std.fs.cwd().createFile("temp_image.png", .{});
@@ -120,7 +128,7 @@ pub const Writer = struct {
 
         try file.writer().writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
 
-        c.mz_free(png);
+        mz.mz_free(png);
     }
 
     pub fn writeHeatmap(
@@ -147,12 +155,14 @@ pub const Writer = struct {
         }
 
         var buffer_len: usize = 0;
-        const png = c.tdefl_write_image_to_png_file_in_memory(
+        const png = mz.tdefl_write_image_to_png_file_in_memory_ex(
             @as(*const anyopaque, @ptrCast(buffer.ptr)),
             width,
             height,
             3,
             &buffer_len,
+            CompressionLevel,
+            0,
         );
 
         var file = try std.fs.cwd().createFile(name, .{});
@@ -160,6 +170,6 @@ pub const Writer = struct {
 
         try file.writer().writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
 
-        c.mz_free(png);
+        mz.mz_free(png);
     }
 };

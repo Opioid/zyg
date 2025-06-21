@@ -1,7 +1,7 @@
 const enc = @import("encoding.zig");
 const SamplerMode = @import("sampler_mode.zig").Mode;
-const Description = @import("../typed_image.zig").Description;
-const Scene = @import("../../scene/scene.zig").Scene;
+const Description = @import("../image/typed_image.zig").Description;
+const Scene = @import("../scene/scene.zig").Scene;
 
 const base = @import("base");
 const math = base.math;

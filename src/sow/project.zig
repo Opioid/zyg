@@ -51,7 +51,9 @@ pub const Project = struct {
 
     density: f32 = 1.0,
 
+    align_to_normal: bool = true,
     tileable: bool = false,
+    triplanar: bool = false,
 
     const Self = @This();
 

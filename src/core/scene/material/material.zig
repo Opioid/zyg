@@ -17,8 +17,8 @@ const Scene = @import("../scene.zig").Scene;
 const Shape = @import("../shape/shape.zig").Shape;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const image = @import("../../image/image.zig");
-const Texture = @import("../../image/texture/texture.zig").Texture;
-const ts = @import("../../image/texture/texture_sampler.zig");
+const Texture = @import("../../texture/texture.zig").Texture;
+const ts = @import("../../texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const LowThreshold = @import("../../rendering/integrator/helper.zig").LightSampling.LowThreshold;
 
@@ -168,7 +168,7 @@ pub const Material = union(enum) {
 
     pub fn collisionCoefficients3D(self: *const Material, uvw: Vec4f, cc: CC, sampler: *Sampler, context: Context) CC {
         return switch (self.*) {
-            .Volumetric => |*m| cc.scaled(@splat(m.density(uvw, sampler, context))),
+            .Volumetric => |*m| cc.scaled(@splat(m.density(uvw, sampler.sample1D(), context))),
             else => cc,
         };
     }
@@ -204,7 +204,7 @@ pub const Material = union(enum) {
             .Light => |*m| m.evaluateRadiance(wi, rs, sampler, context),
             .Sky => |*m| m.evaluateRadiance(wi, rs, sampler, context),
             .Substitute => |*m| m.evaluateRadiance(wi, rs, sampler, context),
-            .Volumetric => |*m| m.evaluateRadiance(rs, sampler, context),
+            .Volumetric => |*m| m.evaluateRadiance(rs, context),
             else => @splat(0.0),
         };
     }

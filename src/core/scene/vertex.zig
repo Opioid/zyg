@@ -143,6 +143,7 @@ pub const Vertex = struct {
 
         rs.origin = self.origin;
         rs.uvw = frag.uvw;
+        rs.stochastic_r = sampler.sample1D();
         rs.ior = self.iorOutside(frag, wo);
         rs.wavelength = self.probe.wavelength;
         rs.min_alpha = self.min_alpha;

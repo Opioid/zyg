@@ -6,8 +6,8 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Scene = @import("../../scene.zig").Scene;
 const Shape = @import("../../shape/shape.zig").Shape;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
-const ts = @import("../../../image/texture/texture_sampler.zig");
-const Texture = @import("../../../image/texture/texture.zig").Texture;
+const ts = @import("../../../texture/texture_sampler.zig");
+const Texture = @import("../../../texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");

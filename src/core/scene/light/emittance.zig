@@ -1,6 +1,6 @@
-const Texture = @import("../../image/texture/texture.zig").Texture;
+const Texture = @import("../../texture/texture.zig").Texture;
+const ts = @import("../../texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const ts = @import("../../image/texture/texture_sampler.zig");
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Context = @import("../context.zig").Context;
 const Scene = @import("../scene.zig").Scene;
@@ -85,7 +85,7 @@ pub const Emittance = struct {
             const o = math.smpl.octEncode(lwi);
             const ouv = (o + @as(Vec2f, @splat(1.0))) * @as(Vec2f, @splat(0.5));
 
-            pf = ts.sampleImage2D_1(self.profile, ouv, sampler, context.scene);
+            pf = ts.sampleImage2D_1(self.profile, ouv, rs.stochastic_r, context.scene);
         }
 
         if (-math.dot3(wi, rs.trafo.rotation.r[2]) < self.cos_a) {
@@ -111,7 +111,7 @@ pub const Emittance = struct {
     }
 
     pub fn imageRadiance(self: Emittance, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
-        return self.value * ts.sampleImage2D_3(self.emission_map, uv, sampler, scene);
+        return self.value * ts.sampleImage2D_3(self.emission_map, uv, sampler.sample1D(), scene);
     }
 
     pub fn angleFromProfile(self: Emittance, scene: *const Scene) f32 {

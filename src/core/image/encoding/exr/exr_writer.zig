@@ -332,7 +332,7 @@ pub const Writer = struct {
             zip.zalloc = null;
             zip.zfree = null;
 
-            if (mz.MZ_OK != mz.mz_deflateInit(&zip, mz.MZ_DEFAULT_COMPRESSION)) {
+            if (mz.MZ_OK != mz.mz_deflateInit(&zip, mz.MZ_UBER_COMPRESSION)) {
                 return;
             }
 

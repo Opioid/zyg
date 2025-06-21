@@ -48,8 +48,12 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
             project.depth_offset_range = json.readVec2f(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "density", entry.key_ptr.*)) {
             project.density = json.readFloat(f32, entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "align_to_normal", entry.key_ptr.*)) {
+            project.align_to_normal = json.readBool(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "tileable", entry.key_ptr.*)) {
             project.tileable = json.readBool(entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "triplanar", entry.key_ptr.*)) {
+            project.triplanar = json.readBool(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "materials", entry.key_ptr.*)) {
             try std.json.stringify(entry.value_ptr.*, .{ .whitespace = .indent_4 }, project.materials.writer(alloc));
         } else if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {

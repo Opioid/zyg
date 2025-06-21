@@ -188,7 +188,7 @@ pub fn build(b: *std.Build) void {
     //     run_exe.addArgs(&[_][]const u8{
     //         "-i",
     //         // "image_00_indirect.png",
-    //         // "image_00_ns.png",
+    //         // "image_00_n.png",
     //         // "image_00_albedo.png",
     //         // "image_00_depth.png",
     //         // "--denoise",
@@ -214,10 +214,12 @@ pub fn build(b: *std.Build) void {
     //     run_exe.addArgs(&[_][]const u8{
     //         "-i",
     //         // "sow/bamboo_forest.json",
-    //         "sow/bamboo_leaves.json",
+    //         // "sow/bamboo_leaves.json",
+    //         "sow/test.json",
     //         "-o",
     //         //  "../data/models/plants/bamboo/bamboo.instancer",
-    //         "../data/models/plants/bamboo/bamboo_leaves.instancer",
+    //         // "../data/models/plants/bamboo/bamboo_leaves.instancer",
+    //         "../data/models/test.instancer",
     //         "-t",
     //         "-1",
     //     });

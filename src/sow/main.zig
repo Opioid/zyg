@@ -25,6 +25,7 @@ const math = base.math;
 const AABB = math.AABB;
 const Transformation = math.Transformation;
 const Ray = math.Ray;
+const Mat3x3 = math.Mat3x3;
 const Vec2u = math.Vec2u;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
@@ -102,15 +103,12 @@ pub fn main() !void {
         return;
     };
 
-    var ortho = try createOrthoCamera(alloc, &graph);
+    const ortho = try createOrthoCamera(alloc, &graph);
     var camera = Camera{ .Orthographic = ortho };
 
     const context = Context{ .scene = &graph.scene, .camera = &camera, .layer = 0 };
 
     try graph.scene.compile(alloc, @splat(0.0), 0, &threads, fs);
-
-    const region = graph.scene.aabb();
-    const extent = region.extent();
 
     var max_prototype_extent: Vec4f = @splat(0.0);
 
@@ -143,44 +141,128 @@ pub fn main() !void {
         }
     }
 
-    // Camera is only used in case material requests ray differentials
-    const resolution = Vec2i{ @intFromFloat(@ceil(extent[0])), @intFromFloat(@ceil(extent[2])) };
-    ortho.super.setResolution(resolution, .{ 0, 0, resolution[0], resolution[1] });
-    ortho.update();
+    var instances = List(prj.Instance){};
+    defer instances.deinit(alloc);
 
-    const cell_extent = math.max(max_prototype_extent[0], max_prototype_extent[2]) / project.density;
+    if (project.triplanar) {
+        try scatter(alloc, &project, context, .XPos, max_prototype_extent, &instances);
+        try scatter(alloc, &project, context, .XNeg, max_prototype_extent, &instances);
+        try scatter(alloc, &project, context, .YPos, max_prototype_extent, &instances);
+        try scatter(alloc, &project, context, .YNeg, max_prototype_extent, &instances);
+        try scatter(alloc, &project, context, .ZPos, max_prototype_extent, &instances);
+        try scatter(alloc, &project, context, .ZNeg, max_prototype_extent, &instances);
+    } else {
+        try scatter(alloc, &project, context, .YPos, max_prototype_extent, &instances);
+    }
+
+    try exp.Exporter.write(alloc, options.output, project.materials.items, project.prototypes, instances.items);
+}
+
+fn createOrthoCamera(alloc: Allocator, graph: *Graph) !core.camera.Orthographic {
+    var ortho = core.camera.Orthographic{};
+
+    graph.scene.calculateNumInterpolationFrames(ortho.super.frame_step, ortho.super.frame_duration);
+
+    ortho.super.entity = try graph.scene.createEntity(alloc);
+
+    return ortho;
+}
+
+const Up = enum {
+    XPos,
+    XNeg,
+    YPos,
+    YNeg,
+    ZPos,
+    ZNeg,
+
+    pub fn cameraRotation(self: Up) math.Quaternion {
+        return switch (self) {
+            .XPos => math.quaternion.initRotationY(-math.degreesToRadians(90.0)),
+            .XNeg => math.quaternion.initRotationY(math.degreesToRadians(90.0)),
+            .YPos => math.quaternion.initRotationX(-math.degreesToRadians(90.0)),
+            .YNeg => math.quaternion.initRotationX(math.degreesToRadians(90.0)),
+            .ZPos => math.quaternion.initRotationZ(-math.degreesToRadians(90.0)),
+            .ZNeg => math.quaternion.initRotationZ(math.degreesToRadians(90.0)),
+        };
+    }
+
+    pub fn worldAxis(self: Up) [3]u32 {
+        return switch (self) {
+            .XPos, .XNeg => .{ 2, 1, 0 },
+            .YPos, .YNeg => .{ 0, 2, 1 },
+            .ZPos, .ZNeg => .{ 0, 1, 2 },
+        };
+    }
+
+    pub fn ray(self: Up, region: AABB, x: f32, y: f32) Ray {
+        return switch (self) {
+            .XPos => Ray.init(.{ region.bounds[1][0] + 1.0, x, y, 0.0 }, .{ -1.0, 0.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
+            .XNeg => Ray.init(.{ region.bounds[0][0] - 1.0, x, y, 0.0 }, .{ 1.0, 0.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
+            .YPos => Ray.init(.{ x, region.bounds[1][1] + 1.0, y, 0.0 }, .{ 0.0, -1.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
+            .YNeg => Ray.init(.{ x, region.bounds[0][1] - 1.0, y, 0.0 }, .{ 0.0, 1.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
+            .ZPos => Ray.init(.{ x, y, region.bounds[1][1] + 1.0, 0.0 }, .{ 0.0, 0.0, -1.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
+            .ZNeg => Ray.init(.{ x, y, region.bounds[0][1] - 1.0, 0.0 }, .{ 0.0, 0.0, 1.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
+        };
+    }
+
+    pub fn triplanarContribution(self: Up, n: Vec4f) bool {
+        const an = @abs(n);
+        return switch (self) {
+            .XPos, .XNeg => an[0] > an[1] and an[0] > an[2],
+            .YPos, .YNeg => an[1] > an[0] and an[1] > an[2],
+            .ZPos, .ZNeg => an[2] > an[0] and an[2] > an[1],
+        };
+    }
+};
+
+fn scatter(
+    alloc: Allocator,
+    project: *const Project,
+    context: Context,
+    world_up: Up,
+    max_prototype_extent: Vec4f,
+    instances: *List(prj.Instance),
+) !void {
+    const camera_trafo = Transformation{
+        .position = @splat(0.0),
+        .scale = @splat(1.0),
+        .rotation = world_up.cameraRotation(),
+    };
+
+    context.scene.prop_space.setWorldTransformation(context.camera.super().entity, camera_trafo);
+
+    const region = context.scene.aabb();
+    const extent = region.extent();
+
+    const world_axis = world_up.worldAxis();
+    const world_extent = Vec2f{ extent[world_axis[0]], extent[world_axis[1]] };
+
+    const resolution = Vec2i{ @intFromFloat(@ceil(world_extent[0])), @intFromFloat(@ceil(world_extent[1])) };
+    context.camera.super().setResolution(resolution, .{ 0, 0, resolution[0], resolution[1] });
+    context.camera.update(0, context.scene);
+
+    var cell_extent: f32 = undefined;
+
+    if (project.triplanar) {
+        cell_extent = math.max(max_prototype_extent[0], max_prototype_extent[2]) / project.density;
+    } else {
+        cell_extent = math.max(max_prototype_extent[world_axis[0]], max_prototype_extent[world_axis[1]]) / project.density;
+    }
 
     const grid = Vec2u{
-        @intFromFloat(@ceil(extent[0] / cell_extent)),
-        @intFromFloat(@ceil(extent[2] / cell_extent)),
+        @intFromFloat(@ceil(world_extent[0] / cell_extent)),
+        @intFromFloat(@ceil(world_extent[1] / cell_extent)),
     };
 
     log.info("Grid: {}", .{grid});
 
     const fgrid: Vec2f = @floatFromInt(grid);
 
-    var instances = List(prj.Instance){};
-    defer instances.deinit(alloc);
-
     var rng: RNG = undefined;
 
     const y_order = try alloc.alloc(f32, grid[0] * grid[1]);
     defer alloc.free(y_order);
-
-    // if (project.ortho_mode) {
-    //     var offset: f32 = 0.0;
-    //     for (y_order) |*o| {
-    //         o.* = offset;
-    //         offset -= 0.01;
-    //     }
-
-    //     rng.start(0, 0);
-    //     base.rnd.biasedShuffle(f32, y_order, &rng);
-    // } else {
-    for (y_order) |*o| {
-        o.* = 0.0;
-    }
-    // }
 
     var sampler = Sampler{ .Sobol = undefined };
 
@@ -189,7 +271,12 @@ pub fn main() !void {
     for (0..grid[1]) |y| {
         for (0..grid[0]) |x| {
             const id = y * grid[1] + x;
-            rng.start(0, id);
+
+            if (project.triplanar) {
+                rng.start(0, @as(u32, (0xFFFFFFFF / 6)) * @intFromEnum(world_up) + id);
+            } else {
+                rng.start(0, id);
+            }
 
             sampler.startPixel(0, rng.randomUint());
 
@@ -212,16 +299,13 @@ pub fn main() !void {
 
             const pos_jitter = @as(Vec2f, @splat(0.5)) * prototype.position_jitter;
 
-            const x_pos = region.bounds[0][0] + (@as(f32, @floatFromInt(x)) + 0.5 + pos_jitter[0] * x_r) * (extent[0] / fgrid[0]);
-            const z_pos = region.bounds[0][2] + (@as(f32, @floatFromInt(y)) + 0.5 + pos_jitter[1] * z_r) * (extent[2] / fgrid[1]);
+            const x_pos = region.bounds[0][world_axis[0]] + (@as(f32, @floatFromInt(x)) + 0.5 + pos_jitter[0] * x_r) * (world_extent[0] / fgrid[0]);
+            const y_pos = region.bounds[0][world_axis[1]] + (@as(f32, @floatFromInt(y)) + 0.5 + pos_jitter[1] * z_r) * (world_extent[1] / fgrid[1]);
 
-            vertex.probe = Probe.init(
-                Ray.init(.{ x_pos, region.bounds[1][1] + 1.0, z_pos, 0.0 }, .{ 0.0, -1.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
-                0,
-            );
+            vertex.probe = Probe.init(world_up.ray(region, x_pos, y_pos), 0);
 
             var frag: Fragment = undefined;
-            if (!graph.scene.intersect(&vertex.probe, &sampler, &frag)) {
+            if (!context.scene.intersect(&vertex.probe, &sampler, &frag)) {
                 continue;
             }
 
@@ -233,17 +317,27 @@ pub fn main() !void {
                 continue;
             }
 
+            const n = mat_sample.super().shadingNormal();
+
+            if (project.triplanar and !world_up.triplanarContribution(n)) {
+                continue;
+            }
+
+            const Z = Vec4f{ 0.0, 1.0, 0.0, 0.0 };
+            const up = if (project.align_to_normal) n else Z;
+            const basis = math.quaternion.initFromMat3x3(Mat3x3.initRotationAlign(Z, up));
+
             const rotation = math.quaternion.initRotationY((2.0 * std.math.pi) * rotation_r);
 
             const incline_x = math.quaternion.initRotationX(std.math.pi * prototype.incline_jitter[0] * incline_x_r);
-            const incline_z = math.quaternion.initRotationZ(std.math.pi * prototype.incline_jitter[1] * incline_z_r);
+            const incline_y = math.quaternion.initRotationZ(std.math.pi * prototype.incline_jitter[1] * incline_z_r);
 
-            const depth_offset = math.lerp(project.depth_offset_range[0], project.depth_offset_range[1], depth_r);
+            const depth_offset = @as(Vec4f, @splat(math.lerp(project.depth_offset_range[0], project.depth_offset_range[1], depth_r))) * up;
 
             const local_trafo: Transformation = .{
-                .position = frag.p + Vec4f{ 0.0, y_order[id] + depth_offset, 0.0, 0.0 },
+                .position = frag.p + depth_offset,
                 .scale = @splat(math.lerp(prototype.scale_range[0], prototype.scale_range[1], scale_r)),
-                .rotation = math.quaternion.mul(math.quaternion.mul(incline_x, incline_z), rotation),
+                .rotation = math.quaternion.mul(math.quaternion.mul(math.quaternion.mul(incline_x, incline_y), rotation), basis),
             };
 
             const trafo = local_trafo.transform(prototype.trafo);
@@ -253,46 +347,24 @@ pub fn main() !void {
             if (project.tileable) {
                 if (0 == y) {
                     var tile_trafo = trafo;
-                    tile_trafo.position[2] += extent[2];
+                    tile_trafo.position[world_axis[1]] += world_extent[1];
                     try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
                 } else if (grid[1] - 1 == y) {
                     var tile_trafo = trafo;
-                    tile_trafo.position[2] -= extent[2];
+                    tile_trafo.position[world_axis[1]] -= world_extent[1];
                     try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
                 }
 
                 if (0 == x) {
                     var tile_trafo = trafo;
-                    tile_trafo.position[0] += extent[0];
+                    tile_trafo.position[world_axis[0]] += world_extent[0];
                     try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
                 } else if (grid[0] - 1 == x) {
                     var tile_trafo = trafo;
-                    tile_trafo.position[0] -= extent[0];
+                    tile_trafo.position[world_axis[0]] -= world_extent[0];
                     try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
                 }
             }
         }
     }
-
-    try exp.Exporter.write(alloc, options.output, project.materials.items, project.prototypes, instances.items);
-}
-
-fn createOrthoCamera(alloc: Allocator, graph: *Graph) !core.camera.Orthographic {
-    var ortho = core.camera.Orthographic{};
-
-    const trafo = Transformation{
-        .position = @splat(0.0),
-        .scale = @splat(1.0),
-        .rotation = math.quaternion.initRotationX(-math.degreesToRadians(90.0)),
-    };
-
-    graph.scene.calculateNumInterpolationFrames(ortho.super.frame_step, ortho.super.frame_duration);
-
-    const entity_id = try graph.scene.createEntity(alloc);
-
-    graph.scene.prop_space.setWorldTransformation(entity_id, trafo);
-
-    ortho.super.entity = entity_id;
-
-    return ortho;
 }
