@@ -449,25 +449,20 @@ pub const Mesh = struct {
         const hit_u = frag.isec.u;
         const hit_v = frag.isec.v;
 
-        const p = data.interpolateP(itri, hit_u, hit_v);
-        frag.p = frag.isec.trafo.objectToWorldPoint(p);
-
         const geo_n = data.normal(itri);
         frag.geo_n = frag.isec.trafo.objectToWorldNormal(geo_n);
 
+        var p: Vec4f = undefined;
         var t: Vec4f = undefined;
+        var b: Vec4f = undefined;
         var n: Vec4f = undefined;
         var uv: Vec2f = undefined;
-        var bit_sign: f32 = undefined;
-        data.interpolateData(itri, hit_u, hit_v, &t, &n, &uv, &bit_sign);
+        data.interpolateData(itri, hit_u, hit_v, &p, &t, &b, &n, &uv);
 
-        const t_w = frag.isec.trafo.objectToWorldNormal(t);
-        const n_w = frag.isec.trafo.objectToWorldNormal(n);
-        const b_w = @as(Vec4f, @splat(bit_sign)) * math.cross3(n_w, t_w);
-
-        frag.t = t_w;
-        frag.b = b_w;
-        frag.n = n_w;
+        frag.p = frag.isec.trafo.objectToWorldPoint(p);
+        frag.t = frag.isec.trafo.objectToWorldNormal(t);
+        frag.b = frag.isec.trafo.objectToWorldNormal(b);
+        frag.n = frag.isec.trafo.objectToWorldNormal(n);
         frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
     }
 

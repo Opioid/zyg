@@ -41,9 +41,9 @@ pub const Buffer = union(enum) {
         }
     }
 
-    pub fn copy(self: Buffer, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Buffer, positions: [*]f32, normals: [*]f32, uvs: [*]Vec2f, count: u32) void {
         return switch (self) {
-            inline else => |v| v.copy(positions, frames, uvs, count),
+            inline else => |v| v.copy(positions, normals, uvs, count),
         };
     }
 };
@@ -91,32 +91,10 @@ pub const Separate = struct {
         }
     }
 
-    pub fn copy(self: Self, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Self, positions: [*]f32, normals: [*]f32, uvs: [*]Vec2f, count: u32) void {
         const num_components = count * 3;
         @memcpy(positions[0..num_components], @as([*]const f32, @ptrCast(self.positions.ptr))[0..num_components]);
-
-        if (count == self.tangents.len) {
-            for (0..count) |i| {
-                const n3 = self.normals[i];
-                const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
-                const t3 = self.tangents[i];
-                const t = Vec4f{ t3.v[0], t3.v[1], t3.v[2], 0.0 };
-
-                frames[i] = quaternion.initFromTN(t, n);
-
-                if (self.bts.len > i and self.bts[i] > 0) {
-                    frames[i][3] = -frames[i][3];
-                }
-            }
-        } else {
-            for (0..count) |i| {
-                const n3 = self.normals[i];
-                const n = Vec4f{ n3.v[0], n3.v[1], n3.v[2], 0.0 };
-                const t = math.tangent3(n);
-
-                frames[i] = quaternion.initFromTN(t, n);
-            }
-        }
+        @memcpy(normals[0..num_components], @as([*]const f32, @ptrCast(self.normals.ptr))[0..num_components]);
 
         if (count == self.uvs.len) {
             @memcpy(uvs[0..count], self.uvs);
@@ -147,12 +125,16 @@ pub const SeparateQuat = struct {
         alloc.free(self.positions);
     }
 
-    pub fn copy(self: Self, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Self, positions: [*]f32, normals: [*]f32, uvs: [*]Vec2f, count: u32) void {
         const num_components = count * 3;
         @memcpy(positions[0..num_components], @as([*]const f32, @ptrCast(self.positions.ptr))[0..num_components]);
 
         for (self.ts[0..count], 0..count) |ts, i| {
-            frames[i] = ts.v; // .{ ts.v[0], ts.v[1], ts.v[2], if (ts.v[3] < 0.0) -ts.v[3] else ts.v[3] };
+            const frame = Vec4f{ ts.v[0], ts.v[1], ts.v[2], if (ts.v[3] < 0.0) -ts.v[3] else ts.v[3] };
+            const normal = quaternion.toNormal(frame);
+            normals[i * 3 + 0] = normal[0];
+            normals[i * 3 + 1] = normal[1];
+            normals[i * 3 + 2] = normal[2];
         }
 
         @memcpy(uvs[0..count], self.uvs);
@@ -197,7 +179,7 @@ pub const CAPI = struct {
         };
     }
 
-    pub fn copy(self: Self, positions: [*]f32, frames: [*]Vec4f, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Self, positions: [*]f32, normals: [*]f32, uvs: [*]Vec2f, count: u32) void {
         var i: u32 = 0;
         while (i < count) : (i += 1) {
             const dest_id = i * 3;
@@ -210,23 +192,12 @@ pub const CAPI = struct {
 
         i = 0;
         while (i < count) : (i += 1) {
-            const nid = i * self.normals_stride;
-            const n = Vec4f{ self.normals[nid + 0], self.normals[nid + 1], self.normals[nid + 2], 0.0 };
+            const dest_id = i * 3;
+            const source_id = i * self.normals_stride;
 
-            if (0 == self.tangents_stride) {
-                const t = math.tangent3(n);
-
-                frames[i] = quaternion.initFromTN(t, n);
-            } else {
-                const tid = i * self.tangents_stride;
-                const t = Vec4f{ self.tangents[tid + 0], self.tangents[tid + 1], self.tangents[tid + 2], 0.0 };
-
-                frames[i] = quaternion.initFromTN(t, n);
-
-                if (self.tangents_stride > 3 and self.tangents[tid + 3] < 0.0) {
-                    frames[i][3] = -frames[i][3];
-                }
-            }
+            normals[dest_id + 0] = self.normals[source_id + 0];
+            normals[dest_id + 1] = self.normals[source_id + 1];
+            normals[dest_id + 2] = self.normals[source_id + 2];
         }
 
         i = 0;
