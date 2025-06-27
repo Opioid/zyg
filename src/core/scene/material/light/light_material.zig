@@ -38,8 +38,11 @@ pub const Material = struct {
     }
 
     pub fn commit(self: *Material) void {
-        self.super.properties.emissive = math.anyGreaterZero3(self.emittance.value);
-        self.super.properties.emission_image_map = self.emittance.emission_map.isImage();
+        var properties = &self.super.properties;
+
+        properties.evaluate_visibility = self.super.mask.isImage();
+        properties.emissive = math.anyGreaterZero3(self.emittance.value);
+        properties.emission_image_map = self.emittance.emission_map.isImage();
     }
 
     pub fn prepareSampling(

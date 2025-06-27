@@ -59,7 +59,7 @@ pub const Material = struct {
     flakes_res: f32 = 0.0,
 
     pub fn commit(self: *Material) void {
-        const properties = &self.super.properties;
+        var properties = &self.super.properties;
 
         properties.evaluate_visibility = self.super.mask.isImage();
         properties.emissive = math.anyGreaterZero3(self.emittance.value);
