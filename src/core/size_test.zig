@@ -46,8 +46,8 @@ pub fn testSize() void {
     testType(mtsmpl.Substitute, "SubstituteSample", 256);
     testType(mtsmpl.Hair, "HairSample", 272);
     testType(Texture, "Texture", 16);
-    testType(TriangleMesh, "TriangleMesh", 80);
-    testType(TriangleBvh, "TriangleBvh", 56);
+    testType(TriangleMesh, "TriangleMesh", 88);
+    testType(TriangleBvh, "TriangleBvh", 64);
     testType(Worker, "Worker", 368);
 }
 

@@ -110,7 +110,7 @@ pub const Part = struct {
             var mt: u32 = 0;
             const len = tree.numTriangles();
             while (t < len) : (t += 1) {
-                if (tree.data.indexTriangle(t).part == part) {
+                if (tree.data.trianglePart(t) == part) {
                     triangle_mapping[mt] = t;
                     mt += 1;
                 }
@@ -442,12 +442,12 @@ pub const Mesh = struct {
     pub fn fragment(self: *const Mesh, frag: *Fragment) void {
         const data = self.tree.data;
 
-        const itri = data.indexTriangle(frag.isec.primitive);
-
-        frag.part = itri.part;
+        frag.part = data.trianglePart(frag.isec.primitive);
 
         const hit_u = frag.isec.u;
         const hit_v = frag.isec.v;
+
+        const itri = data.indexTriangle(frag.isec.primitive);
 
         const geo_n = data.normal(itri);
         frag.geo_n = frag.isec.trafo.objectToWorldNormal(geo_n);
@@ -854,8 +854,9 @@ pub const Mesh = struct {
         var t: u32 = 0;
         const nt = self.tree.numTriangles();
         while (t < nt) : (t += 1) {
+            const trip = self.tree.data.trianglePart(t);
             const itri = self.tree.data.indexTriangle(t);
-            self.parts[itri.part].area += self.tree.data.triangleArea(itri);
+            self.parts[trip].area += self.tree.data.triangleArea(itri);
         }
     }
 
@@ -877,8 +878,8 @@ pub const Mesh = struct {
 
             var i: u32 = 0;
             while (i < num_triangles) : (i += 1) {
-                const itri = self.tree.data.indexTriangle(i);
-                const p = &self.parts[itri.part];
+                const trip = self.tree.data.trianglePart(i);
+                const p = &self.parts[trip];
                 const pm = p.num_triangles;
                 p.num_triangles = pm + 1;
                 primitive_mapping[i] = pm;

@@ -14,17 +14,17 @@ const Allocator = std.mem.Allocator;
 pub const IndexedData = struct {
     pub const Fragment = triangle.Fragment;
 
-    const Triangle = packed struct {
+    const Triangle = struct {
         a: u32,
         b: u32,
         c: u32,
-        part: u32,
     };
 
     num_triangles: u32 = 0,
     num_vertices: u32 = 0,
 
     triangles: [*]Triangle = undefined,
+    triangle_parts: [*]u16 = undefined,
     positions: [*]f32 = undefined,
     normals: [*]f32 = undefined,
     uvs: [*]Vec2f = undefined,
@@ -35,6 +35,7 @@ pub const IndexedData = struct {
         alloc.free(self.uvs[0..self.num_vertices]);
         alloc.free(self.normals[0 .. self.num_vertices * 3 + 1]);
         alloc.free(self.positions[0 .. self.num_vertices * 3 + 1]);
+        alloc.free(self.triangle_parts[0..self.num_triangles]);
         alloc.free(self.triangles[0..self.num_triangles]);
     }
 
@@ -44,7 +45,8 @@ pub const IndexedData = struct {
         self.num_triangles = num_triangles;
         self.num_vertices = num_vertices;
 
-        self.triangles = (try alloc.alignedAlloc(Triangle, .@"16", num_triangles)).ptr;
+        self.triangles = (try alloc.alloc(Triangle, num_triangles)).ptr;
+        self.triangle_parts = (try alloc.alloc(u16, num_triangles)).ptr;
         self.positions = (try alloc.alloc(f32, num_vertices * 3 + 1)).ptr;
         self.normals = (try alloc.alloc(f32, num_vertices * 3 + 1)).ptr;
         self.uvs = (try alloc.alloc(Vec2f, num_vertices)).ptr;
@@ -54,8 +56,9 @@ pub const IndexedData = struct {
         self.normals[num_vertices * 3] = 0.0;
     }
 
-    pub fn setTriangle(self: *Self, triangle_id: u32, a: u32, b: u32, c: u32, p: u32) void {
-        self.triangles[triangle_id] = .{ .a = a, .b = b, .c = c, .part = p };
+    pub fn setTriangle(self: *Self, triangle_id: u32, a: u32, b: u32, c: u32, part: u32) void {
+        self.triangles[triangle_id] = .{ .a = a, .b = b, .c = c };
+        self.triangle_parts[triangle_id] = @truncate(part);
     }
 
     inline fn position(self: Self, index: u32) Vec4f {
@@ -88,6 +91,10 @@ pub const IndexedData = struct {
 
     pub fn indexTriangle(self: Self, index: u32) Triangle {
         return self.triangles[index];
+    }
+
+    pub fn trianglePart(self: Self, index: u32) u32 {
+        return self.triangle_parts[index];
     }
 
     pub fn interpolateP(self: Self, tri: Triangle, u: f32, v: f32) Vec4f {

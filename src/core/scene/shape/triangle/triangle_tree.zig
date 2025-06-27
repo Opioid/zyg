@@ -128,10 +128,10 @@ pub const Tree = struct {
                 const e = i + num;
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(tray, i)) |hit| {
-                        const itri = self.data.indexTriangle(i);
-                        const material = scene.propMaterial(entity, itri.part);
+                        const material = scene.propMaterial(entity, self.data.trianglePart(i));
 
                         if (material.evaluateVisibility()) {
+                            const itri = self.data.indexTriangle(i);
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
 
                             if (material.super().stochasticOpacity(uv, sampler, scene)) {
@@ -252,10 +252,10 @@ pub const Tree = struct {
                 const e = i + num;
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
-                        const itri = self.data.indexTriangle(i);
-                        const material = context.scene.propMaterial(entity, itri.part);
+                        const material = context.scene.propMaterial(entity, self.data.trianglePart(i));
 
                         if (material.evaluateVisibility()) {
+                            const itri = self.data.indexTriangle(i);
                             rs.geo_n = self.data.normal(itri);
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
                             rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
@@ -427,9 +427,9 @@ pub const Tree = struct {
                         frag.isec.v = hit.v;
                         frag.isec.primitive = i;
 
-                        const itri = self.data.indexTriangle(i);
+                        frag.part = self.data.trianglePart(i);
 
-                        frag.part = itri.part;
+                        const itri = self.data.indexTriangle(i);
 
                         const p = self.data.interpolateP(itri, hit.u, hit.v);
                         frag.p = frag.isec.trafo.objectToWorldPoint(p);
@@ -438,7 +438,6 @@ pub const Tree = struct {
                         frag.geo_n = frag.isec.trafo.objectToWorldNormal(geo_n);
 
                         const uv = self.data.interpolateUv(itri, hit.u, hit.v);
-
                         frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
                         if (frag.evaluateRadiance(shading_p, wo, sampler, context)) |local_energy| {
