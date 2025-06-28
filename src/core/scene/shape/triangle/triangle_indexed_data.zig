@@ -114,45 +114,18 @@ pub const IndexedData = struct {
         const uva = self.uvs[tri.a];
         const uvb = self.uvs[tri.b];
         const uvc = self.uvs[tri.c];
-
         uv.* = triangle.interpolate2(uva, uvb, uvc, u, v);
 
         const nb = self.shadingNormal(tri.b);
         const na = self.shadingNormal(tri.a);
         const nc = self.shadingNormal(tri.c);
-
         const nv = triangle.interpolate3(na, nb, nc, u, v);
 
         const ni = math.normalize3(nv);
 
         n.* = ni;
 
-        const duv02 = uva - uvc;
-        const duv12 = uvb - uvc;
-        const determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
-
-        var dpdu: Vec4f = undefined;
-        var dpdv: Vec4f = undefined;
-
-        const dp02 = pa - pc;
-        const dp12 = pb - pc;
-
-        if (0.0 == @abs(determinant)) {
-            const ng = math.normalize3(math.cross3(pc - pa, pb - pa));
-
-            if (@abs(ng[0]) > @abs(ng[1])) {
-                dpdu = Vec4f{ -ng[2], 0, ng[0], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[0] * ng[0] + ng[2] * ng[2])));
-            } else {
-                dpdu = Vec4f{ 0, ng[2], -ng[1], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[1] * ng[1] + ng[2] * ng[2])));
-            }
-
-            dpdv = math.cross3(ng, dpdu);
-        } else {
-            const invdet = 1.0 / determinant;
-
-            dpdu = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(duv12[1])) * dp02 - @as(Vec4f, @splat(duv02[1])) * dp12);
-            dpdv = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(-duv12[0])) * dp02 + @as(Vec4f, @splat(duv02[0])) * dp12);
-        }
+        const dpdu, const dpdv = triangle.positionDifferentials(pa, pb, pc, uva, uvb, uvc);
 
         t.* = math.normalize3(gramSchmidt(dpdu, ni));
         b.* = math.normalize3(gramSchmidt(dpdv, ni));

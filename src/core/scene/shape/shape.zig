@@ -486,10 +486,10 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn surfaceDifferential(self: *const Shape, primitive: u32, trafo: Trafo) DifferentialSurface {
+    pub fn surfaceDifferentials(self: *const Shape, primitive: u32, trafo: Trafo) DifferentialSurface {
         return switch (self.*) {
-            .Rectangle => Rectangle.surfaceDifferential(trafo),
-            .TriangleMesh => |*m| m.surfaceDifferential(primitive, trafo),
+            .Rectangle => Rectangle.surfaceDifferentials(trafo),
+            .TriangleMesh => |*m| m.surfaceDifferentials(primitive, trafo),
             else => .{
                 .dpdu = @as(Vec4f, @splat(-trafo.scaleX())) * trafo.rotation.r[0],
                 .dpdv = @as(Vec4f, @splat(-trafo.scaleY())) * trafo.rotation.r[1],

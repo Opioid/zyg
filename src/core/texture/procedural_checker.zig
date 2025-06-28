@@ -41,7 +41,7 @@ pub const Checker = struct {
     // https://iquilezles.org/articles/morecheckerfiltering/
 
     pub fn evaluate(self: Checker, rs: Renderstate, mode: Texture.Mode, context: Context) Vec4f {
-        const dd = context.screenspaceDifferential(rs, mode.tex_coord);
+        const dd = context.screenspaceDifferentials(rs, mode.tex_coord);
         const ddx: Vec2f = .{ dd[0], dd[1] };
         const ddy: Vec2f = .{ dd[2], dd[3] };
 

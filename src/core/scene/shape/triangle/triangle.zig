@@ -98,6 +98,37 @@ pub fn barycentricCoords(dir: Vec4f, a: Vec4f, b: Vec4f, c: Vec4f) Vec2f {
     return .{ u, v };
 }
 
+pub fn positionDifferentials(pa: Vec4f, pb: Vec4f, pc: Vec4f, uva: Vec2f, uvb: Vec2f, uvc: Vec2f) [2]Vec4f {
+    const duv02 = uva - uvc;
+    const duv12 = uvb - uvc;
+    const determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
+
+    var dpdu: Vec4f = undefined;
+    var dpdv: Vec4f = undefined;
+
+    const dp02 = pa - pc;
+    const dp12 = pb - pc;
+
+    if (0.0 == @abs(determinant)) {
+        const ng = math.normalize3(math.cross3(pc - pa, pb - pa));
+
+        if (@abs(ng[0]) > @abs(ng[1])) {
+            dpdu = Vec4f{ -ng[2], 0, ng[0], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[0] * ng[0] + ng[2] * ng[2])));
+        } else {
+            dpdu = Vec4f{ 0, ng[2], -ng[1], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[1] * ng[1] + ng[2] * ng[2])));
+        }
+
+        dpdv = math.cross3(ng, dpdu);
+    } else {
+        const invdet = 1.0 / determinant;
+
+        dpdu = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(duv12[1])) * dp02 - @as(Vec4f, @splat(duv02[1])) * dp12);
+        dpdv = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(-duv12[0])) * dp02 + @as(Vec4f, @splat(duv02[0])) * dp12);
+    }
+
+    return .{ dpdu, dpdv };
+}
+
 pub inline fn interpolate2(a: Vec2f, b: Vec2f, c: Vec2f, u: f32, v: f32) Vec2f {
     const w = 1.0 - u - v;
     return a * @as(Vec2f, @splat(w)) + b * @as(Vec2f, @splat(u)) + c * @as(Vec2f, @splat(v));
@@ -108,6 +139,6 @@ pub inline fn interpolate3(a: Vec4f, b: Vec4f, c: Vec4f, u: f32, v: f32) Vec4f {
     return a * @as(Vec4f, @splat(w)) + b * @as(Vec4f, @splat(u)) + c * @as(Vec4f, @splat(v));
 }
 
-pub fn area(a: Vec4f, b: Vec4f, c: Vec4f) f32 {
+pub inline fn area(a: Vec4f, b: Vec4f, c: Vec4f) f32 {
     return 0.5 * math.length3(math.cross3(b - a, c - a));
 }

@@ -434,7 +434,15 @@ pub const Mesh = struct {
         return self.tree.intersect(local_ray, trafo, isec);
     }
 
-    pub fn intersectOpacity(self: *const Mesh, ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, isec: *Intersection) bool {
+    pub fn intersectOpacity(
+        self: *const Mesh,
+        ray: Ray,
+        trafo: Trafo,
+        entity: u32,
+        sampler: *Sampler,
+        scene: *const Scene,
+        isec: *Intersection,
+    ) bool {
         const local_ray = trafo.worldToObjectRay(ray);
         return self.tree.intersectOpacity(local_ray, trafo, entity, sampler, scene, isec);
     }
@@ -891,35 +899,10 @@ pub const Mesh = struct {
         return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
     }
 
-    pub fn surfaceDifferential(self: *const Mesh, primitive: u32, trafo: Trafo) DifferentialSurface {
+    pub fn surfaceDifferentials(self: *const Mesh, primitive: u32, trafo: Trafo) DifferentialSurface {
         const puv = self.tree.data.trianglePuv(self.tree.data.indexTriangle(primitive));
 
-        const duv02 = puv.uv[0] - puv.uv[2];
-        const duv12 = puv.uv[1] - puv.uv[2];
-        const determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
-
-        const dp02 = puv.p[0] - puv.p[2];
-        const dp12 = puv.p[1] - puv.p[2];
-
-        var dpdu: Vec4f = undefined;
-        var dpdv: Vec4f = undefined;
-
-        if (0.0 == @abs(determinant)) {
-            const ng = math.normalize3(math.cross3(puv.p[2] - puv.p[0], puv.p[1] - puv.p[0]));
-
-            if (@abs(ng[0]) > @abs(ng[1])) {
-                dpdu = Vec4f{ -ng[2], 0.0, ng[0], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[0] * ng[0] + ng[2] * ng[2])));
-            } else {
-                dpdu = Vec4f{ 0.0, ng[2], -ng[1], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[1] * ng[1] + ng[2] * ng[2])));
-            }
-
-            dpdv = math.cross3(ng, dpdu);
-        } else {
-            const invdet: Vec4f = @splat(1.0 / determinant);
-
-            dpdu = invdet * (@as(Vec4f, @splat(duv12[1])) * dp02 - @as(Vec4f, @splat(duv02[1])) * dp12);
-            dpdv = invdet * (@as(Vec4f, @splat(-duv12[0])) * dp02 + @as(Vec4f, @splat(duv02[0])) * dp12);
-        }
+        const dpdu, const dpdv = tri.positionDifferentials(puv.p[0], puv.p[1], puv.p[2], puv.uv[0], puv.uv[1], puv.uv[2]);
 
         const dpdu_w = trafo.objectToWorldVector(dpdu);
         const dpdv_w = trafo.objectToWorldVector(dpdv);

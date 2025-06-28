@@ -528,7 +528,7 @@ pub const Rectangle = struct {
         return (material_pdf * sl) / (c * area);
     }
 
-    pub fn surfaceDifferential(trafo: Trafo) DifferentialSurface {
+    pub fn surfaceDifferentials(trafo: Trafo) DifferentialSurface {
         if (trafo.scaleZ() < 0.0) {
             return .{ .dpdu = -trafo.rotation.r[0], .dpdv = -trafo.rotation.r[1] };
         } else {
