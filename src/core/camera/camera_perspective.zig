@@ -286,9 +286,11 @@ pub const Perspective = struct {
                 if (shape.len > 0) {
                     var options: Variants = .{};
                     defer options.deinit(alloc);
-                    options.set(alloc, "usage", .Opacity) catch {};
+                    options.set(alloc, "usage", tx.Usage.Opacity) catch {};
 
                     const texture = try tx.Provider.loadFile(alloc, shape, options, tx.Texture.DefaultMode, @splat(1.0), resources);
+                    resources.commitAsync();
+
                     try self.aperture.setShape(alloc, texture, scene);
                 } else {
                     const blades = json.readUIntMember(entry.value_ptr.*, "blades", 0);
