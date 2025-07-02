@@ -105,14 +105,14 @@ pub const Space = struct {
         return self.transformationAtMaybeStatic(entity, time, current_time_start, Prop.Null == f);
     }
 
-    pub fn transformationAtMaybeStatic(self: *const Self, entity: u32, time: u64, cuurent_time_start: u64, static: bool) Transformation {
+    pub fn transformationAtMaybeStatic(self: *const Self, entity: u32, time: u64, current_time_start: u64, static: bool) Transformation {
         if (static) {
             var trafo = self.world_transformations.items[entity];
             trafo.translate(-self.origin);
             return trafo;
         }
 
-        return self.animatedTransformationAt(self.frames.items[entity], time, cuurent_time_start);
+        return self.animatedTransformationAt(self.frames.items[entity], time, current_time_start);
     }
 
     fn animatedTransformationAt(self: *const Self, frames_id: u32, time: u64, current_time_start: u64) Transformation {

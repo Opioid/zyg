@@ -53,6 +53,10 @@ pub const Scene = struct {
         return @intFromFloat(@round(@as(f64, @floatFromInt(UnitsPerSecond)) * dtime));
     }
 
+    pub fn secondsSince(time: u64, time_start: u64) f32 {
+        return @floatCast(@as(f64, @floatFromInt(time - time_start)) / @as(f64, @floatFromInt(UnitsPerSecond)));
+    }
+
     pub const Num_reserved_props = 32;
 
     pub const Null = Prop.Null;
@@ -75,6 +79,7 @@ pub const Scene = struct {
     num_interpolation_frames: u32 = 0,
 
     current_time_start: u64 = undefined,
+    frame_duration: u64 = undefined,
 
     bvh_builder: PropBvhBuilder,
     light_tree_builder: LightTreeBuilder = .{},
@@ -209,9 +214,18 @@ pub const Scene = struct {
         return 0 == self.infinite_props.items.len;
     }
 
-    pub fn compile(self: *Scene, alloc: Allocator, camera_pos: Vec4f, time: u64, threads: *Threads, fs: *Filesystem) !void {
+    pub fn compile(
+        self: *Scene,
+        alloc: Allocator,
+        camera_pos: Vec4f,
+        time: u64,
+        frame_duration: u64,
+        threads: *Threads,
+        fs: *Filesystem,
+    ) !void {
         const frames_start = time - (time % TickDuration);
         self.current_time_start = frames_start;
+        self.frame_duration = frame_duration;
 
         self.calculateWorldBounds(camera_pos);
 
@@ -454,7 +468,7 @@ pub const Scene = struct {
         const average_radiance = mat.prepareSampling(alloc, shape_inst, part, trafo, extent, self, threads);
 
         const f = self.prop_space.frames.items[entity];
-        const part_aabb = shape_inst.partAabb(part, variant);
+        const part_aabb = shape_inst.partAabb(part, variant, self.frame_duration);
         const part_cone = shape_inst.partCone(part, variant);
 
         if (Null == f) {

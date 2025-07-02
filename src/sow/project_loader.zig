@@ -14,10 +14,6 @@ const Transformation = math.Transformation;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Error = error{
-    NoScene,
-};
-
 pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
@@ -36,10 +32,6 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
         project.scene_filename = try alloc.dupe(u8, scene_filename.string);
     }
 
-    if (0 == project.scene_filename.len) {
-        return Error.NoScene;
-    }
-
     var iter = root.object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "mount_folder", entry.key_ptr.*)) {
@@ -56,10 +48,16 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
             project.triplanar = json.readBool(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "materials", entry.key_ptr.*)) {
             try std.json.stringify(entry.value_ptr.*, .{ .whitespace = .indent_4 }, project.materials.writer(alloc));
+        } else if (std.mem.eql(u8, "particles", entry.key_ptr.*)) {
+            loadParticles(entry.value_ptr.*, project);
         } else if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {
             try loadPrototypes(alloc, entry.value_ptr.*, project);
         }
     }
+}
+
+fn loadParticles(value: std.json.Value, project: *Project) void {
+    project.particles.num_particles = json.readUIntMember(value, "num_particles", 0);
 }
 
 fn loadPrototypes(alloc: Allocator, value: std.json.Value, project: *Project) !void {

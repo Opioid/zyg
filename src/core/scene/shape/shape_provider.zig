@@ -1,7 +1,9 @@
 const log = @import("../../log.zig");
 const Shape = @import("shape.zig").Shape;
-const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
 const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
+const PointMotionCloud = @import("point/point_motion_cloud.zig").MotionCloud;
+const PointMotionTreeBuilder = @import("point/point_motion_tree_builder.zig").Builder;
+const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
 const tvb = @import("triangle/vertex_buffer.zig");
 const IndexTriangle = @import("triangle/triangle.zig").IndexTriangle;
 const TriangleTree = @import("triangle/triangle_tree.zig").Tree;
@@ -43,17 +45,25 @@ const Handler = struct {
     pub const Vec2fs = std.ArrayListUnmanaged(Vec2f);
     pub const u8s = std.ArrayListUnmanaged(u8);
 
+    pub const Topology = enum {
+        PointList,
+        TriangleList,
+    };
+
+    topology: Topology = .TriangleList,
     parts: Parts = .empty,
     triangles: Triangles = .empty,
     positions: Vec3fs = .empty,
     normals: Vec3fs = .empty,
     tangents: Vec3fs = .empty,
+    velocities: Vec3fs = .empty,
     uvs: Vec2fs = .empty,
     bitangent_signs: u8s = .empty,
 
     pub fn deinit(self: *Handler, alloc: Allocator) void {
         self.bitangent_signs.deinit(alloc);
         self.uvs.deinit(alloc);
+        self.velocities.deinit(alloc);
         self.tangents.deinit(alloc);
         self.normals.deinit(alloc);
         self.positions.deinit(alloc);
@@ -176,30 +186,43 @@ pub const Provider = struct {
             return Error.NoVertices;
         }
 
-        for (handler.parts.items, 0..) |p, i| {
-            const triangles_start = p.start_index / 3;
-            const triangles_end = (p.start_index + p.num_indices) / 3;
+        if (.PointList == handler.topology) {
+            var cloud = PointMotionCloud{};
 
-            for (handler.triangles.items[triangles_start..triangles_end]) |*t| {
-                t.part = @intCast(i);
+            var builder = try PointMotionTreeBuilder.init(alloc);
+            defer builder.deinit(alloc);
+
+            try builder.build(alloc, &cloud.tree, handler.positions.items, handler.velocities.items, resources.scene.frame_duration, resources.threads);
+
+            resources.commitAsync();
+
+            return .{ .data = .{ .PointMotionCloud = cloud } };
+        } else {
+            for (handler.parts.items, 0..) |p, i| {
+                const triangles_start = p.start_index / 3;
+                const triangles_end = (p.start_index + p.num_indices) / 3;
+
+                for (handler.triangles.items[triangles_start..triangles_end]) |*t| {
+                    t.part = @intCast(i);
+                }
             }
+
+            var mesh = try TriangleMesh.init(alloc, @intCast(handler.parts.items.len));
+
+            for (handler.parts.items, 0..) |p, i| {
+                mesh.setMaterialForPart(i, p.material_index);
+            }
+
+            resources.commitAsync();
+
+            self.handler = handler;
+            self.alloc = alloc;
+            self.threads = resources.threads;
+
+            resources.threads.runAsync(self, buildAsync);
+
+            return .{ .data = .{ .TriangleMesh = mesh } };
         }
-
-        var mesh = try TriangleMesh.init(alloc, @intCast(handler.parts.items.len));
-
-        for (handler.parts.items, 0..) |p, i| {
-            mesh.setMaterialForPart(i, p.material_index);
-        }
-
-        resources.commitAsync();
-
-        self.handler = handler;
-        self.alloc = alloc;
-        self.threads = resources.threads;
-
-        resources.threads.runAsync(self, buildAsync);
-
-        return .{ .data = .{ .TriangleMesh = mesh } };
     }
 
     pub fn loadData(
@@ -257,7 +280,13 @@ pub const Provider = struct {
     fn loadGeometry(alloc: Allocator, handler: *Handler, value: std.json.Value) !void {
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
+            if (std.mem.eql(u8, "primitive_topology", entry.key_ptr.*)) {
+                if (std.mem.eql(u8, "point_list", entry.value_ptr.string)) {
+                    handler.topology = .PointList;
+                } else if (std.mem.eql(u8, "triangle_list", entry.value_ptr.string)) {
+                    handler.topology = .TriangleList;
+                }
+            } else if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
                 const parts = entry.value_ptr.array.items;
 
                 handler.parts = try Handler.Parts.initCapacity(alloc, parts.len);
@@ -370,6 +399,20 @@ pub const Provider = struct {
                                 json.readFloat(f32, uvs[i * 2 + 0]),
                                 json.readFloat(f32, uvs[i * 2 + 1]),
                             };
+                        }
+                    } else if (std.mem.eql(u8, "velocities", ventry.key_ptr.*)) {
+                        const velocities = ventry.value_ptr.array.items;
+                        const num_velocities = velocities.len / 3;
+
+                        handler.velocities = try Handler.Vec3fs.initCapacity(alloc, num_velocities);
+                        try handler.velocities.resize(alloc, num_velocities);
+
+                        for (handler.velocities.items, 0..) |*v, i| {
+                            v.* = Pack3f.init3(
+                                json.readFloat(f32, velocities[i * 3 + 0]),
+                                json.readFloat(f32, velocities[i * 3 + 1]),
+                                json.readFloat(f32, velocities[i * 3 + 2]),
+                            );
                         }
                     }
                 }

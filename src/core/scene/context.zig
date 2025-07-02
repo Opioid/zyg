@@ -108,7 +108,7 @@ pub const Context = struct {
     }
 
     pub fn propInterpolateFragment(self: Self, entity: u32, probe: Probe, frag: *Fragment) void {
-        self.scene.propShape(entity).fragment(probe.ray, frag);
+        self.scene.propShape(entity).fragment(probe, self.scene.current_time_start, frag);
     }
 
     pub fn sampleProcedural2D_1(self: Self, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {

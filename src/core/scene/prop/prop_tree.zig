@@ -108,7 +108,7 @@ pub const Tree = struct {
 
         if (hit) {
             frag.isec = isec;
-            scene.propShape(prop).fragment(probe.ray, frag);
+            scene.propShape(prop).fragment(probe.*, scene.current_time_start, frag);
         }
 
         frag.prop = prop;

@@ -6,7 +6,7 @@ const Vec2f = math.Vec2f;
 const Transformation = math.Transformation;
 
 const std = @import("std");
-const Allocator = @import("std").mem.Allocator;
+const Allocator = std.mem.Allocator;
 const List = std.ArrayListUnmanaged;
 
 pub const Prototype = struct {
@@ -37,6 +37,10 @@ pub const Instance = struct {
 };
 
 pub const Project = struct {
+    const Particles = struct {
+        num_particles: u32 = 0,
+    };
+
     scene_filename: []u8 = &.{},
 
     mount_folder: []u8 = &.{},
@@ -54,6 +58,8 @@ pub const Project = struct {
     align_to_normal: bool = true,
     tileable: bool = false,
     triplanar: bool = false,
+
+    particles: Particles = .{},
 
     const Self = @This();
 

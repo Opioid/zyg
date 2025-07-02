@@ -685,7 +685,7 @@ pub const Grid = struct {
             const trafo = frag.isec.trafo;
             const local_position = trafo.worldToObjectPoint(frag.p);
 
-            const aabb = context.scene.propShape(frag.prop).aabb();
+            const aabb = context.scene.propShape(frag.prop).aabb(0);
             const uvw = (local_position - aabb.bounds[0]) / aabb.extent();
 
             const cc = material.collisionCoefficients();

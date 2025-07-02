@@ -148,7 +148,7 @@ pub const Prop = struct {
         if (self.properties.instancer) {
             return scene.instancer(self.resource).aabb();
         } else {
-            return scene.shape(self.resource).aabb();
+            return scene.shape(self.resource).aabb(scene.frame_duration);
         }
     }
 
@@ -190,7 +190,7 @@ pub const Prop = struct {
             if (properties.evaluate_visibility) {
                 return shape.intersectOpacity(probe, trafo, prototype, sampler, scene, isec);
             } else {
-                return shape.intersect(probe, trafo, isec);
+                return shape.intersect(probe, trafo, scene.current_time_start, isec);
             }
         }
     }
@@ -230,7 +230,7 @@ pub const Prop = struct {
             } else if (properties.evaluate_visibility) {
                 return shape.visibility(probe, trafo, prototype, sampler, context, tr);
             } else {
-                return !shape.intersectP(probe, trafo);
+                return !shape.intersectP(probe, trafo, scene.current_time_start);
             }
         }
     }
