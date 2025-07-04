@@ -58,6 +58,8 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
 
 fn loadParticles(value: std.json.Value, project: *Project) void {
     project.particles.num_particles = json.readUIntMember(value, "num_particles", 0);
+    project.particles.radius = json.readFloatMember(value, "radius", 0.001);
+    project.particles.frame = json.readUIntMember(value, "frame", 0);
 }
 
 fn loadPrototypes(alloc: Allocator, value: std.json.Value, project: *Project) !void {
@@ -69,13 +71,13 @@ fn loadPrototypes(alloc: Allocator, value: std.json.Value, project: *Project) !v
     defer alloc.free(weights);
 
     for (proto_array.items, project.prototypes, weights) |proto_value, *prototype, *w| {
-        try loadPrototye(alloc, proto_value, prototype, w);
+        try loadPrototype(alloc, proto_value, prototype, w);
     }
 
     try project.prototype_distribution.configure(alloc, weights, 0);
 }
 
-fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, weight: *f32) !void {
+fn loadPrototype(alloc: Allocator, value: std.json.Value, prototype: *Prototype, weight: *f32) !void {
     var w: f32 = 1.0;
     var trafo = Transformation.Identity;
     var position_jitter: Vec2f = @splat(0.0);

@@ -39,6 +39,8 @@ pub const Instance = struct {
 pub const Project = struct {
     const Particles = struct {
         num_particles: u32 = 0,
+        radius: f32 = 0.001,
+        frame: u32 = 0,
     };
 
     scene_filename: []u8 = &.{},

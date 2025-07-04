@@ -99,14 +99,14 @@ pub const Shape = union(enum) {
             .Canopy, .DistantSphere, .InfiniteSphere => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -0.5, -0.5, 0.0, 0.0 }, .{ 0.5, 0.5, 0.0, 0.0 }),
             .Cube, .Sphere => AABB.init(@splat(-0.5), @splat(0.5)),
-            .PointMotionCloud => |*c| c.aabb(frame_duration),
-            inline .CurveMesh, .TriangleMesh => |*m| m.tree.aabb(),
+            .PointMotionCloud => |c| c.aabb(frame_duration),
+            inline .CurveMesh, .TriangleMesh => |m| m.tree.aabb(),
         };
     }
 
     pub fn partAabb(self: *const Shape, part: u32, variant: u32, frame_duration: u64) AABB {
         return switch (self.*) {
-            .TriangleMesh => |*m| m.partAabb(part, variant),
+            .TriangleMesh => |m| m.partAabb(part, variant),
             else => self.aabb(frame_duration),
         };
     }
@@ -114,7 +114,7 @@ pub const Shape = union(enum) {
     pub fn partCone(self: *const Shape, part: u32, variant: u32) Vec4f {
         return switch (self.*) {
             .Disk, .Rectangle, .DistantSphere => .{ 0.0, 0.0, 1.0, 1.0 },
-            .TriangleMesh => |*m| m.partCone(part, variant),
+            .TriangleMesh => |m| m.partCone(part, variant),
             else => .{ 0.0, 0.0, 1.0, -1.0 },
         };
     }
@@ -131,7 +131,7 @@ pub const Shape = union(enum) {
             .DistantSphere => DistantSphere.solidAngle(scale[0]),
 
             .InfiniteSphere => 4.0 * std.math.pi,
-            .PointMotionCloud => 0.0,
+            .PointMotionCloud => |c| c.area(scale),
             .Rectangle => scale[0] * scale[1],
             .Sphere => (4.0 * std.math.pi) * math.pow2(0.5 * scale[0]),
             .TriangleMesh => |m| m.area(part, scale),
@@ -275,6 +275,7 @@ pub const Shape = union(enum) {
     ) Vec4f {
         return switch (self.*) {
             .Disk => Disk.emission(vertex, frag, split_threshold, sampler, context),
+            .PointMotionCloud => |c| c.emission(vertex, frag, split_threshold, sampler, context),
             .Rectangle => Rectangle.emission(vertex, frag, split_threshold, sampler, context),
             .Sphere => Sphere.emission(vertex, frag, split_threshold, sampler, context),
             .TriangleMesh => |m| m.emission(vertex, frag, split_threshold, sampler, context),
@@ -287,6 +288,8 @@ pub const Shape = union(enum) {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
+        time: u64,
+        current_time_start: u64,
         part: u32,
         variant: u32,
         two_sided: bool,
@@ -301,6 +304,7 @@ pub const Shape = union(enum) {
             .Disk => Disk.sampleTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
             .DistantSphere => DistantSphere.sampleTo(n, trafo, total_sphere, sampler, buffer),
             .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, buffer),
+            .PointMotionCloud => |c| c.sampleTo(p, n, trafo, time, current_time_start, total_sphere, split_threshold, material, sampler, buffer),
             .Rectangle => Rectangle.sampleTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
             .Sphere => Sphere.sampleTo(p, n, trafo, total_sphere, split_threshold, material, sampler, buffer),
             .TriangleMesh => |m| m.sampleTo(
@@ -438,6 +442,7 @@ pub const Shape = union(enum) {
             .Disk => Disk.pdf(dir, p, frag, split_threshold, material),
             .DistantSphere => DistantSphere.pdf(frag.isec.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
+            .PointMotionCloud => |c| c.pdf(dir, p, n, frag, total_sphere, split_threshold),
             .Rectangle => Rectangle.pdf(dir, p, frag, split_threshold, material),
             .Sphere => Sphere.pdf(p, frag.isec.trafo, split_threshold, material),
             .TriangleMesh => |m| m.pdf(part, variant, dir, p, n, frag, total_sphere, split_threshold),

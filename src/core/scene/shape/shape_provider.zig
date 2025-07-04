@@ -51,6 +51,7 @@ const Handler = struct {
     };
 
     topology: Topology = .TriangleList,
+    point_radius: f32 = 0.0,
     parts: Parts = .empty,
     triangles: Triangles = .empty,
     positions: Vec3fs = .empty,
@@ -192,7 +193,15 @@ pub const Provider = struct {
             var builder = try PointMotionTreeBuilder.init(alloc);
             defer builder.deinit(alloc);
 
-            try builder.build(alloc, &cloud.tree, handler.positions.items, handler.velocities.items, resources.scene.frame_duration, resources.threads);
+            try builder.build(
+                alloc,
+                &cloud.tree,
+                handler.point_radius,
+                handler.positions.items,
+                handler.velocities.items,
+                resources.scene.frame_duration,
+                resources.threads,
+            );
 
             resources.commitAsync();
 
@@ -286,6 +295,8 @@ pub const Provider = struct {
                 } else if (std.mem.eql(u8, "triangle_list", entry.value_ptr.string)) {
                     handler.topology = .TriangleList;
                 }
+            } else if (std.mem.eql(u8, "point_radius", entry.key_ptr.*)) {
+                handler.point_radius = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
                 const parts = entry.value_ptr.array.items;
 
