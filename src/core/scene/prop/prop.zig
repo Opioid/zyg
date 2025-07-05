@@ -148,7 +148,7 @@ pub const Prop = struct {
         if (self.properties.instancer) {
             return scene.instancer(self.resource).aabb();
         } else {
-            return scene.shape(self.resource).aabb(scene.frame_duration);
+            return scene.shape(self.resource).aabb();
         }
     }
 

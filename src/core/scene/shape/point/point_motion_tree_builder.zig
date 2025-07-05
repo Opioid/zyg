@@ -30,11 +30,8 @@ pub const Builder = struct {
         tree: *Tree,
         radius: f32,
         positions: [][]Pack3f,
-        frame_duration: u64,
         threads: *Threads,
     ) !void {
-        _ = frame_duration;
-
         const num_frames: u32 = @truncate(positions.len);
 
         const num_primitives: u32 = @intCast(positions[0].len);

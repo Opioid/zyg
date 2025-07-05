@@ -67,10 +67,10 @@ pub const System = struct {
         return stream;
     }
 
-    const Frame_marker = "{FRAME}";
+    const FrameMarker = "{FRAME}";
 
     pub fn frameDependantName(name: []const u8) bool {
-        return null != std.mem.indexOf(u8, name, Frame_marker);
+        return null != std.mem.indexOf(u8, name, FrameMarker);
     }
 
     fn openReadStream(self: *System, alloc: Allocator, name: []const u8) !ReadStream {
@@ -81,7 +81,7 @@ pub const System = struct {
             }
         }
 
-        if (std.mem.indexOf(u8, name, Frame_marker)) |fm| {
+        if (std.mem.indexOf(u8, name, FrameMarker)) |fm| {
             modified_name = try std.fmt.allocPrint(
                 alloc,
                 "{s}{d}{s}",

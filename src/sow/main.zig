@@ -124,7 +124,7 @@ pub fn main() !void {
 
         const context = Context{ .scene = &graph.scene, .camera = &camera, .layer = 0 };
 
-        try graph.scene.compile(alloc, @splat(0.0), 0, camera.super().frame_duration, &threads, fs);
+        try graph.scene.compile(alloc, @splat(0.0), 0, &threads, fs);
 
         var max_prototype_extent: Vec4f = @splat(0.0);
 

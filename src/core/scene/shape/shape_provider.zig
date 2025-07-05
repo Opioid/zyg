@@ -204,7 +204,6 @@ pub const Provider = struct {
                 &cloud.tree,
                 handler.point_radius,
                 handler.positions.items,
-                resources.scene.frame_duration,
                 resources.threads,
             );
 

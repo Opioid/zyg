@@ -32,8 +32,7 @@ pub const MotionCloud = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn aabb(self: *const Self, frame_duration: u64) AABB {
-        _ = frame_duration;
+    pub fn aabb(self: *const Self) AABB {
         return self.tree.nodes[0].aabb();
     }
 
@@ -48,8 +47,6 @@ pub const MotionCloud = struct {
     }
 
     pub fn fragment(self: *const Self, probe: Probe, frame_start: u64, frag: *Fragment) void {
-        //  const seconds = Scene.secondsSince(probe.time, frame_start);
-
         const p = probe.ray.point(frag.isec.t);
 
         const iorigin_o = self.tree.data.positionAt(frag.isec.primitive, probe.time, frame_start);

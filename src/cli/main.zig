@@ -166,9 +166,6 @@ fn loadTakeAndScene(
 
     stream.deinit();
 
-    // The frame duration might be used animated resources during loading, not cool...
-    graph.scene.frame_duration = graph.take.view.cameras.items[0].super().frame_duration;
-
     scene_loader.load(alloc, graph) catch |err| {
         log.err("Loading scene: {}", .{err});
         return false;

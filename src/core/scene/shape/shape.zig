@@ -94,20 +94,20 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn aabb(self: *const Shape, frame_duration: u64) AABB {
+    pub fn aabb(self: *const Shape) AABB {
         return switch (self.*) {
             .Canopy, .DistantSphere, .InfiniteSphere => math.aabb.Empty,
             .Disk, .Rectangle => AABB.init(.{ -0.5, -0.5, 0.0, 0.0 }, .{ 0.5, 0.5, 0.0, 0.0 }),
             .Cube, .Sphere => AABB.init(@splat(-0.5), @splat(0.5)),
-            .PointMotionCloud => |c| c.aabb(frame_duration),
+            .PointMotionCloud => |c| c.aabb(),
             inline .CurveMesh, .TriangleMesh => |m| m.tree.aabb(),
         };
     }
 
-    pub fn partAabb(self: *const Shape, part: u32, variant: u32, frame_duration: u64) AABB {
+    pub fn partAabb(self: *const Shape, part: u32, variant: u32) AABB {
         return switch (self.*) {
             .TriangleMesh => |m| m.partAabb(part, variant),
-            else => self.aabb(frame_duration),
+            else => self.aabb(),
         };
     }
 
