@@ -166,6 +166,8 @@ fn loadTakeAndScene(
 
     stream.deinit();
 
+    resources.setFrameTime(frame, graph.take.view.cameras.items[0].super().*);
+
     scene_loader.load(alloc, graph) catch |err| {
         log.err("Loading scene: {}", .{err});
         return false;
@@ -188,8 +190,9 @@ fn reloadFrameDependant(
     }
 
     fs.frame = frame;
+    resources.setFrameTime(frame, graph.take.view.cameras.items[0].super().*);
 
-    if (!try resources.images.reloadFrameDependant(alloc, resources)) {
+    if (!try resources.reloadFrameDependant(alloc)) {
         return;
     }
 

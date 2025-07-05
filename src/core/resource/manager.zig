@@ -13,6 +13,7 @@ pub const ShapeProvider = @import("../scene/shape/shape_provider.zig").Provider;
 const Shapes = Cache(Shape, ShapeProvider);
 const Instancer = @import("../scene/prop/instancer.zig").Instancer;
 const Instancers = Cache(Instancer, void);
+const Camera = @import("../camera/camera_base.zig").Base;
 
 const base = @import("base");
 const Threads = base.thread.Pool;
@@ -38,8 +39,13 @@ pub const Manager = struct {
     shapes: Shapes,
     instancers: Instancers,
 
-    pub fn init(alloc: Allocator, scene: *Scene, threads: *Threads) !Manager {
-        return Manager{
+    frame_start: u64 = undefined,
+    frame_duration: u64 = undefined,
+
+    const Self = @This();
+
+    pub fn init(alloc: Allocator, scene: *Scene, threads: *Threads) !Self {
+        return Self{
             .scene = scene,
             .threads = threads,
             .fs = try Filesystem.init(alloc),
@@ -50,15 +56,20 @@ pub const Manager = struct {
         };
     }
 
-    pub fn deinit(self: *Manager, alloc: Allocator) void {
+    pub fn deinit(self: *Self, alloc: Allocator) void {
         self.shapes.deinit(alloc);
         self.materials.deinit(alloc);
         self.images.deinit(alloc);
         self.fs.deinit(alloc);
     }
 
+    pub fn setFrameTime(self: *Self, frame: u32, camera: Camera) void {
+        self.frame_start = @as(u64, frame) * camera.frame_step;
+        self.frame_duration = camera.frame_duration;
+    }
+
     pub fn loadFile(
-        self: *Manager,
+        self: *Self,
         comptime T: type,
         alloc: Allocator,
         name: []const u8,
@@ -76,7 +87,7 @@ pub const Manager = struct {
     }
 
     pub fn loadData(
-        self: *Manager,
+        self: *Self,
         comptime T: type,
         alloc: Allocator,
         id: u32,
@@ -92,13 +103,13 @@ pub const Manager = struct {
         return Error.UnknownResource;
     }
 
-    pub fn commitAsync(self: *Manager) void {
+    pub fn commitAsync(self: *Self) void {
         self.threads.waitAsync();
 
         self.shapes.provider.commitAsync(self);
     }
 
-    pub fn get(self: *const Manager, comptime T: type, id: u32) ?*T {
+    pub fn get(self: *const Self, comptime T: type, id: u32) ?*T {
         if (Image == T) {
             return self.images.get(id);
         }
@@ -110,7 +121,7 @@ pub const Manager = struct {
         return null;
     }
 
-    pub fn getByName(self: *const Manager, comptime T: type, name: []const u8, options: Variants) ?u32 {
+    pub fn getByName(self: *const Self, comptime T: type, name: []const u8, options: Variants) ?u32 {
         if (Image == T) {
             return self.images.getByName(name, options);
         } else if (Material == T) {
@@ -123,7 +134,7 @@ pub const Manager = struct {
     }
 
     pub fn associate(
-        self: *Manager,
+        self: *Self,
         comptime T: type,
         alloc: Allocator,
         id: u32,
@@ -139,5 +150,13 @@ pub const Manager = struct {
         }
 
         return Error.UnknownResource;
+    }
+
+    pub fn reloadFrameDependant(self: *Self, alloc: Allocator) !bool {
+        var deprecated = try self.images.reloadFrameDependant(alloc, self);
+
+        deprecated = try self.shapes.reloadFrameDependant(alloc, self) or deprecated;
+
+        return deprecated;
     }
 };

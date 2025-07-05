@@ -114,7 +114,7 @@ pub const MotionCloud = struct {
         const v = point_pos_ws - p;
         const sl = math.squaredLength3(v);
         const l = @sqrt(sl);
-        const r = self.tree.data.radius;
+        const r = self.tree.data.radius * trafo.scaleX();
 
         if (l <= (r + 0.0000001)) {
             return buffer[0..0];
@@ -153,13 +153,9 @@ pub const MotionCloud = struct {
         self: *const Self,
         dir: Vec4f,
         p: Vec4f,
-        n: Vec4f,
         frag: *const Fragment,
-        total_sphere: bool,
         splt_threshold: f32,
     ) f32 {
-        _ = n;
-        _ = total_sphere;
         _ = splt_threshold;
 
         const num_points = self.tree.data.num_vertices;
@@ -169,7 +165,7 @@ pub const MotionCloud = struct {
         const sl = math.squaredDistance3(p, frag.p);
         const c = -math.dot3(frag.geo_n, dir);
 
-        const r = self.tree.data.radius;
+        const r = self.tree.data.radius * frag.isec.trafo.scaleX();
         const p_area = (2.0 * std.math.pi) * (r * r);
 
         return (sample_pdf * sl) / (c * p_area);

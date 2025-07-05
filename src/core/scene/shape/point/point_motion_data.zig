@@ -9,7 +9,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const MotionData = struct {
-    const FrameDuration = Scene.TickDuration / 2;
+    pub const FrameDuration = Scene.TickDuration / 2;
 
     num_frames: u32 = 0,
     num_vertices: u32 = 0,

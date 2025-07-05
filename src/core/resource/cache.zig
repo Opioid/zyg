@@ -127,14 +127,14 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             var iter = self.entries.iterator();
             while (iter.next()) |entry| {
                 const filename = entry.key_ptr.name;
+                const id = entry.value_ptr.id;
 
-                if (Filesystem.frameDependantName(filename)) {
+                if (Filesystem.frameDependantName(filename) or self.resources.items[id].frameDependant()) {
                     const item = self.provider.loadFile(alloc, filename, entry.key_ptr.options, resources) catch |e| {
                         log.err("Cannot re-load file \"{s}\": {}", .{ filename, e });
                         return e;
                     };
 
-                    const id = entry.value_ptr.id;
                     self.resources.items[id].deinit(alloc);
                     self.resources.items[id] = item.data;
                     deprecated = true;

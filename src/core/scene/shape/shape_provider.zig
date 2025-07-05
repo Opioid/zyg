@@ -2,6 +2,7 @@ const log = @import("../../log.zig");
 const Shape = @import("shape.zig").Shape;
 const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
 const PointMotionCloud = @import("point/point_motion_cloud.zig").MotionCloud;
+const PointMotionFrameDuration = @import("point/point_motion_data.zig").MotionData.FrameDuration;
 const PointMotionTreeBuilder = @import("point/point_motion_tree_builder.zig").Builder;
 const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
 const tvb = @import("triangle/vertex_buffer.zig");
@@ -184,7 +185,7 @@ pub const Provider = struct {
             var iter = root.object.iterator();
             while (iter.next()) |entry| {
                 if (std.mem.eql(u8, "geometry", entry.key_ptr.*)) {
-                    try loadGeometry(alloc, &handler, entry.value_ptr.*);
+                    try loadGeometry(alloc, &handler, entry.value_ptr.*, resources);
                 }
             }
         }
@@ -290,7 +291,7 @@ pub const Provider = struct {
         self.handler.deinit(self.alloc);
     }
 
-    fn loadGeometry(alloc: Allocator, handler: *Handler, value: std.json.Value) !void {
+    fn loadGeometry(alloc: Allocator, handler: *Handler, value: std.json.Value, resources: *Resources) !void {
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "primitive_topology", entry.key_ptr.*)) {
@@ -324,9 +325,12 @@ pub const Provider = struct {
                         const position_samples = ventry.value_ptr.array.items;
                         const num_frames = position_samples.len;
 
-                        handler.positions = try List([]Pack3f).initCapacity(alloc, num_frames);
+                        const start_frame = @min(resources.frame_start / PointMotionFrameDuration, num_frames - 1);
+                        const end_frame = @min((start_frame + 1) + resources.frame_duration / PointMotionFrameDuration, num_frames);
 
-                        for (position_samples) |frame| {
+                        handler.positions = try List([]Pack3f).initCapacity(alloc, end_frame - start_frame);
+
+                        for (position_samples[start_frame..end_frame]) |frame| {
                             const positions = frame.array.items;
                             const num_positions = positions.len / 3;
 

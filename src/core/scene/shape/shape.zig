@@ -59,6 +59,13 @@ pub const Shape = union(enum) {
         }
     }
 
+    pub fn frameDependant(self: *const Shape) bool {
+        return switch (self.*) {
+            .PointMotionCloud => true,
+            else => false,
+        };
+    }
+
     pub fn numParts(self: *const Shape) u32 {
         return switch (self.*) {
             .TriangleMesh => |m| m.numParts(),
@@ -442,7 +449,7 @@ pub const Shape = union(enum) {
             .Disk => Disk.pdf(dir, p, frag, split_threshold, material),
             .DistantSphere => DistantSphere.pdf(frag.isec.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
-            .PointMotionCloud => |c| c.pdf(dir, p, n, frag, total_sphere, split_threshold),
+            .PointMotionCloud => |c| c.pdf(dir, p, frag, split_threshold),
             .Rectangle => Rectangle.pdf(dir, p, frag, split_threshold, material),
             .Sphere => Sphere.pdf(p, frag.isec.trafo, split_threshold, material),
             .TriangleMesh => |m| m.pdf(part, variant, dir, p, n, frag, total_sphere, split_threshold),
