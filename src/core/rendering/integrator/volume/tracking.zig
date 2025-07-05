@@ -300,7 +300,7 @@ pub fn trackingHeteroEmission(
 }
 
 pub fn objectToTextureRay(ray: Ray, entity: u32, context: Context) Ray {
-    const aabb = context.scene.propShape(entity).aabb();
+    const aabb = context.scene.propShape(entity).aabb(0);
 
     const iextent = @as(Vec4f, @splat(1.0)) / aabb.extent();
     const origin = (ray.origin - aabb.bounds[0]) * iextent;

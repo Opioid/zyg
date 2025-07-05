@@ -514,8 +514,8 @@ pub const Mesh = struct {
         sampler: *Sampler,
         context: Context,
     ) Volume {
-        const tray = trafo.worldToObjectRay(probe.ray);
-        return self.tree.scatter(tray, trafo, throughput, entity, probe.depth.volume, sampler, context);
+        const local_ray = trafo.worldToObjectRay(probe.ray);
+        return self.tree.scatter(local_ray, trafo, throughput, entity, probe.depth.volume, sampler, context);
     }
 
     pub fn emission(
@@ -526,8 +526,8 @@ pub const Mesh = struct {
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
-        const tray = frag.isec.trafo.worldToObjectRay(vertex.probe.ray);
-        return self.tree.emission(tray, vertex, frag, split_threshold, sampler, context);
+        const local_ray = frag.isec.trafo.worldToObjectRay(vertex.probe.ray);
+        return self.tree.emission(local_ray, vertex, frag, split_threshold, sampler, context);
     }
 
     //Gram-Schmidt method

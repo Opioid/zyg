@@ -89,6 +89,7 @@ pub const Light = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
+        time: u64,
         total_sphere: bool,
         split_threshold: f32,
         sampler: *Sampler,
@@ -96,7 +97,7 @@ pub const Light = struct {
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         return switch (self.class) {
-            .Prop => self.propSampleTo(p, n, trafo, total_sphere, split_threshold, sampler, scene, buffer),
+            .Prop => self.propSampleTo(p, n, trafo, time, total_sphere, split_threshold, sampler, scene, buffer),
             .PropImage => self.propSampleMaterialTo(p, n, trafo, total_sphere, split_threshold, sampler, scene, buffer),
             .Volume => self.volumeSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
             .VolumeImage => self.volumeImageSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
@@ -162,6 +163,7 @@ pub const Light = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
+        time: u64,
         total_sphere: bool,
         split_threshold: f32,
         sampler: *Sampler,
@@ -174,6 +176,8 @@ pub const Light = struct {
             p,
             n,
             trafo,
+            time,
+            scene.frame_start,
             self.part,
             self.variant,
             self.two_sided,

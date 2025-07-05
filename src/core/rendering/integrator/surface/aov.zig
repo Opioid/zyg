@@ -164,7 +164,7 @@ pub const AOV = struct {
             const trafo = worker.context.scene.propTransformationAt(light.prop, vertex.probe.time);
 
             var samples_buffer: Scene.SamplesTo = undefined;
-            const samples = light.sampleTo(p, n, trafo, translucent, split_threshold, sampler, worker.context.scene, &samples_buffer);
+            const samples = light.sampleTo(p, n, trafo, vertex.probe.time, translucent, split_threshold, sampler, worker.context.scene, &samples_buffer);
 
             nun_samples += @intCast(samples.len);
         }

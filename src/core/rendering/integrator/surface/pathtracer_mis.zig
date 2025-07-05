@@ -252,7 +252,7 @@ pub const PathtracerMIS = struct {
         var occluded: Vec4f = @splat(0.0);
 
         var samples_buffer: Scene.SamplesTo = undefined;
-        const samples = light.sampleTo(p, gn, trafo, translucent, light_split_threshold, sampler, context.scene, &samples_buffer);
+        const samples = light.sampleTo(p, gn, trafo, vertex.probe.time, translucent, light_split_threshold, sampler, context.scene, &samples_buffer);
 
         for (samples) |light_sample| {
             const shadow_probe = vertex.probe.clone(light.shadowRay(frag.offsetP(light_sample.wi), light_sample, context.scene));

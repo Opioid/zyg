@@ -132,6 +132,7 @@ pub const Integrator = struct {
         const g = cc.anisotropy();
 
         const shape = context.scene.propShape(prop);
+        const frame_start = context.scene.frame_start;
 
         const mu_t = cc.a + cc.s;
         const albedo = cc.s / mu_t;
@@ -175,7 +176,7 @@ pub const Integrator = struct {
 
             vertex.probe.ray.max_t = free_path;
 
-            if (!shape.intersect(vertex.probe, trafo, &frag.isec)) {
+            if (!shape.intersect(vertex.probe, trafo, frame_start, &frag.isec)) {
                 const wil = sampleHg(g, sampler);
                 const frame = Frame.init(vertex.probe.ray.direction);
                 const wi = frame.frameToWorld(wil);
@@ -187,7 +188,7 @@ pub const Integrator = struct {
                 vertex.probe.ray.max_t = frag.isec.t;
                 frag.prop = prop;
 
-                shape.fragment(vertex.probe.ray, frag);
+                shape.fragment(vertex.probe, frame_start, frag);
 
                 if (frag.sameHemisphere(vertex.probe.ray.direction)) {
                     vertex.mediums.pop();
