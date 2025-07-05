@@ -100,9 +100,9 @@ pub const Space = struct {
         return self.aabbs.items[entity].intersect(ray);
     }
 
-    pub fn transformationAt(self: *const Self, entity: u32, time: u64, current_time_start: u64) Transformation {
+    pub fn transformationAt(self: *const Self, entity: u32, time: u64, frame_start: u64) Transformation {
         const f = self.frames.items[entity];
-        return self.transformationAtMaybeStatic(entity, time, current_time_start, Prop.Null == f);
+        return self.transformationAtMaybeStatic(entity, time, frame_start, Prop.Null == f);
     }
 
     pub fn transformationAtMaybeStatic(self: *const Self, entity: u32, time: u64, cuurent_time_start: u64, static: bool) Transformation {
@@ -115,8 +115,8 @@ pub const Space = struct {
         return self.animatedTransformationAt(self.frames.items[entity], time, cuurent_time_start);
     }
 
-    fn animatedTransformationAt(self: *const Self, frames_id: u32, time: u64, current_time_start: u64) Transformation {
-        const f = frameAt(time, current_time_start);
+    fn animatedTransformationAt(self: *const Self, frames_id: u32, time: u64, frame_start: u64) Transformation {
+        const f = frameAt(time, frame_start);
 
         const frames = self.keyframes.items.ptr + frames_id;
 
@@ -134,9 +134,9 @@ pub const Space = struct {
         w: f32,
     };
 
-    fn frameAt(time: u64, current_time_start: u64) Frame {
-        const i = (time - current_time_start) / TickDuration;
-        const a_time = current_time_start + i * TickDuration;
+    fn frameAt(time: u64, frame_start: u64) Frame {
+        const i = (time - frame_start) / TickDuration;
+        const a_time = frame_start + i * TickDuration;
         const delta = time - a_time;
 
         const t: f32 = @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(TickDuration)));

@@ -180,7 +180,7 @@ pub const Prop = struct {
             return false;
         }
 
-        const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.current_time_start, properties.static);
+        const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.frame_start, properties.static);
 
         if (properties.instancer) {
             return scene.instancer(self.resource).intersect(probe, trafo, sampler, scene, isec);
@@ -218,7 +218,7 @@ pub const Prop = struct {
 
         const scene = context.scene;
 
-        const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.current_time_start, properties.static);
+        const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.frame_start, properties.static);
 
         if (properties.instancer) {
             return scene.instancer(self.resource).visibility(Volumetric, probe, trafo, sampler, context, tr);
@@ -255,7 +255,7 @@ pub const Prop = struct {
             return @splat(0.0);
         }
 
-        const trafo = scene.prop_space.transformationAtMaybeStatic(entity, vertex.probe.time, scene.current_time_start, properties.static);
+        const trafo = scene.prop_space.transformationAtMaybeStatic(entity, vertex.probe.time, scene.frame_start, properties.static);
 
         frag.isec.trafo = trafo;
         frag.prop = entity;
@@ -281,7 +281,7 @@ pub const Prop = struct {
             return int.Volume.initPass(@splat(1.0));
         }
 
-        const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.current_time_start, properties.static);
+        const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.frame_start, properties.static);
 
         if (properties.instancer) {
             return scene.instancer(self.resource).scatter(probe, trafo, isec, throughput, sampler, context);

@@ -74,7 +74,7 @@ pub const Scene = struct {
 
     num_interpolation_frames: u32 = 0,
 
-    current_time_start: u64 = undefined,
+    frame_start: u64 = undefined,
 
     bvh_builder: PropBvhBuilder,
     light_tree_builder: LightTreeBuilder = .{},
@@ -211,7 +211,7 @@ pub const Scene = struct {
 
     pub fn compile(self: *Scene, alloc: Allocator, camera_pos: Vec4f, time: u64, threads: *Threads, fs: *Filesystem) !void {
         const frames_start = time - (time % TickDuration);
-        self.current_time_start = frames_start;
+        self.frame_start = frames_start;
 
         self.calculateWorldBounds(camera_pos);
 
@@ -413,7 +413,7 @@ pub const Scene = struct {
 
     pub fn propTransformationAt(self: *const Scene, entity: u32, time: u64) Transformation {
         const f = self.prop_space.frames.items[entity];
-        return self.prop_space.transformationAtMaybeStatic(entity, time, self.current_time_start, Null == f);
+        return self.prop_space.transformationAtMaybeStatic(entity, time, self.frame_start, Null == f);
     }
 
     pub fn propSetVisibility(
@@ -448,7 +448,7 @@ pub const Scene = struct {
         const variant = shape_inst.prepareSampling(alloc, part, m, &self.light_tree_builder, self, threads) catch 0;
         l.variant = variant;
 
-        const trafo = self.prop_space.transformationAt(entity, time, self.current_time_start);
+        const trafo = self.prop_space.transformationAt(entity, time, self.frame_start);
         const extent = if (l.volumetric()) shape_inst.volume(trafo.scale()) else shape_inst.area(part, trafo.scale());
 
         const average_radiance = mat.prepareSampling(alloc, shape_inst, part, trafo, extent, self, threads);
