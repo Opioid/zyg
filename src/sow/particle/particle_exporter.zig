@@ -47,27 +47,20 @@ pub const Exporter = struct {
             {
                 try stream.beginObject();
 
-                try stream.objectField("positions");
+                try stream.objectField("position_samples");
                 {
                     try stream.beginArray();
 
-                    for (particles.positions) |pos| {
-                        try stream.write(pos.v[0]);
-                        try stream.write(pos.v[1]);
-                        try stream.write(pos.v[2]);
-                    }
+                    for (particles.position_samples) |ps| {
+                        try stream.beginArray();
 
-                    try stream.endArray();
-                }
+                        for (ps) |pos| {
+                            try stream.write(pos.v[0]);
+                            try stream.write(pos.v[1]);
+                            try stream.write(pos.v[2]);
+                        }
 
-                try stream.objectField("velocities");
-                {
-                    try stream.beginArray();
-
-                    for (particles.velocities) |vel| {
-                        try stream.write(vel.v[0]);
-                        try stream.write(vel.v[1]);
-                        try stream.write(vel.v[2]);
+                        try stream.endArray();
                     }
 
                     try stream.endArray();

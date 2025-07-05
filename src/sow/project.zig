@@ -40,7 +40,8 @@ pub const Project = struct {
     const Particles = struct {
         num_particles: u32 = 0,
         radius: f32 = 0.001,
-        frame: u32 = 0,
+        start_frame: u32 = 0,
+        num_frames: u32 = 1,
     };
 
     scene_filename: []u8 = &.{},

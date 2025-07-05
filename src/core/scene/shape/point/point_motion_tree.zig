@@ -57,11 +57,7 @@ pub const Tree = struct {
     }
 
     pub fn intersect(self: Self, probe: Probe, trafo: Trafo, current_time_start: u64, isec: *Intersection) bool {
-        const seconds: Vec4f = @splat(Scene.secondsSince(probe.time, current_time_start));
-
         const indices = self.indices;
-        const positions = self.data.positions;
-        const velocities = self.data.velocities;
         const radius = self.data.radius;
 
         var local_ray = trafo.worldToObjectRay(probe.ray);
@@ -81,16 +77,13 @@ pub const Tree = struct {
             if (0 != num) {
                 const start = node.indicesStart();
                 const end = start + num;
-                for (indices[start..end]) |p| {
-                    const pos: Vec4f = positions[p * 3 ..][0..4].*;
-                    const vel: Vec4f = velocities[p * 3 ..][0..4].*;
-
-                    const ipos = pos + math.lerp(@as(Vec4f, @splat(0.0)), vel, seconds);
+                for (indices[start..end]) |i| {
+                    const ipos = self.data.positionAt(i, probe.time, current_time_start);
 
                     if (sphereIntersect(local_ray, ipos, radius)) |t| {
                         local_ray.max_t = t;
                         hit_t = t;
-                        primitive = p;
+                        primitive = i;
                     }
                 }
 
@@ -132,11 +125,7 @@ pub const Tree = struct {
     }
 
     pub fn intersectP(self: Self, probe: Probe, trafo: Trafo, current_time_start: u64) bool {
-        const seconds: Vec4f = @splat(Scene.secondsSince(probe.time, current_time_start));
-
         const indices = self.indices;
-        const positions = self.data.positions;
-        const velocities = self.data.velocities;
         const radius = self.data.radius;
 
         const local_ray = trafo.worldToObjectRay(probe.ray);
@@ -153,11 +142,8 @@ pub const Tree = struct {
             if (0 != num) {
                 const start = node.indicesStart();
                 const end = start + num;
-                for (indices[start..end]) |p| {
-                    const pos: Vec4f = positions[p * 3 ..][0..4].*;
-                    const vel: Vec4f = velocities[p * 3 ..][0..4].*;
-
-                    const ipos = pos + math.lerp(@as(Vec4f, @splat(0.0)), vel, seconds);
+                for (indices[start..end]) |i| {
+                    const ipos = self.data.positionAt(i, probe.time, current_time_start);
 
                     if (sphereIntersectP(local_ray, ipos, radius)) {
                         return true;
@@ -201,11 +187,7 @@ pub const Tree = struct {
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
-        const seconds: Vec4f = @splat(Scene.secondsSince(vertex.probe.time, context.scene.current_time_start));
-
         const indices = self.indices;
-        const positions = self.data.positions;
-        const velocities = self.data.velocities;
         const radius = self.data.radius;
 
         var stack = NodeStack{};
@@ -226,10 +208,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (indices[start..end]) |i| {
-                    const pos: Vec4f = positions[i * 3 ..][0..4].*;
-                    const vel: Vec4f = velocities[i * 3 ..][0..4].*;
-
-                    const ipos = pos + math.lerp(@as(Vec4f, @splat(0.0)), vel, seconds);
+                    const ipos = self.data.positionAt(i, vertex.probe.time, context.scene.current_time_start);
 
                     if (sphereIntersectFront(ray, ipos, radius)) |t| {
                         frag.isec.t = t;

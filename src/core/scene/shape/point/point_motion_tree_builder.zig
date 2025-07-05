@@ -29,14 +29,15 @@ pub const Builder = struct {
         alloc: Allocator,
         tree: *Tree,
         radius: f32,
-        positions: []Pack3f,
-        velocities: []Pack3f,
+        positions: [][]Pack3f,
         frame_duration: u64,
         threads: *Threads,
     ) !void {
-        const seconds: Vec4f = @splat(Scene.secondsSince(frame_duration, 0));
+        _ = frame_duration;
 
-        const num_primitives: u32 = @intCast(positions.len);
+        const num_frames: u32 = @truncate(positions.len);
+
+        const num_primitives: u32 = @intCast(positions[0].len);
 
         // if (0 == num_primitives) {
         //     try tree.allocateIndices(alloc, 0);
@@ -51,14 +52,13 @@ pub const Builder = struct {
         var bounds = math.aabb.Empty;
 
         for (0..num_primitives) |i| {
-            const pos: Vec4f = math.vec3fTo4f(positions[i]);
-            const vel: Vec4f = math.vec3fTo4f(velocities[i]);
+            var box = math.aabb.Empty;
 
-            var box = AABB.init(pos - radiusv, pos + radiusv);
+            for (0..num_frames) |f| {
+                const pos: Vec4f = math.vec3fTo4f(positions[f][i]);
 
-            const end_pos = pos + math.lerp(@as(Vec4f, @splat(0.0)), vel, seconds);
-
-            box.mergeAssign(AABB.init(end_pos - radiusv, end_pos + radiusv));
+                box.mergeAssign(AABB.init(pos - radiusv, pos + radiusv));
+            }
 
             references[i].set(box.bounds[0], box.bounds[1], @truncate(i));
 
@@ -74,7 +74,7 @@ pub const Builder = struct {
         self.super.newNode();
         self.serialize(0, 0, tree, &current_prop);
 
-        try tree.data.allocatePoints(alloc, radius, positions, velocities);
+        try tree.data.allocatePoints(alloc, radius, positions);
     }
 
     fn serialize(

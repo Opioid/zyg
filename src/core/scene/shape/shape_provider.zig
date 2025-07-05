@@ -31,6 +31,7 @@ const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const List = std.ArrayListUnmanaged;
 
 const Part = struct {
     start_index: u32,
@@ -54,7 +55,7 @@ const Handler = struct {
     point_radius: f32 = 0.0,
     parts: Parts = .empty,
     triangles: Triangles = .empty,
-    positions: Vec3fs = .empty,
+    positions: List([]Pack3f) = .empty,
     normals: Vec3fs = .empty,
     tangents: Vec3fs = .empty,
     velocities: Vec3fs = .empty,
@@ -67,7 +68,12 @@ const Handler = struct {
         self.velocities.deinit(alloc);
         self.tangents.deinit(alloc);
         self.normals.deinit(alloc);
+
+        for (self.positions.items) |p| {
+            alloc.free(p);
+        }
         self.positions.deinit(alloc);
+
         self.triangles.deinit(alloc);
         self.parts.deinit(alloc);
     }
@@ -198,7 +204,6 @@ pub const Provider = struct {
                 &cloud.tree,
                 handler.point_radius,
                 handler.positions.items,
-                handler.velocities.items,
                 resources.scene.frame_duration,
                 resources.threads,
             );
@@ -274,7 +279,7 @@ pub const Provider = struct {
         const handler = self.handler;
 
         const vertices = tvb.Buffer{ .Separate = tvb.Separate.init(
-            handler.positions.items,
+            handler.positions.items[0],
             handler.normals.items,
             handler.tangents.items,
             handler.uvs.items,
@@ -315,20 +320,45 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "vertices", entry.key_ptr.*)) {
                 var viter = entry.value_ptr.object.iterator();
                 while (viter.next()) |ventry| {
-                    if (std.mem.eql(u8, "positions", ventry.key_ptr.*)) {
+                    // Try position samples first, then try positions...
+                    if (std.mem.eql(u8, "position_samples", ventry.key_ptr.*)) {
+                        const position_samples = ventry.value_ptr.array.items;
+                        const num_frames = position_samples.len;
+
+                        handler.positions = try List([]Pack3f).initCapacity(alloc, num_frames);
+
+                        for (position_samples) |frame| {
+                            const positions = frame.array.items;
+                            const num_positions = positions.len / 3;
+
+                            const dest_positions = try alloc.alloc(Pack3f, num_positions);
+
+                            for (dest_positions, 0..) |*p, i| {
+                                p.* = Pack3f.init3(
+                                    json.readFloat(f32, positions[i * 3 + 0]),
+                                    json.readFloat(f32, positions[i * 3 + 1]),
+                                    json.readFloat(f32, positions[i * 3 + 2]),
+                                );
+                            }
+
+                            handler.positions.appendAssumeCapacity(dest_positions);
+                        }
+                    } else if (std.mem.eql(u8, "positions", ventry.key_ptr.*) and 0 == handler.positions.items.len) {
                         const positions = ventry.value_ptr.array.items;
                         const num_positions = positions.len / 3;
 
-                        handler.positions = try Handler.Vec3fs.initCapacity(alloc, num_positions);
-                        try handler.positions.resize(alloc, num_positions);
+                        const dest_positions = try alloc.alloc(Pack3f, num_positions);
 
-                        for (handler.positions.items, 0..) |*p, i| {
+                        for (dest_positions, 0..) |*p, i| {
                             p.* = Pack3f.init3(
                                 json.readFloat(f32, positions[i * 3 + 0]),
                                 json.readFloat(f32, positions[i * 3 + 1]),
                                 json.readFloat(f32, positions[i * 3 + 2]),
                             );
                         }
+
+                        handler.positions = try List([]Pack3f).initCapacity(alloc, 1);
+                        handler.positions.appendAssumeCapacity(dest_positions);
                     } else if (std.mem.eql(u8, "normals", ventry.key_ptr.*)) {
                         const normals = ventry.value_ptr.array.items;
                         const num_normals = normals.len / 3;

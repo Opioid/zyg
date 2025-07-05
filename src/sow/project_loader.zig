@@ -57,9 +57,10 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
 }
 
 fn loadParticles(value: std.json.Value, project: *Project) void {
-    project.particles.num_particles = json.readUIntMember(value, "num_particles", 0);
-    project.particles.radius = json.readFloatMember(value, "radius", 0.001);
-    project.particles.frame = json.readUIntMember(value, "frame", 0);
+    project.particles.num_particles = json.readUIntMember(value, "num_particles", project.particles.num_particles);
+    project.particles.radius = json.readFloatMember(value, "radius", project.particles.radius);
+    project.particles.start_frame = json.readUIntMember(value, "start_frame", project.particles.start_frame);
+    project.particles.num_frames = json.readUIntMember(value, "num_frames", project.particles.num_frames);
 }
 
 fn loadPrototypes(alloc: Allocator, value: std.json.Value, project: *Project) !void {

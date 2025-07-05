@@ -48,11 +48,11 @@ pub const MotionCloud = struct {
     }
 
     pub fn fragment(self: *const Self, probe: Probe, current_time_start: u64, frag: *Fragment) void {
-        const seconds = Scene.secondsSince(probe.time, current_time_start);
+        //  const seconds = Scene.secondsSince(probe.time, current_time_start);
 
         const p = probe.ray.point(frag.isec.t);
 
-        const iorigin_o = self.tree.data.positionAt(frag.isec.primitive, seconds);
+        const iorigin_o = self.tree.data.positionAt(frag.isec.primitive, probe.time, current_time_start);
         const origin_w = frag.isec.trafo.objectToWorldPoint(iorigin_o);
 
         const n = math.normalize3(p - origin_w);
@@ -111,9 +111,7 @@ pub const MotionCloud = struct {
 
         const point_index: u32 = @intFromFloat(s3[0] * points_back);
 
-        const seconds = Scene.secondsSince(time, current_time_start);
-
-        const point_pos_os = self.tree.data.positionAt(point_index, seconds);
+        const point_pos_os = self.tree.data.positionAt(point_index, time, current_time_start);
         const point_pos_ws = trafo.objectToWorldPoint(point_pos_os);
 
         const v = point_pos_ws - p;
