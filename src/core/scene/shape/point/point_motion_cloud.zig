@@ -37,9 +37,24 @@ pub const MotionCloud = struct {
     }
 
     pub fn area(self: *const Self, scale: Vec4f) f32 {
-        const sa = (4.0 * std.math.pi) * math.pow2(self.tree.data.radius * scale[0]);
+        const data = self.tree.data;
 
-        return @as(f32, @floatFromInt(self.tree.data.num_vertices)) * sa;
+        if (data.radii) |radii| {
+            var square_radius: f32 = 0.0;
+
+            const num_radii = data.num_frames * data.num_vertices;
+            for (radii[0..num_radii]) |r| {
+                square_radius += r * r;
+            }
+
+            const sa = (4.0 * std.math.pi) * (scale[0] * scale[0]) * square_radius;
+
+            return sa / @as(f32, @floatFromInt(data.num_frames));
+        } else {
+            const sa = (4.0 * std.math.pi) * math.pow2(data.radius * scale[0]);
+
+            return @as(f32, @floatFromInt(data.num_vertices)) * sa;
+        }
     }
 
     pub fn intersect(self: *const Self, probe: Probe, trafo: Trafo, frame_start: u64, isec: *Intersection) bool {
@@ -49,7 +64,8 @@ pub const MotionCloud = struct {
     pub fn fragment(self: *const Self, probe: Probe, frame_start: u64, frag: *Fragment) void {
         const p = probe.ray.point(frag.isec.t);
 
-        const iorigin_o = self.tree.data.positionAt(frag.isec.primitive, probe.time, frame_start);
+        const frame = self.tree.data.frameAt(probe.time, frame_start);
+        const iorigin_o = self.tree.data.positionAndRadiusAt(frag.isec.primitive, frame);
         const origin_w = frag.isec.trafo.objectToWorldPoint(iorigin_o);
 
         const n = math.normalize3(p - origin_w);
@@ -99,24 +115,21 @@ pub const MotionCloud = struct {
         _ = material;
 
         const num_points = self.tree.data.num_vertices;
-
-        const sample_pdf = 1.0 / @as(f32, @floatFromInt(num_points));
-
         const points_back: f32 = @floatFromInt(num_points - 1);
 
         const s3 = sampler.sample3D();
 
         const point_index: u32 = @intFromFloat(s3[0] * points_back);
-
-        const point_pos_os = self.tree.data.positionAt(point_index, time, frame_start);
+        const sample_frame = self.tree.data.frameAt(time, frame_start);
+        const point_pos_os = self.tree.data.positionAndRadiusAt(point_index, sample_frame);
         const point_pos_ws = trafo.objectToWorldPoint(point_pos_os);
 
         const v = point_pos_ws - p;
         const sl = math.squaredLength3(v);
         const l = @sqrt(sl);
-        const r = self.tree.data.radius * trafo.scaleX();
+        const r = point_pos_os[3] * trafo.scaleX();
 
-        if (l <= (r + 0.0000001)) {
+        if (l <= (r + 0.0000001) or r <= 0.0) {
             return buffer[0..0];
         }
 
@@ -138,6 +151,8 @@ pub const MotionCloud = struct {
 
         const p_area = (2.0 * std.math.pi) * (r * r);
 
+        const sample_pdf = 1.0 / @as(f32, @floatFromInt(num_points));
+
         buffer[0] = SampleTo.init(
             lp,
             wn,
@@ -154,6 +169,8 @@ pub const MotionCloud = struct {
         dir: Vec4f,
         p: Vec4f,
         frag: *const Fragment,
+        time: u64,
+        frame_start: u64,
         splt_threshold: f32,
     ) f32 {
         _ = splt_threshold;
@@ -165,7 +182,10 @@ pub const MotionCloud = struct {
         const sl = math.squaredDistance3(p, frag.p);
         const c = -math.dot3(frag.geo_n, dir);
 
-        const r = self.tree.data.radius * frag.isec.trafo.scaleX();
+        const frame = self.tree.data.frameAt(time, frame_start);
+        const radius = self.tree.data.positionAndRadiusAt(frag.isec.primitive, frame)[3];
+
+        const r = radius * frag.isec.trafo.scaleX();
         const p_area = (2.0 * std.math.pi) * (r * r);
 
         return (sample_pdf * sl) / (c * p_area);

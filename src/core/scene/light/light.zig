@@ -350,6 +350,8 @@ pub const Light = struct {
             vertex.origin,
             vertex.geo_n,
             frag,
+            vertex.probe.time,
+            scene.frame_start,
             total_sphere,
             split_threshold,
             material,

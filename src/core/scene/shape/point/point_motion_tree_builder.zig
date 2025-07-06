@@ -30,6 +30,7 @@ pub const Builder = struct {
         tree: *Tree,
         radius: f32,
         positions: [][]Pack3f,
+        radii: [][]f32,
         threads: *Threads,
     ) !void {
         const num_frames: u32 = @truncate(positions.len);
@@ -54,7 +55,9 @@ pub const Builder = struct {
             for (0..num_frames) |f| {
                 const pos: Vec4f = math.vec3fTo4f(positions[f][i]);
 
-                box.mergeAssign(AABB.init(pos - radiusv, pos + radiusv));
+                const r = if (radii.len > 0) @as(Vec4f, @splat(radii[f][i])) else radiusv;
+
+                box.mergeAssign(AABB.init(pos - r, pos + r));
             }
 
             references[i].set(box.bounds[0], box.bounds[1], @truncate(i));
@@ -71,7 +74,7 @@ pub const Builder = struct {
         self.super.newNode();
         self.serialize(0, 0, tree, &current_prop);
 
-        try tree.data.allocatePoints(alloc, radius, positions);
+        try tree.data.allocatePoints(alloc, radius, positions, radii);
     }
 
     fn serialize(

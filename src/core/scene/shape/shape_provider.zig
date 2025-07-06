@@ -28,11 +28,9 @@ const Quaternion = math.Quaternion;
 const Threads = base.thread.Pool;
 const ThreadContext = Threads.Context;
 const Variants = base.memory.VariantMap;
-const RNG = base.rnd.Generator;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
 
 const Part = struct {
     start_index: u32,
@@ -41,12 +39,6 @@ const Part = struct {
 };
 
 const Handler = struct {
-    pub const Parts = std.ArrayListUnmanaged(Part);
-    pub const Triangles = std.ArrayListUnmanaged(IndexTriangle);
-    pub const Vec3fs = std.ArrayListUnmanaged(Pack3f);
-    pub const Vec2fs = std.ArrayListUnmanaged(Vec2f);
-    pub const u8s = std.ArrayListUnmanaged(u8);
-
     pub const Topology = enum {
         PointList,
         TriangleList,
@@ -54,29 +46,34 @@ const Handler = struct {
 
     topology: Topology = .TriangleList,
     point_radius: f32 = 0.0,
-    parts: Parts = .empty,
-    triangles: Triangles = .empty,
-    positions: List([]Pack3f) = .empty,
-    normals: Vec3fs = .empty,
-    tangents: Vec3fs = .empty,
-    velocities: Vec3fs = .empty,
-    uvs: Vec2fs = .empty,
-    bitangent_signs: u8s = .empty,
+    parts: []Part = &.{},
+    triangles: []IndexTriangle = &.{},
+    positions: [][]Pack3f = &.{},
+    normals: []Pack3f = &.{},
+    tangents: []Pack3f = &.{},
+    uvs: []Vec2f = &.{},
+    radii: [][]f32 = &.{},
+    bitangent_signs: []u8 = &.{},
 
     pub fn deinit(self: *Handler, alloc: Allocator) void {
-        self.bitangent_signs.deinit(alloc);
-        self.uvs.deinit(alloc);
-        self.velocities.deinit(alloc);
-        self.tangents.deinit(alloc);
-        self.normals.deinit(alloc);
+        alloc.free(self.bitangent_signs);
 
-        for (self.positions.items) |p| {
+        for (self.radii) |r| {
+            alloc.free(r);
+        }
+        alloc.free(self.radii);
+
+        alloc.free(self.uvs);
+        alloc.free(self.tangents);
+        alloc.free(self.normals);
+
+        for (self.positions) |p| {
             alloc.free(p);
         }
-        self.positions.deinit(alloc);
+        alloc.free(self.positions);
 
-        self.triangles.deinit(alloc);
-        self.parts.deinit(alloc);
+        alloc.free(self.triangles);
+        alloc.free(self.parts);
     }
 };
 
@@ -190,7 +187,7 @@ pub const Provider = struct {
             }
         }
 
-        if (0 == handler.positions.items.len) {
+        if (0 == handler.positions.len) {
             return Error.NoVertices;
         }
 
@@ -204,7 +201,8 @@ pub const Provider = struct {
                 alloc,
                 &cloud.tree,
                 handler.point_radius,
-                handler.positions.items,
+                handler.positions,
+                handler.radii,
                 resources.threads,
             );
 
@@ -212,18 +210,18 @@ pub const Provider = struct {
 
             return .{ .data = .{ .PointMotionCloud = cloud } };
         } else {
-            for (handler.parts.items, 0..) |p, i| {
+            for (handler.parts, 0..) |p, i| {
                 const triangles_start = p.start_index / 3;
                 const triangles_end = (p.start_index + p.num_indices) / 3;
 
-                for (handler.triangles.items[triangles_start..triangles_end]) |*t| {
+                for (handler.triangles[triangles_start..triangles_end]) |*t| {
                     t.part = @intCast(i);
                 }
             }
 
-            var mesh = try TriangleMesh.init(alloc, @intCast(handler.parts.items.len));
+            var mesh = try TriangleMesh.init(alloc, @intCast(handler.parts.len));
 
-            for (handler.parts.items, 0..) |p, i| {
+            for (handler.parts, 0..) |p, i| {
                 mesh.setMaterialForPart(i, p.material_index);
             }
 
@@ -279,14 +277,14 @@ pub const Provider = struct {
         const handler = self.handler;
 
         const vertices = tvb.Buffer{ .Separate = tvb.Separate.init(
-            handler.positions.items[0],
-            handler.normals.items,
-            handler.tangents.items,
-            handler.uvs.items,
-            handler.bitangent_signs.items,
+            handler.positions[0],
+            handler.normals,
+            handler.tangents,
+            handler.uvs,
+            handler.bitangent_signs,
         ) };
 
-        buildBVH(self.alloc, &self.tree, self.handler.triangles.items, vertices, self.threads) catch {};
+        buildBVH(self.alloc, &self.tree, self.handler.triangles, vertices, self.threads) catch {};
 
         self.handler.deinit(self.alloc);
     }
@@ -305,17 +303,17 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
                 const parts = entry.value_ptr.array.items;
 
-                handler.parts = try Handler.Parts.initCapacity(alloc, parts.len);
+                handler.parts = try alloc.alloc(Part, parts.len);
 
-                for (parts) |p| {
+                for (parts, 0..) |p, i| {
                     const start_index = json.readUIntMember(p, "start_index", 0);
                     const num_indices = json.readUIntMember(p, "num_indices", 0);
                     const material_index = json.readUIntMember(p, "material_index", 0);
-                    try handler.parts.append(alloc, .{
+                    handler.parts[i] = .{
                         .start_index = start_index,
                         .num_indices = num_indices,
                         .material_index = material_index,
-                    });
+                    };
                 }
             } else if (std.mem.eql(u8, "vertices", entry.key_ptr.*)) {
                 var viter = entry.value_ptr.object.iterator();
@@ -328,9 +326,9 @@ pub const Provider = struct {
                         const start_frame = @min(resources.frame_start / PointMotionFrameDuration, num_frames - 1);
                         const end_frame = @min((start_frame + 1) + resources.frame_duration / PointMotionFrameDuration, num_frames);
 
-                        handler.positions = try List([]Pack3f).initCapacity(alloc, end_frame - start_frame);
+                        handler.positions = try alloc.alloc([]Pack3f, end_frame - start_frame);
 
-                        for (position_samples[start_frame..end_frame]) |frame| {
+                        for (position_samples[start_frame..end_frame], 0..) |frame, f| {
                             const positions = frame.array.items;
                             const num_positions = positions.len / 3;
 
@@ -344,9 +342,9 @@ pub const Provider = struct {
                                 );
                             }
 
-                            handler.positions.appendAssumeCapacity(dest_positions);
+                            handler.positions[f] = dest_positions;
                         }
-                    } else if (std.mem.eql(u8, "positions", ventry.key_ptr.*) and 0 == handler.positions.items.len) {
+                    } else if (std.mem.eql(u8, "positions", ventry.key_ptr.*) and 0 == handler.positions.len) {
                         const positions = ventry.value_ptr.array.items;
                         const num_positions = positions.len / 3;
 
@@ -360,16 +358,15 @@ pub const Provider = struct {
                             );
                         }
 
-                        handler.positions = try List([]Pack3f).initCapacity(alloc, 1);
-                        handler.positions.appendAssumeCapacity(dest_positions);
+                        handler.positions = try alloc.alloc([]Pack3f, 1);
+                        handler.positions[0] = dest_positions;
                     } else if (std.mem.eql(u8, "normals", ventry.key_ptr.*)) {
                         const normals = ventry.value_ptr.array.items;
                         const num_normals = normals.len / 3;
 
-                        handler.normals = try Handler.Vec3fs.initCapacity(alloc, num_normals);
-                        try handler.normals.resize(alloc, num_normals);
+                        handler.normals = try alloc.alloc(Pack3f, num_normals);
 
-                        for (handler.normals.items, 0..) |*n, i| {
+                        for (handler.normals, 0..) |*n, i| {
                             n.* = Pack3f.init3(
                                 json.readFloat(f32, normals[i * 3 + 0]),
                                 json.readFloat(f32, normals[i * 3 + 1]),
@@ -380,36 +377,29 @@ pub const Provider = struct {
                         const tangents = ventry.value_ptr.array.items;
                         const num_tangents = tangents.len / 4;
 
-                        handler.tangents = try Handler.Vec3fs.initCapacity(alloc, num_tangents);
-                        try handler.tangents.resize(alloc, num_tangents);
+                        handler.tangents = try alloc.alloc(Pack3f, num_tangents);
 
-                        handler.bitangent_signs = try Handler.u8s.initCapacity(alloc, num_tangents);
-                        try handler.bitangent_signs.resize(alloc, num_tangents);
+                        handler.bitangent_signs = try alloc.alloc(u8, num_tangents);
 
-                        for (handler.tangents.items, 0..) |*t, i| {
+                        for (handler.tangents, 0..) |*t, i| {
                             t.* = Pack3f.init3(
                                 json.readFloat(f32, tangents[i * 4 + 0]),
                                 json.readFloat(f32, tangents[i * 4 + 1]),
                                 json.readFloat(f32, tangents[i * 4 + 2]),
                             );
 
-                            handler.bitangent_signs.items[i] = if (json.readFloat(f32, tangents[i * 4 + 3]) >= 0.0) 0 else 1;
+                            handler.bitangent_signs[i] = if (json.readFloat(f32, tangents[i * 4 + 3]) >= 0.0) 0 else 1;
                         }
                     } else if (std.mem.eql(u8, "tangent_space", ventry.key_ptr.*)) {
                         log.warning("It is reading tangent space", .{});
                         const tangent_spaces = ventry.value_ptr.array.items;
                         const num_tangent_spaces = tangent_spaces.len / 4;
 
-                        handler.normals = try Handler.Vec3fs.initCapacity(alloc, num_tangent_spaces);
-                        try handler.normals.resize(alloc, num_tangent_spaces);
+                        handler.normals = try alloc.alloc(Pack3f, num_tangent_spaces);
+                        handler.tangents = try alloc.alloc(Pack3f, num_tangent_spaces);
+                        handler.bitangent_signs = try alloc.alloc(u8, num_tangent_spaces);
 
-                        handler.tangents = try Handler.Vec3fs.initCapacity(alloc, num_tangent_spaces);
-                        try handler.tangents.resize(alloc, num_tangent_spaces);
-
-                        handler.bitangent_signs = try Handler.u8s.initCapacity(alloc, num_tangent_spaces);
-                        try handler.bitangent_signs.resize(alloc, num_tangent_spaces);
-
-                        for (handler.normals.items, 0..) |*n, i| {
+                        for (handler.normals, 0..) |*n, i| {
                             var ts = Quaternion{
                                 json.readFloat(f32, tangent_spaces[i * 4 + 0]),
                                 json.readFloat(f32, tangent_spaces[i * 4 + 1]),
@@ -426,37 +416,42 @@ pub const Provider = struct {
 
                             const tbn = quaternion.toMat3x3(ts);
                             n.* = math.vec4fTo3f(tbn.r[2]);
-                            const t = &handler.tangents.items[i];
+                            const t = &handler.tangents[i];
                             t.* = math.vec4fTo3f(tbn.r[0]);
 
-                            handler.bitangent_signs.items[i] = if (bts) 1 else 0;
+                            handler.bitangent_signs[i] = if (bts) 1 else 0;
                         }
                     } else if (std.mem.eql(u8, "texture_coordinates_0", ventry.key_ptr.*)) {
                         const uvs = ventry.value_ptr.array.items;
                         const num_uvs = uvs.len / 2;
 
-                        handler.uvs = try Handler.Vec2fs.initCapacity(alloc, num_uvs);
-                        try handler.uvs.resize(alloc, num_uvs);
+                        handler.uvs = try alloc.alloc(Vec2f, num_uvs);
 
-                        for (handler.uvs.items, 0..) |*uv, i| {
+                        for (handler.uvs, 0..) |*uv, i| {
                             uv.* = .{
                                 json.readFloat(f32, uvs[i * 2 + 0]),
                                 json.readFloat(f32, uvs[i * 2 + 1]),
                             };
                         }
-                    } else if (std.mem.eql(u8, "velocities", ventry.key_ptr.*)) {
-                        const velocities = ventry.value_ptr.array.items;
-                        const num_velocities = velocities.len / 3;
+                    } else if (std.mem.eql(u8, "radius_samples", ventry.key_ptr.*)) {
+                        const radius_samples = ventry.value_ptr.array.items;
+                        const num_frames = radius_samples.len;
 
-                        handler.velocities = try Handler.Vec3fs.initCapacity(alloc, num_velocities);
-                        try handler.velocities.resize(alloc, num_velocities);
+                        const start_frame = @min(resources.frame_start / PointMotionFrameDuration, num_frames - 1);
+                        const end_frame = @min((start_frame + 1) + resources.frame_duration / PointMotionFrameDuration, num_frames);
 
-                        for (handler.velocities.items, 0..) |*v, i| {
-                            v.* = Pack3f.init3(
-                                json.readFloat(f32, velocities[i * 3 + 0]),
-                                json.readFloat(f32, velocities[i * 3 + 1]),
-                                json.readFloat(f32, velocities[i * 3 + 2]),
-                            );
+                        handler.radii = try alloc.alloc([]f32, end_frame - start_frame);
+
+                        for (radius_samples[start_frame..end_frame], 0..) |frame, f| {
+                            const radii = frame.array.items;
+
+                            const dest_radii = try alloc.alloc(f32, radii.len);
+
+                            for (dest_radii, 0..) |*r, i| {
+                                r.* = json.readFloat(f32, radii[i]);
+                            }
+
+                            handler.radii[f] = dest_radii;
                         }
                     }
                 }
@@ -464,10 +459,9 @@ pub const Provider = struct {
                 const indices = entry.value_ptr.array.items;
                 const num_triangles = indices.len / 3;
 
-                handler.triangles = try Handler.Triangles.initCapacity(alloc, num_triangles);
-                try handler.triangles.resize(alloc, num_triangles);
+                handler.triangles = try alloc.alloc(IndexTriangle, num_triangles);
 
-                for (handler.triangles.items, 0..) |*t, i| {
+                for (handler.triangles, 0..) |*t, i| {
                     t.i[0] = @intCast(indices[i * 3 + 0].integer);
                     t.i[1] = @intCast(indices[i * 3 + 1].integer);
                     t.i[2] = @intCast(indices[i * 3 + 2].integer);

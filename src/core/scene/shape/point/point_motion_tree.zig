@@ -58,7 +58,7 @@ pub const Tree = struct {
 
     pub fn intersect(self: Self, probe: Probe, trafo: Trafo, frame_start: u64, isec: *Intersection) bool {
         const indices = self.indices;
-        const radius = self.data.radius;
+        const frame = self.data.frameAt(probe.time, frame_start);
 
         var local_ray = trafo.worldToObjectRay(probe.ray);
 
@@ -78,9 +78,9 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (indices[start..end]) |i| {
-                    const ipos = self.data.positionAt(i, probe.time, frame_start);
+                    const ipos = self.data.positionAndRadiusAt(i, frame);
 
-                    if (sphereIntersect(local_ray, ipos, radius)) |t| {
+                    if (sphereIntersect(local_ray, ipos, ipos[3])) |t| {
                         local_ray.max_t = t;
                         hit_t = t;
                         primitive = i;
@@ -126,7 +126,7 @@ pub const Tree = struct {
 
     pub fn intersectP(self: Self, probe: Probe, trafo: Trafo, frame_start: u64) bool {
         const indices = self.indices;
-        const radius = self.data.radius;
+        const frame = self.data.frameAt(probe.time, frame_start);
 
         const local_ray = trafo.worldToObjectRay(probe.ray);
 
@@ -143,9 +143,9 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (indices[start..end]) |i| {
-                    const ipos = self.data.positionAt(i, probe.time, frame_start);
+                    const ipos = self.data.positionAndRadiusAt(i, frame);
 
-                    if (sphereIntersectP(local_ray, ipos, radius)) {
+                    if (sphereIntersectP(local_ray, ipos, ipos[3])) {
                         return true;
                     }
                 }
@@ -188,7 +188,7 @@ pub const Tree = struct {
         context: Context,
     ) Vec4f {
         const indices = self.indices;
-        const radius = self.data.radius;
+        const frame = self.data.frameAt(vertex.probe.time, context.scene.frame_start);
 
         var stack = NodeStack{};
         var n: u32 = 0;
@@ -208,9 +208,9 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (indices[start..end]) |i| {
-                    const ipos = self.data.positionAt(i, vertex.probe.time, context.scene.frame_start);
+                    const ipos = self.data.positionAndRadiusAt(i, frame);
 
-                    if (sphereIntersectFront(ray, ipos, radius)) |t| {
+                    if (sphereIntersectFront(ray, ipos, ipos[3])) |t| {
                         frag.isec.t = t;
                         frag.isec.u = 0.0;
                         frag.isec.v = 0.0;
