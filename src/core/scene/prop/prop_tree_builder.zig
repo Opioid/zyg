@@ -39,7 +39,7 @@ pub const Builder = struct {
 
         var references = try alloc.alloc(Reference, num_primitives);
 
-        var bounds = math.aabb.Empty;
+        var bounds: AABB = .empty;
 
         for (indices, 0..) |prop, i| {
             const b = aabbs[prop];

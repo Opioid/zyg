@@ -47,7 +47,7 @@ pub const Tree = struct {
 
     pub fn aabb(self: Tree) AABB {
         if (0 == self.num_nodes) {
-            return math.aabb.Empty;
+            return .empty;
         }
 
         return self.nodes[0].aabb();

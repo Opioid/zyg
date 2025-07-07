@@ -47,10 +47,10 @@ pub const Builder = struct {
 
         var references = try alloc.alloc(Reference, num_primitives);
 
-        var bounds = math.aabb.Empty;
+        var bounds: AABB = .empty;
 
         for (0..num_primitives) |i| {
-            var box = math.aabb.Empty;
+            var box: AABB = .empty;
 
             for (0..num_frames) |f| {
                 const pos: Vec4f = math.vec3fTo4f(positions[f][i]);

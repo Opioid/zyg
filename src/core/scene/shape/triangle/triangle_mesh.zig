@@ -254,7 +254,7 @@ pub const Part = struct {
     }
 
     const Temp = struct {
-        bb: AABB = math.aabb.Empty,
+        bb: AABB = .empty,
         dominant_axis: Vec4f = @splat(0.0),
         total_power: f32 = 0.0,
     };

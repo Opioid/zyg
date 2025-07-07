@@ -103,7 +103,7 @@ pub const Shape = union(enum) {
 
     pub fn aabb(self: *const Shape) AABB {
         return switch (self.*) {
-            .Canopy, .DistantSphere, .InfiniteSphere => math.aabb.Empty,
+            .Canopy, .DistantSphere, .InfiniteSphere => .empty,
             .Disk, .Rectangle => AABB.init(.{ -0.5, -0.5, 0.0, 0.0 }, .{ 0.5, 0.5, 0.0, 0.0 }),
             .Cube, .Sphere => AABB.init(@splat(-0.5), @splat(0.5)),
             .PointMotionCloud => |c| c.aabb(),

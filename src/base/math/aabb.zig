@@ -10,12 +10,14 @@ const std = @import("std");
 pub const AABB = struct {
     bounds: [2]Vec4f,
 
+    pub const empty = AABB{ .bounds = .{ @splat(std.math.floatMax(f32)), @splat(-std.math.floatMax(f32)) } };
+
     pub fn init(min: Vec4f, max: Vec4f) AABB {
         return .{ .bounds = .{ min, max } };
     }
 
-    pub fn empty(self: AABB) bool {
-        return math.equal(self.bounds[0], Empty.bounds[0]) and math.equal(self.bounds[1], Empty.bounds[1]);
+    pub fn equal(self: AABB, other: AABB) bool {
+        return math.equal(self.bounds[0], other.bounds[0]) and math.equal(self.bounds[1], other.bounds[1]);
     }
 
     pub fn position(self: AABB) Vec4f {
@@ -234,5 +236,3 @@ pub const AABB = struct {
         );
     }
 };
-
-pub const Empty = AABB.init(@splat(std.math.floatMax(f32)), @splat(-std.math.floatMax(f32)));

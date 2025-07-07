@@ -47,7 +47,7 @@ pub const Builder = struct {
 
         var num_references: u32 = 0;
 
-        var bounds = math.aabb.Empty;
+        var bounds: AABB = .empty;
         for (context.privates[0..num]) |p| {
             num_references += @intCast(p.references.items.len);
 
@@ -174,7 +174,7 @@ pub const Builder = struct {
             private.reference_to_curve_map = List(u32).initCapacity(self.alloc, len_estimate) catch return;
             private.partitions = List(u8).initCapacity(self.alloc, len_estimate) catch return;
 
-            var bounds = math.aabb.Empty;
+            var bounds: AABB = .empty;
 
             var ref_id: u32 = 0;
 

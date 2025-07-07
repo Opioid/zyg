@@ -92,14 +92,14 @@ pub fn load(alloc: Allocator, stream: ReadStream, graph: *Graph, resources: *Res
 }
 
 fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources: *Resources) !void {
-    const parent_trafo = Transformation.Identity;
+    const parent_trafo: Transformation = .identity;
 
     var cam_iter = value.object.iterator();
     while (cam_iter.next()) |cam_entry| {
         if (std.mem.eql(u8, "Orthographic", cam_entry.key_ptr.*)) {
             var camera = cam.Orthographic{};
 
-            var trafo = Transformation.Identity;
+            var trafo: Transformation = .identity;
 
             var animation_ptr: ?*std.json.Value = null;
 
@@ -143,7 +143,7 @@ fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources:
         } else if (std.mem.eql(u8, "Perspective", cam_entry.key_ptr.*)) {
             var camera = cam.Perspective{};
 
-            var trafo = Transformation.Identity;
+            var trafo: Transformation = .identity;
 
             var animation_ptr: ?*std.json.Value = null;
 

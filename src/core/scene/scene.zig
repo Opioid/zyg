@@ -248,7 +248,7 @@ pub const Scene = struct {
 
         try self.light_tree_builder.build(alloc, &self.light_tree, self, threads);
 
-        var caustic_aabb = math.aabb.Empty;
+        var caustic_aabb: AABB = .empty;
         for (self.finite_props.items) |i| {
             if (self.props.items[i].caustic()) {
                 caustic_aabb.mergeAssign(self.prop_space.aabbs.items[i]);

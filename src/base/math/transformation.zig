@@ -9,10 +9,10 @@ pub const Transformation = struct {
     scale: Vec4f,
     rotation: Quaternion,
 
-    pub const Identity = Transformation{
+    pub const identity = Transformation{
         .position = @splat(0.0),
         .scale = @splat(1.0),
-        .rotation = quaternion.Identity,
+        .rotation = quaternion.identity,
     };
 
     pub fn toMat4x4(self: Transformation) Mat4x4 {

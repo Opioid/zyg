@@ -122,7 +122,7 @@ pub const Loader = struct {
 
         const parent_id: u32 = Prop.Null;
 
-        const parent_trafo = Transformation.Identity;
+        const parent_trafo: Transformation = .identity;
 
         try self.loadFile(alloc, graph.take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
 
@@ -306,7 +306,7 @@ pub const Loader = struct {
             is_scatterer = true;
         }
 
-        var trafo = Transformation.Identity;
+        var trafo: Transformation = .identity;
 
         var animation_ptr: ?*std.json.Value = null;
         var children_ptr: ?*std.json.Value = null;
@@ -515,7 +515,7 @@ pub const Loader = struct {
                     proto_index = 0;
                 }
 
-                var trafo = Transformation.Identity;
+                var trafo: Transformation = .identity;
 
                 json.readTransformation(trafo_value, &trafo);
 
@@ -679,7 +679,7 @@ pub const Loader = struct {
                     proto_index = 0;
                 }
 
-                var trafo = Transformation.Identity;
+                var trafo: Transformation = .identity;
 
                 json.readTransformation(trafo_value, &trafo);
 

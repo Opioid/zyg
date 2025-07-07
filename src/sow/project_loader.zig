@@ -80,7 +80,7 @@ fn loadPrototypes(alloc: Allocator, value: std.json.Value, project: *Project) !v
 
 fn loadPrototype(alloc: Allocator, value: std.json.Value, prototype: *Prototype, weight: *f32) !void {
     var w: f32 = 1.0;
-    var trafo = Transformation.Identity;
+    var trafo: Transformation = .identity;
     var position_jitter: Vec2f = @splat(0.0);
     var incline_jitter: Vec2f = @splat(0.0);
     var scale_range: Vec2f = @splat(1.0);
