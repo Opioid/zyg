@@ -66,6 +66,25 @@ pub const Exporter = struct {
                     try stream.endArray();
                 }
 
+                if (particles.radius_samples.len > 0) {
+                    try stream.objectField("radius_samples");
+                    {
+                        try stream.beginArray();
+
+                        for (particles.radius_samples) |rs| {
+                            try stream.beginArray();
+
+                            for (rs) |radius| {
+                                try stream.write(radius);
+                            }
+
+                            try stream.endArray();
+                        }
+
+                        try stream.endArray();
+                    }
+                }
+
                 try stream.endObject();
             }
 

@@ -21,24 +21,24 @@ pub const Tonemapper = struct {
 
         switch (self.class) {
             .ACES => {
-                const rrt = spectrum.AP1toRRT_SAT(scaled);
-                const odt = spectrum.RRTandODT(rrt);
-                const srgb = spectrum.ODTSATtosRGB(odt);
+                const rrt = spectrum.aces.AP1toRRT_SAT(scaled);
+                const odt = spectrum.aces.RRTandODT(rrt);
+                const srgb = spectrum.aces.ODTSATtosRGB(odt);
                 return .{ srgb[0], srgb[1], srgb[2], color[3] };
             },
             .AgX => |a| {
-                const in = spectrum.AP1tosRGB(scaled);
+                const in = spectrum.aces.AP1tosRGB(scaled);
                 const x = agx.agx(in);
                 const l = agx.look(x, a);
                 const e = math.max4(agx.eotf(l), @splat(0.0));
                 return .{ e[0], e[1], e[2], color[3] };
             },
             .Linear => {
-                const srgb = spectrum.AP1tosRGB(scaled);
+                const srgb = spectrum.aces.AP1tosRGB(scaled);
                 return .{ srgb[0], srgb[1], srgb[2], color[3] };
             },
             .PbrNeutral => {
-                const srgb = spectrum.AP1tosRGB(scaled);
+                const srgb = spectrum.aces.AP1tosRGB(scaled);
                 const pbr = pbrNeutral(srgb);
                 return .{ pbr[0], pbr[1], pbr[2], color[3] };
             },

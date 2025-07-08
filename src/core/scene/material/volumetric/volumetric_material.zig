@@ -36,7 +36,7 @@ pub const Material = struct {
 
     density_map: Texture = Texture.initUniform1(0.0),
 
-    blackbody: math.InterpolatedFunction1D(Vec4f) = .{},
+    blackbody: math.ifunc.InterpolatedFunction1D(Vec4f) = .{},
 
     distribution: Distribution3D = .{},
 
@@ -92,12 +92,12 @@ pub const Material = struct {
             const Start = 2000.0;
             const End = 5000.0;
 
-            self.blackbody = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.2, Num_samples);
+            self.blackbody = try math.ifunc.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.2, Num_samples);
 
             for (0..Num_samples) |i| {
                 const t = Start + @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(Num_samples - 1)) * (End - Start);
 
-                const c = spectrum.blackbody(t);
+                const c = spectrum.mapping.blackbody(t);
 
                 self.blackbody.samples[i] = self.emittance.value * c;
             }

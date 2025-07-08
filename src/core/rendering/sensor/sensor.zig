@@ -55,7 +55,7 @@ pub const Mitchell = struct {
 };
 
 pub const Sensor = struct {
-    const Func = math.InterpolatedFunction1D_N(30);
+    const Func = math.ifunc.InterpolatedFunction1D_N(30);
 
     const Layer = struct {
         buffer: Buffer,

@@ -226,7 +226,7 @@ pub const Reader = struct {
                 0.0,
             };
 
-            return math.vec4fTo3f(spectrum.sRGBtoAP1(srgb));
+            return math.vec4fTo3f(spectrum.aces.sRGBtoAP1(srgb));
         }
 
         return Pack3f.init1(0.0);

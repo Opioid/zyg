@@ -294,7 +294,7 @@ pub const Part = struct {
 
                     var j: u32 = 0;
                     while (j < num_samples) : (j += 1) {
-                        const xi = math.hammersley(j, num_samples, 0);
+                        const xi = math.distr.hammersley(j, num_samples, 0);
                         const s2 = math.smpl.triangleUniform(xi);
                         const uv = self.tree.data.interpolateUv(itri, s2[0], s2[1]);
 

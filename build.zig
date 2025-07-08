@@ -219,7 +219,7 @@ pub fn build(b: *std.Build) void {
     //         //  "../data/models/plants/bamboo/bamboo.instancer",
     //         // "../data/models/plants/bamboo/bamboo_leaves.instancer",
     //         //"../data/models/test.instancer",
-    //         "../data/models/points/particles.json",
+    //         "../data/models/points/sparks.json",
     //         "-t",
     //         "-1",
     //     });

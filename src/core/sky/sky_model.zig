@@ -92,7 +92,7 @@ pub const Model = struct {
         var radiance: Spectrum = undefined;
 
         for (&radiance.values, 0..) |*bin, i| {
-            math.goldenRatio1D(&samples, rng.randomFloat());
+            math.distr.goldenRatio1D(&samples, rng.randomFloat());
 
             var rwl: f32 = 0.0;
 
@@ -109,7 +109,7 @@ pub const Model = struct {
             bin.* = rwl;
         }
 
-        return spectrum.XYZtoAP1(radiance.XYZ());
+        return spectrum.aces.XYZtoAP1(radiance.XYZ());
     }
 
     pub fn evaluateSun(self: Self, wi: Vec4f, rng: *RNG) Vec4f {
@@ -122,7 +122,7 @@ pub const Model = struct {
         var radiance: Spectrum = undefined;
 
         for (&radiance.values, 0..) |*bin, i| {
-            math.goldenRatio1D(&samples, rng.randomFloat());
+            math.distr.goldenRatio1D(&samples, rng.randomFloat());
 
             var rwl: f32 = 0.0;
 
@@ -137,7 +137,7 @@ pub const Model = struct {
             bin.* = rwl;
         }
 
-        return spectrum.XYZtoAP1(radiance.XYZ());
+        return spectrum.aces.XYZtoAP1(radiance.XYZ());
     }
 
     pub fn turbidityToVisibility(turbidity: f32) f32 {

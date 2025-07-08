@@ -44,7 +44,7 @@ fn calculateSrgbToFloat() [Num_samples]f32 {
     var buf: [Num_samples]f32 = undefined;
 
     for (&buf, 0..) |*b, i| {
-        b.* = spectrum.gammaToLinear_sRGB(@as(f32, @floatFromInt(i)) / 255.0);
+        b.* = spectrum.srgb.gammaToLinear(@as(f32, @floatFromInt(i)) / 255.0);
     }
 
     return buf;

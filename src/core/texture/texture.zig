@@ -195,7 +195,7 @@ pub const Texture = struct {
             },
             .Byte3_sRGB => {
                 const value = image.Byte3.get2D(x, y);
-                return spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
+                return spectrum.aces.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
             },
             .Byte3_snorm => {
                 const value = image.Byte3.get2D(x, y);
@@ -228,7 +228,7 @@ pub const Texture = struct {
             },
             .Byte3_sRGB => {
                 const value = image.Byte3.get2D(x, y);
-                const ap = spectrum.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
+                const ap = spectrum.aces.sRGBtoAP1(enc.cachedSrgbToFloat3(value));
                 return .{ ap[0], ap[1], ap[2], 1.0 };
             },
             .Half3 => {
@@ -247,7 +247,7 @@ pub const Texture = struct {
             .Byte4_sRGB => {
                 const value = image.Byte4.get2D(x, y);
                 const srgb = enc.cachedSrgbToFloat4(value);
-                const ap = spectrum.sRGBtoAP1(.{ srgb[0], srgb[1], srgb[2], 0.0 });
+                const ap = spectrum.aces.sRGBtoAP1(.{ srgb[0], srgb[1], srgb[2], 0.0 });
                 return .{ ap[0], ap[1], ap[2], srgb[3] };
             },
             .Half4 => {

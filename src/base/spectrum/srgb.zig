@@ -3,7 +3,7 @@ const Vec4f = @import("../math/vector4.zig").Vec4f;
 const std = @import("std");
 
 // convert sRGB linear value to sRGB gamma value
-pub fn linearToGamma_sRGB(c: f32) f32 {
+pub fn linearToGamma(c: f32) f32 {
     if (c <= 0.0) {
         return 0.0;
     } else if (c < 0.0031308) {
@@ -15,17 +15,17 @@ pub fn linearToGamma_sRGB(c: f32) f32 {
     return 1.0;
 }
 
-pub fn linearToGamma_sRGB3(c: Vec4f) Vec4f {
+pub fn linearToGamma3(c: Vec4f) Vec4f {
     return .{
-        linearToGamma_sRGB(c[0]),
-        linearToGamma_sRGB(c[1]),
-        linearToGamma_sRGB(c[2]),
+        linearToGamma(c[0]),
+        linearToGamma(c[1]),
+        linearToGamma(c[2]),
         0.0,
     };
 }
 
 // convert sRGB gamma value to sRGB linear value
-pub fn gammaToLinear_sRGB(c: f32) f32 {
+pub fn gammaToLinear(c: f32) f32 {
     if (c <= 0.0) {
         return 0.0;
     } else if (c < 0.04045) {

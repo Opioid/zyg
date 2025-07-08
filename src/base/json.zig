@@ -241,7 +241,7 @@ pub fn readTransformation(value: Value, trafo: *Transformation) void {
 }
 
 fn mapColor(color: Vec4f) Vec4f {
-    return spectrum.sRGBtoAP1(color);
+    return spectrum.aces.sRGBtoAP1(color);
 }
 
 pub fn readColor(value: std.json.Value) Vec4f {
@@ -257,14 +257,14 @@ pub fn readColor(value: std.json.Value) Vec4f {
                     rgb = readVec4f3(entry.value_ptr.*);
                 } else if (std.mem.eql(u8, "temperature", entry.key_ptr.*)) {
                     const temperature = readFloat(f32, entry.value_ptr.*);
-                    rgb = spectrum.blackbody(math.max(800.0, temperature));
+                    rgb = spectrum.mapping.blackbody(math.max(800.0, temperature));
                 } else if (std.mem.eql(u8, "linear", entry.key_ptr.*)) {
                     linear = readBool(entry.value_ptr.*);
                 }
             }
 
             if (!linear) {
-                rgb = spectrum.linearToGamma_sRGB3(rgb);
+                rgb = spectrum.srgb.linearToGamma3(rgb);
             }
 
             return mapColor(rgb);

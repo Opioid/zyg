@@ -226,7 +226,7 @@ pub const Reader = struct {
 
                             if (color) {
                                 const rgbf = math.vec3hTo4f(Pack3h.init3(r, g, b));
-                                half3.pixels[p] = math.vec4fTo3h(spectrum.sRGBtoAP1(rgbf));
+                                half3.pixels[p] = math.vec4fTo3h(spectrum.aces.sRGBtoAP1(rgbf));
                             } else {
                                 half3.pixels[p] = Pack3h.init3(r, g, b);
                             }
@@ -250,7 +250,7 @@ pub const Reader = struct {
                             const b = floats[o + b_o * width + x];
 
                             if (color) {
-                                float3.pixels[p] = math.vec4fTo3f(spectrum.sRGBtoAP1(.{ r, g, b, 0.0 }));
+                                float3.pixels[p] = math.vec4fTo3f(spectrum.aces.sRGBtoAP1(.{ r, g, b, 0.0 }));
                             } else {
                                 float3.pixels[p] = Pack3f.init3(r, g, b);
                             }
@@ -275,7 +275,7 @@ pub const Reader = struct {
                             const a = halfs[o + a_o * width + x];
 
                             if (color) {
-                                const ap = spectrum.sRGBtoAP1(.{ r, g, b, 0.0 });
+                                const ap = spectrum.aces.sRGBtoAP1(.{ r, g, b, 0.0 });
                                 const rgbf = Vec4f{ ap[0], ap[1], ap[2], a };
                                 half4.pixels[p] = math.vec4fTo4h(rgbf);
                             } else {
@@ -303,7 +303,7 @@ pub const Reader = struct {
                             const b = floats[o + a_o * width + x];
 
                             if (color) {
-                                const ap = spectrum.sRGBtoAP1(.{ r, g, b, 0.0 });
+                                const ap = spectrum.aces.sRGBtoAP1(.{ r, g, b, 0.0 });
                                 float4.pixels[p] = Pack4f.init4(ap[0], ap[1], ap[2], a);
                             } else {
                                 float4.pixels[p] = Pack4f.init4(r, g, b, a);
