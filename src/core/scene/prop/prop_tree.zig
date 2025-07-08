@@ -47,7 +47,7 @@ pub const Tree = struct {
 
     pub fn aabb(self: Tree) AABB {
         if (0 == self.num_nodes) {
-            return math.aabb.Empty;
+            return .empty;
         }
 
         return self.nodes[0].aabb();
@@ -108,7 +108,7 @@ pub const Tree = struct {
 
         if (hit) {
             frag.isec = isec;
-            scene.propShape(prop).fragment(probe.ray, frag);
+            scene.propShape(prop).fragment(probe.*, scene.frame_start, frag);
         }
 
         frag.prop = prop;

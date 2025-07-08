@@ -33,7 +33,7 @@ pub const Material = struct {
 
     emission_map: Texture,
     distribution: Distribution2D = .{},
-    sun_radiance: math.InterpolatedFunction1D(Vec4f) = .{},
+    sun_radiance: math.ifunc.InterpolatedFunction1D(Vec4f) = .{},
     average_emission: Vec4f = @splat(-1.0),
     total_weight: f32 = undefined,
 
@@ -48,7 +48,7 @@ pub const Material = struct {
         return Material{
             .super = .{},
             .emission_map = Texture.initUniform1(0.0),
-            .sun_radiance = try math.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, Sky.Bake_dimensions_sun),
+            .sun_radiance = try math.ifunc.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, Sky.Bake_dimensions_sun),
         };
     }
 

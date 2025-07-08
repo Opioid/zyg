@@ -117,7 +117,7 @@ pub const Noise = struct {
 
             return .{ n[0], n[1] };
         } else {
-            const dd = @abs(context.screenspaceDifferential(rs, mode.tex_coord));
+            const dd = @abs(context.screenspaceDifferentials(rs, mode.tex_coord));
 
             const shift_x = dd[0] + dd[2];
             const shift_y = dd[1] + dd[3];

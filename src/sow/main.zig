@@ -1,5 +1,8 @@
 const Options = @import("options.zig").Options;
-const exp = @import("exporter.zig");
+const InstancerExporter = @import("instancer_exporter.zig").Exporter;
+const ParticleExporter = @import("particle/particle_exporter.zig").Exporter;
+const prt = @import("particle/particle_generator.zig");
+const ParticleGenerator = prt.Generator;
 const prj = @import("project.zig");
 const Project = prj.Project;
 const ProjectLoader = @import("project_loader.zig");
@@ -87,75 +90,89 @@ pub fn main() !void {
 
     stream.deinit();
 
-    if (0 == project.prototypes.len) {
-        log.err("No prototypes specified.", .{});
-        return;
-    }
+    if (project.particles.num_particles > 0) {
+        var particles: prt.Particles = undefined;
+        defer particles.deinit(alloc);
 
-    graph.take.resolved_filename = try resources.fs.cloneLastResolvedName(alloc);
-    graph.take.scene_filename = try alloc.dupe(u8, project.scene_filename);
+        try ParticleGenerator.generateSparks(alloc, project, &particles);
 
-    var scene_loader = SceneLoader.init(alloc, &resources, resource.MaterialProvider.createFallbackMaterial());
-    defer scene_loader.deinit(alloc);
-
-    scene_loader.load(alloc, &graph) catch |err| {
-        log.err("Loading scene: {}", .{err});
-        return;
-    };
-
-    const ortho = try createOrthoCamera(alloc, &graph);
-    var camera = Camera{ .Orthographic = ortho };
-
-    const context = Context{ .scene = &graph.scene, .camera = &camera, .layer = 0 };
-
-    try graph.scene.compile(alloc, @splat(0.0), 0, &threads, fs);
-
-    var max_prototype_extent: Vec4f = @splat(0.0);
-
-    {
-        if (project.mount_folder.len > 0) {
-            try resources.fs.pushMount(alloc, project.mount_folder);
-        }
-
-        var proto_ids = try alloc.alloc(u32, project.prototypes.len);
-        defer alloc.free(proto_ids);
-
-        for (project.prototypes, 0..) |p, i| {
-            const proto_shape = try (if (p.shape_file.len > 0) resources.loadFile(Shape, alloc, p.shape_file, .{}) else SceneLoader.getShape(p.shape_type));
-            const proto_id = try graph.scene.createPropShape(alloc, proto_shape, &.{}, false, true);
-            proto_ids[i] = proto_id;
-        }
-
-        resources.commitAsync();
-
-        for (project.prototypes, proto_ids) |p, proto_id| {
-            const proto_inst = graph.scene.prop(proto_id);
-
-            const aabb = proto_inst.localAabb(&graph.scene).transform(p.trafo.toMat4x4());
-
-            max_prototype_extent = math.max4(max_prototype_extent, aabb.extent());
-        }
-
-        if (project.mount_folder.len > 0) {
-            resources.fs.popMount(alloc);
-        }
-    }
-
-    var instances = List(prj.Instance){};
-    defer instances.deinit(alloc);
-
-    if (project.triplanar) {
-        try scatter(alloc, &project, context, .XPos, max_prototype_extent, &instances);
-        try scatter(alloc, &project, context, .XNeg, max_prototype_extent, &instances);
-        try scatter(alloc, &project, context, .YPos, max_prototype_extent, &instances);
-        try scatter(alloc, &project, context, .YNeg, max_prototype_extent, &instances);
-        try scatter(alloc, &project, context, .ZPos, max_prototype_extent, &instances);
-        try scatter(alloc, &project, context, .ZNeg, max_prototype_extent, &instances);
+        try ParticleExporter.write(alloc, options.output, &particles);
     } else {
-        try scatter(alloc, &project, context, .YPos, max_prototype_extent, &instances);
-    }
+        if (0 == project.scene_filename.len) {
+            log.err("No scene file specified.", .{});
+            return;
+        }
 
-    try exp.Exporter.write(alloc, options.output, project.materials.items, project.prototypes, instances.items);
+        if (0 == project.prototypes.len) {
+            log.err("No prototypes specified.", .{});
+            return;
+        }
+
+        graph.take.resolved_filename = try resources.fs.cloneLastResolvedName(alloc);
+        graph.take.scene_filename = try alloc.dupe(u8, project.scene_filename);
+
+        var scene_loader = SceneLoader.init(alloc, &resources, resource.MaterialProvider.createFallbackMaterial());
+        defer scene_loader.deinit(alloc);
+
+        scene_loader.load(alloc, &graph) catch |err| {
+            log.err("Loading scene: {}", .{err});
+            return;
+        };
+
+        const ortho = try createOrthoCamera(alloc, &graph);
+        var camera = Camera{ .Orthographic = ortho };
+
+        const context = Context{ .scene = &graph.scene, .camera = &camera, .layer = 0 };
+
+        try graph.scene.compile(alloc, @splat(0.0), 0, &threads, fs);
+
+        var max_prototype_extent: Vec4f = @splat(0.0);
+
+        {
+            if (project.mount_folder.len > 0) {
+                try resources.fs.pushMount(alloc, project.mount_folder);
+            }
+
+            var proto_ids = try alloc.alloc(u32, project.prototypes.len);
+            defer alloc.free(proto_ids);
+
+            for (project.prototypes, 0..) |p, i| {
+                const proto_shape = try (if (p.shape_file.len > 0) resources.loadFile(Shape, alloc, p.shape_file, .{}) else SceneLoader.getShape(p.shape_type));
+                const proto_id = try graph.scene.createPropShape(alloc, proto_shape, &.{}, false, true);
+                proto_ids[i] = proto_id;
+            }
+
+            resources.commitAsync();
+
+            for (project.prototypes, proto_ids) |p, proto_id| {
+                const proto_inst = graph.scene.prop(proto_id);
+
+                const aabb = proto_inst.localAabb(&graph.scene).transform(p.trafo.toMat4x4());
+
+                max_prototype_extent = math.max4(max_prototype_extent, aabb.extent());
+            }
+
+            if (project.mount_folder.len > 0) {
+                resources.fs.popMount(alloc);
+            }
+        }
+
+        var instances = List(prj.Instance){};
+        defer instances.deinit(alloc);
+
+        if (project.triplanar) {
+            try scatter(alloc, &project, context, .XPos, max_prototype_extent, &instances);
+            try scatter(alloc, &project, context, .XNeg, max_prototype_extent, &instances);
+            try scatter(alloc, &project, context, .YPos, max_prototype_extent, &instances);
+            try scatter(alloc, &project, context, .YNeg, max_prototype_extent, &instances);
+            try scatter(alloc, &project, context, .ZPos, max_prototype_extent, &instances);
+            try scatter(alloc, &project, context, .ZNeg, max_prototype_extent, &instances);
+        } else {
+            try scatter(alloc, &project, context, .YPos, max_prototype_extent, &instances);
+        }
+
+        try InstancerExporter.write(alloc, options.output, project.materials.items, project.prototypes, instances.items);
+    }
 }
 
 fn createOrthoCamera(alloc: Allocator, graph: *Graph) !core.camera.Orthographic {

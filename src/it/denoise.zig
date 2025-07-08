@@ -163,7 +163,7 @@ pub const Denoise = struct {
                 // _ = depth;
                 // const color = self.alternativeFilter(source, normal, albedo, dim2, ix, iy, scene);
 
-                const srgb = spectrum.AP1tosRGB(color);
+                const srgb = spectrum.aces.AP1tosRGB(color);
 
                 target.set2D(ix, iy, Pack4f.init4(srgb[0], srgb[1], srgb[2], 1.0));
             }

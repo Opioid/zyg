@@ -136,9 +136,9 @@ pub const Srgb = struct {
                             const p = image.pixels[i];
 
                             const color = Vec4f{
-                                spectrum.linearToGamma_sRGB(p.v[0]),
-                                spectrum.linearToGamma_sRGB(p.v[1]),
-                                spectrum.linearToGamma_sRGB(p.v[2]),
+                                spectrum.srgb.linearToGamma(p.v[0]),
+                                spectrum.srgb.linearToGamma(p.v[1]),
+                                spectrum.srgb.linearToGamma(p.v[2]),
                                 math.min(p.v[3], 1.0),
                             };
 
@@ -162,9 +162,9 @@ pub const Srgb = struct {
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
 
-                            buffer[i * 4 + 0] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[0]));
-                            buffer[i * 4 + 1] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[1]));
-                            buffer[i * 4 + 2] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[2]));
+                            buffer[i * 4 + 0] = enc.floatToUnorm8(spectrum.srgb.linearToGamma(p.v[0]));
+                            buffer[i * 4 + 1] = enc.floatToUnorm8(spectrum.srgb.linearToGamma(p.v[1]));
+                            buffer[i * 4 + 2] = enc.floatToUnorm8(spectrum.srgb.linearToGamma(p.v[2]));
                             buffer[i * 4 + 3] = enc.floatToUnorm8(math.min(p.v[3], 1.0));
 
                             i += 1;
@@ -182,9 +182,9 @@ pub const Srgb = struct {
                             const p = image.pixels[i];
 
                             const color = Vec4f{
-                                spectrum.linearToGamma_sRGB(p.v[0]),
-                                spectrum.linearToGamma_sRGB(p.v[1]),
-                                spectrum.linearToGamma_sRGB(p.v[2]),
+                                spectrum.srgb.linearToGamma(p.v[0]),
+                                spectrum.srgb.linearToGamma(p.v[1]),
+                                spectrum.srgb.linearToGamma(p.v[2]),
                                 0.0,
                             };
 
@@ -207,9 +207,9 @@ pub const Srgb = struct {
                         while (x < width) : (x += 1) {
                             const p = image.pixels[i];
 
-                            buffer[i * 3 + 0] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[0]));
-                            buffer[i * 3 + 1] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[1]));
-                            buffer[i * 3 + 2] = enc.floatToUnorm8(spectrum.linearToGamma_sRGB(p.v[2]));
+                            buffer[i * 3 + 0] = enc.floatToUnorm8(spectrum.srgb.linearToGamma(p.v[0]));
+                            buffer[i * 3 + 1] = enc.floatToUnorm8(spectrum.srgb.linearToGamma(p.v[1]));
+                            buffer[i * 3 + 2] = enc.floatToUnorm8(spectrum.srgb.linearToGamma(p.v[2]));
 
                             i += 1;
                         }

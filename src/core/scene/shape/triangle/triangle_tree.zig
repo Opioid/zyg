@@ -128,10 +128,10 @@ pub const Tree = struct {
                 const e = i + num;
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(tray, i)) |hit| {
-                        const itri = self.data.indexTriangle(i);
-                        const material = scene.propMaterial(entity, itri.part);
+                        const material = scene.propMaterial(entity, self.data.trianglePart(i));
 
                         if (material.evaluateVisibility()) {
+                            const itri = self.data.indexTriangle(i);
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
 
                             if (material.super().stochasticOpacity(uv, sampler, scene)) {
@@ -252,10 +252,10 @@ pub const Tree = struct {
                 const e = i + num;
                 while (i < e) : (i += 1) {
                     if (self.data.intersect(ray, i)) |hit| {
-                        const itri = self.data.indexTriangle(i);
-                        const material = context.scene.propMaterial(entity, itri.part);
+                        const material = context.scene.propMaterial(entity, self.data.trianglePart(i));
 
                         if (material.evaluateVisibility()) {
+                            const itri = self.data.indexTriangle(i);
                             rs.geo_n = self.data.normal(itri);
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
                             rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
@@ -342,88 +342,6 @@ pub const Tree = struct {
         return true;
     }
 
-    pub fn emission(
-        self: Tree,
-        ray: Ray,
-        vertex: *const Vertex,
-        frag: *Fragment,
-        split_threshold: f32,
-        sampler: *Sampler,
-        context: Context,
-    ) Vec4f {
-        var stack = NodeStack{};
-        var n: u32 = 0;
-
-        var energy: Vec4f = @splat(0.0);
-
-        const shading_p = vertex.origin;
-        const wo = -vertex.probe.ray.direction;
-
-        const nodes = self.nodes;
-
-        while (NodeStack.End != n) {
-            const node = nodes[n];
-
-            const num = node.numIndices();
-            if (0 != num) {
-                var i = node.indicesStart();
-                const e = i + num;
-                while (i < e) : (i += 1) {
-                    if (self.data.intersect(ray, i)) |hit| {
-                        frag.isec.t = hit.t;
-                        frag.isec.u = hit.u;
-                        frag.isec.v = hit.v;
-                        frag.isec.primitive = i;
-
-                        const itri = self.data.indexTriangle(i);
-
-                        frag.part = itri.part;
-
-                        const p = self.data.interpolateP(itri, hit.u, hit.v);
-                        frag.p = frag.isec.trafo.objectToWorldPoint(p);
-
-                        const geo_n = self.data.normal(itri);
-                        frag.geo_n = frag.isec.trafo.objectToWorldNormal(geo_n);
-
-                        const uv = self.data.interpolateUv(itri, hit.u, hit.v);
-
-                        frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
-
-                        if (frag.evaluateRadiance(shading_p, wo, sampler, context)) |local_energy| {
-                            const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
-                            energy += weight * local_energy;
-                        }
-                    }
-                }
-
-                n = stack.pop();
-                continue;
-            }
-
-            var a = node.children();
-            var b = a + 1;
-
-            var dista = nodes[a].intersect(ray);
-            var distb = nodes[b].intersect(ray);
-
-            if (dista > distb) {
-                std.mem.swap(u32, &a, &b);
-                std.mem.swap(f32, &dista, &distb);
-            }
-
-            if (std.math.floatMax(f32) == dista) {
-                n = stack.pop();
-            } else {
-                n = a;
-                if (std.math.floatMax(f32) != distb) {
-                    stack.push(b);
-                }
-            }
-        }
-
-        return energy;
-    }
-
     pub fn scatter(
         self: Tree,
         ray: Ray,
@@ -474,5 +392,86 @@ pub const Tree = struct {
         }
 
         return Volume.initPass(tr);
+    }
+
+    pub fn emission(
+        self: Tree,
+        ray: Ray,
+        vertex: *const Vertex,
+        frag: *Fragment,
+        split_threshold: f32,
+        sampler: *Sampler,
+        context: Context,
+    ) Vec4f {
+        var stack = NodeStack{};
+        var n: u32 = 0;
+
+        var energy: Vec4f = @splat(0.0);
+
+        const shading_p = vertex.origin;
+        const wo = -vertex.probe.ray.direction;
+
+        const nodes = self.nodes;
+
+        while (NodeStack.End != n) {
+            const node = nodes[n];
+
+            const num = node.numIndices();
+            if (0 != num) {
+                var i = node.indicesStart();
+                const e = i + num;
+                while (i < e) : (i += 1) {
+                    if (self.data.intersect(ray, i)) |hit| {
+                        frag.isec.t = hit.t;
+                        frag.isec.u = hit.u;
+                        frag.isec.v = hit.v;
+                        frag.isec.primitive = i;
+
+                        frag.part = self.data.trianglePart(i);
+
+                        const itri = self.data.indexTriangle(i);
+
+                        const p = self.data.interpolateP(itri, hit.u, hit.v);
+                        frag.p = frag.isec.trafo.objectToWorldPoint(p);
+
+                        const geo_n = self.data.normal(itri);
+                        frag.geo_n = frag.isec.trafo.objectToWorldNormal(geo_n);
+
+                        const uv = self.data.interpolateUv(itri, hit.u, hit.v);
+                        frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
+
+                        if (frag.evaluateRadiance(shading_p, wo, sampler, context)) |local_energy| {
+                            const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
+                            energy += weight * local_energy;
+                        }
+                    }
+                }
+
+                n = stack.pop();
+                continue;
+            }
+
+            var a = node.children();
+            var b = a + 1;
+
+            var dista = nodes[a].intersect(ray);
+            var distb = nodes[b].intersect(ray);
+
+            if (dista > distb) {
+                std.mem.swap(u32, &a, &b);
+                std.mem.swap(f32, &dista, &distb);
+            }
+
+            if (std.math.floatMax(f32) == dista) {
+                n = stack.pop();
+            } else {
+                n = a;
+                if (std.math.floatMax(f32) != distb) {
+                    stack.push(b);
+                }
+            }
+        }
+
+        return energy;
     }
 };

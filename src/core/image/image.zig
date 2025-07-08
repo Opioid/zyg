@@ -68,6 +68,11 @@ pub const Image = union(enum) {
         }
     }
 
+    pub fn frameDependant(self: Image) bool {
+        _ = self;
+        return false;
+    }
+
     pub fn dimensions(self: Image) Vec4i {
         return switch (self) {
             inline else => |i| i.dimensions,

@@ -108,7 +108,7 @@ pub const Context = struct {
     }
 
     pub fn propInterpolateFragment(self: Self, entity: u32, probe: Probe, frag: *Fragment) void {
-        self.scene.propShape(entity).fragment(probe.ray, frag);
+        self.scene.propShape(entity).fragment(probe, self.scene.frame_start, frag);
     }
 
     pub fn sampleProcedural2D_1(self: Self, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {
@@ -127,20 +127,20 @@ pub const Context = struct {
         return self.camera.super().absoluteTime(frame, frame_delta);
     }
 
-    pub fn screenspaceDifferential(self: Self, rs: Renderstate, texcoord: Texture.Mode.TexCoord) Vec4f {
+    pub fn screenspaceDifferentials(self: Self, rs: Renderstate, texcoord: Texture.Mode.TexCoord) Vec4f {
         const rd = self.camera.calculateRayDifferential(self.layer, rs.p, rs.time, self.scene);
 
         const ds: DifferentialSurface =
             if (.UV0 == texcoord)
-                self.scene.propShape(rs.prop).surfaceDifferential(rs.primitive, rs.trafo)
+                self.scene.propShape(rs.prop).surfaceDifferentials(rs.primitive, rs.trafo)
             else
-                hlp.triplanarDifferential(rs.geo_n, rs.trafo);
+                hlp.triplanarDifferentials(rs.geo_n, rs.trafo);
 
-        return calculateScreenspaceDifferential(rs.p, rs.geo_n, rd, ds.dpdu, ds.dpdv);
+        return calculateScreenspaceDifferentials(rs.p, rs.geo_n, rd, ds.dpdu, ds.dpdv);
     }
 
     // https://blog.yiningkarlli.com/2018/10/bidirectional-mipmap.html
-    fn calculateScreenspaceDifferential(p: Vec4f, n: Vec4f, rd: RayDif, dpdu: Vec4f, dpdv: Vec4f) Vec4f {
+    fn calculateScreenspaceDifferentials(p: Vec4f, n: Vec4f, rd: RayDif, dpdu: Vec4f, dpdv: Vec4f) Vec4f {
         // Compute offset-ray frag points with tangent plane
         const d = math.dot3(n, p);
 

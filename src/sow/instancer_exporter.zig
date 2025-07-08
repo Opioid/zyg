@@ -3,7 +3,7 @@ const Instance = prj.Instance;
 const Prototype = prj.Prototype;
 
 const std = @import("std");
-const Allocator = @import("std").mem.Allocator;
+const Allocator = std.mem.Allocator;
 
 pub const Exporter = struct {
     pub fn write(

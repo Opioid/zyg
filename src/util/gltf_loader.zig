@@ -204,7 +204,7 @@ pub const Loader = struct {
         graph: *Graph,
     ) !void {
         const translation = json.readVec4f3Member(value, "translation", @splat(0.0));
-        const rotation = json.readVec4fMember(value, "rotation", math.quaternion.Identity);
+        const rotation = json.readVec4fMember(value, "rotation", math.quaternion.identity);
         const scale = json.readVec4f3Member(value, "scale", @splat(1.0));
 
         const trafo = Transformation{

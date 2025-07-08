@@ -28,13 +28,13 @@ pub const Lambert = struct {
     }
 };
 
-const E_tex = math.InterpolatedFunction3D_N(
+const E_tex = math.ifunc.InterpolatedFunction3D_N(
     integral.E_size,
     integral.E_size,
     integral.E_size,
 ).fromArray(&integral.E);
 
-const E_avg_tex = math.InterpolatedFunction2D_N(
+const E_avg_tex = math.ifunc.InterpolatedFunction2D_N(
     integral.E_avg_size,
     integral.E_avg_size,
 ).fromArray(&integral.E_avg);

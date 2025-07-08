@@ -14,10 +14,6 @@ const Transformation = math.Transformation;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Error = error{
-    NoScene,
-};
-
 pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
     const buffer = try stream.readAll(alloc);
     defer alloc.free(buffer);
@@ -36,10 +32,6 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
         project.scene_filename = try alloc.dupe(u8, scene_filename.string);
     }
 
-    if (0 == project.scene_filename.len) {
-        return Error.NoScene;
-    }
-
     var iter = root.object.iterator();
     while (iter.next()) |entry| {
         if (std.mem.eql(u8, "mount_folder", entry.key_ptr.*)) {
@@ -56,10 +48,19 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
             project.triplanar = json.readBool(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "materials", entry.key_ptr.*)) {
             try std.json.stringify(entry.value_ptr.*, .{ .whitespace = .indent_4 }, project.materials.writer(alloc));
+        } else if (std.mem.eql(u8, "particles", entry.key_ptr.*)) {
+            loadParticles(entry.value_ptr.*, project);
         } else if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {
             try loadPrototypes(alloc, entry.value_ptr.*, project);
         }
     }
+}
+
+fn loadParticles(value: std.json.Value, project: *Project) void {
+    project.particles.num_particles = json.readUIntMember(value, "num_particles", project.particles.num_particles);
+    project.particles.radius = json.readFloatMember(value, "radius", project.particles.radius);
+    project.particles.start_frame = json.readUIntMember(value, "start_frame", project.particles.start_frame);
+    project.particles.num_frames = json.readUIntMember(value, "num_frames", project.particles.num_frames);
 }
 
 fn loadPrototypes(alloc: Allocator, value: std.json.Value, project: *Project) !void {
@@ -71,15 +72,15 @@ fn loadPrototypes(alloc: Allocator, value: std.json.Value, project: *Project) !v
     defer alloc.free(weights);
 
     for (proto_array.items, project.prototypes, weights) |proto_value, *prototype, *w| {
-        try loadPrototye(alloc, proto_value, prototype, w);
+        try loadPrototype(alloc, proto_value, prototype, w);
     }
 
     try project.prototype_distribution.configure(alloc, weights, 0);
 }
 
-fn loadPrototye(alloc: Allocator, value: std.json.Value, prototype: *Prototype, weight: *f32) !void {
+fn loadPrototype(alloc: Allocator, value: std.json.Value, prototype: *Prototype, weight: *f32) !void {
     var w: f32 = 1.0;
-    var trafo = Transformation.Identity;
+    var trafo: Transformation = .identity;
     var position_jitter: Vec2f = @splat(0.0);
     var incline_jitter: Vec2f = @splat(0.0);
     var scale_range: Vec2f = @splat(1.0);

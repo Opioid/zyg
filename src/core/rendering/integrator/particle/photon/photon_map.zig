@@ -94,7 +94,7 @@ pub const Map = struct {
     fn calculateAabb(self: *Self, num_photons: u32, threads: *Threads) AABB {
         const num = threads.runRange(self, calculateAabbRange, 0, num_photons, 0);
 
-        var aabb = math.aabb.Empty;
+        var aabb: AABB = .empty;
         for (self.aabbs[0..num]) |b| {
             aabb.mergeAssign(b);
         }
@@ -107,7 +107,7 @@ pub const Map = struct {
     fn calculateAabbRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         const self: *Self = @ptrCast(@alignCast(context));
 
-        var aabb = math.aabb.Empty;
+        var aabb: AABB = .empty;
         for (self.photons[begin..end]) |p| {
             aabb.insert(p.p);
         }

@@ -1,5 +1,5 @@
-pub usingnamespace @import("aces.zig");
-pub usingnamespace @import("discrete.zig");
-pub usingnamespace @import("mapping.zig");
-pub usingnamespace @import("srgb.zig");
-pub usingnamespace @import("xyz.zig");
+pub const aces = @import("aces.zig");
+pub const DiscreteSpectralPowerDistribution = @import("discrete.zig").DiscreteSpectralPowerDistribution;
+pub const mapping = @import("mapping.zig");
+pub const srgb = @import("srgb.zig");
+pub const xyz = @import("xyz.zig");

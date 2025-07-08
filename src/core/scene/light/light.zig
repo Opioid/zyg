@@ -66,7 +66,7 @@ pub const Light = struct {
     pub fn power(self: Light, average_radiance: Vec4f, extent: f32, scene_bb: AABB, scene: *const Scene) Vec4f {
         const radiance = @as(Vec4f, @splat(extent)) * average_radiance;
 
-        if (scene.propShape(self.prop).finite() or scene_bb.empty()) {
+        if (scene.propShape(self.prop).finite() or scene_bb.equal(.empty)) {
             return radiance;
         }
 
@@ -89,6 +89,7 @@ pub const Light = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
+        time: u64,
         total_sphere: bool,
         split_threshold: f32,
         sampler: *Sampler,
@@ -96,7 +97,7 @@ pub const Light = struct {
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         return switch (self.class) {
-            .Prop => self.propSampleTo(p, n, trafo, total_sphere, split_threshold, sampler, scene, buffer),
+            .Prop => self.propSampleTo(p, n, trafo, time, total_sphere, split_threshold, sampler, scene, buffer),
             .PropImage => self.propSampleMaterialTo(p, n, trafo, total_sphere, split_threshold, sampler, scene, buffer),
             .Volume => self.volumeSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
             .VolumeImage => self.volumeImageSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
@@ -162,6 +163,7 @@ pub const Light = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
+        time: u64,
         total_sphere: bool,
         split_threshold: f32,
         sampler: *Sampler,
@@ -174,6 +176,8 @@ pub const Light = struct {
             p,
             n,
             trafo,
+            time,
+            scene.frame_start,
             self.part,
             self.variant,
             self.two_sided,
@@ -346,6 +350,8 @@ pub const Light = struct {
             vertex.origin,
             vertex.geo_n,
             frag,
+            vertex.probe.time,
+            scene.frame_start,
             total_sphere,
             split_threshold,
             material,

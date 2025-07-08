@@ -110,7 +110,7 @@ pub const Part = struct {
             var mt: u32 = 0;
             const len = tree.numTriangles();
             while (t < len) : (t += 1) {
-                if (tree.data.indexTriangle(t).part == part) {
+                if (tree.data.trianglePart(t) == part) {
                     triangle_mapping[mt] = t;
                     mt += 1;
                 }
@@ -254,7 +254,7 @@ pub const Part = struct {
     }
 
     const Temp = struct {
-        bb: AABB = math.aabb.Empty,
+        bb: AABB = .empty,
         dominant_axis: Vec4f = @splat(0.0),
         total_power: f32 = 0.0,
     };
@@ -294,7 +294,7 @@ pub const Part = struct {
 
                     var j: u32 = 0;
                     while (j < num_samples) : (j += 1) {
-                        const xi = math.hammersley(j, num_samples, 0);
+                        const xi = math.distr.hammersley(j, num_samples, 0);
                         const s2 = math.smpl.triangleUniform(xi);
                         const uv = self.tree.data.interpolateUv(itri, s2[0], s2[1]);
 
@@ -434,7 +434,15 @@ pub const Mesh = struct {
         return self.tree.intersect(local_ray, trafo, isec);
     }
 
-    pub fn intersectOpacity(self: *const Mesh, ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, isec: *Intersection) bool {
+    pub fn intersectOpacity(
+        self: *const Mesh,
+        ray: Ray,
+        trafo: Trafo,
+        entity: u32,
+        sampler: *Sampler,
+        scene: *const Scene,
+        isec: *Intersection,
+    ) bool {
         const local_ray = trafo.worldToObjectRay(ray);
         return self.tree.intersectOpacity(local_ray, trafo, entity, sampler, scene, isec);
     }
@@ -442,32 +450,27 @@ pub const Mesh = struct {
     pub fn fragment(self: *const Mesh, frag: *Fragment) void {
         const data = self.tree.data;
 
-        const itri = data.indexTriangle(frag.isec.primitive);
-
-        frag.part = itri.part;
+        frag.part = data.trianglePart(frag.isec.primitive);
 
         const hit_u = frag.isec.u;
         const hit_v = frag.isec.v;
 
-        const p = data.interpolateP(itri, hit_u, hit_v);
-        frag.p = frag.isec.trafo.objectToWorldPoint(p);
+        const itri = data.indexTriangle(frag.isec.primitive);
 
         const geo_n = data.normal(itri);
         frag.geo_n = frag.isec.trafo.objectToWorldNormal(geo_n);
 
+        var p: Vec4f = undefined;
         var t: Vec4f = undefined;
+        var b: Vec4f = undefined;
         var n: Vec4f = undefined;
         var uv: Vec2f = undefined;
-        var bit_sign: f32 = undefined;
-        data.interpolateData(itri, hit_u, hit_v, &t, &n, &uv, &bit_sign);
+        data.interpolateData(itri, hit_u, hit_v, &p, &t, &b, &n, &uv);
 
-        const t_w = frag.isec.trafo.objectToWorldNormal(t);
-        const n_w = frag.isec.trafo.objectToWorldNormal(n);
-        const b_w = @as(Vec4f, @splat(bit_sign)) * math.cross3(n_w, t_w);
-
-        frag.t = t_w;
-        frag.b = b_w;
-        frag.n = n_w;
+        frag.p = frag.isec.trafo.objectToWorldPoint(p);
+        frag.t = frag.isec.trafo.objectToWorldNormal(t);
+        frag.b = frag.isec.trafo.objectToWorldNormal(b);
+        frag.n = frag.isec.trafo.objectToWorldNormal(n);
         frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
     }
 
@@ -502,18 +505,6 @@ pub const Mesh = struct {
         return self.tree.transmittance(local_ray, trafo, entity, probe.depth.volume, sampler, context, tr);
     }
 
-    pub fn emission(
-        self: *const Mesh,
-        vertex: *const Vertex,
-        frag: *Fragment,
-        split_threshold: f32,
-        sampler: *Sampler,
-        context: Context,
-    ) Vec4f {
-        const tray = frag.isec.trafo.worldToObjectRay(vertex.probe.ray);
-        return self.tree.emission(tray, vertex, frag, split_threshold, sampler, context);
-    }
-
     pub fn scatter(
         self: *const Mesh,
         probe: Probe,
@@ -523,8 +514,20 @@ pub const Mesh = struct {
         sampler: *Sampler,
         context: Context,
     ) Volume {
-        const tray = trafo.worldToObjectRay(probe.ray);
-        return self.tree.scatter(tray, trafo, throughput, entity, probe.depth.volume, sampler, context);
+        const local_ray = trafo.worldToObjectRay(probe.ray);
+        return self.tree.scatter(local_ray, trafo, throughput, entity, probe.depth.volume, sampler, context);
+    }
+
+    pub fn emission(
+        self: *const Mesh,
+        vertex: *const Vertex,
+        frag: *Fragment,
+        split_threshold: f32,
+        sampler: *Sampler,
+        context: Context,
+    ) Vec4f {
+        const local_ray = frag.isec.trafo.worldToObjectRay(vertex.probe.ray);
+        return self.tree.emission(local_ray, vertex, frag, split_threshold, sampler, context);
     }
 
     //Gram-Schmidt method
@@ -859,8 +862,9 @@ pub const Mesh = struct {
         var t: u32 = 0;
         const nt = self.tree.numTriangles();
         while (t < nt) : (t += 1) {
+            const trip = self.tree.data.trianglePart(t);
             const itri = self.tree.data.indexTriangle(t);
-            self.parts[itri.part].area += self.tree.data.triangleArea(itri);
+            self.parts[trip].area += self.tree.data.triangleArea(itri);
         }
     }
 
@@ -882,8 +886,8 @@ pub const Mesh = struct {
 
             var i: u32 = 0;
             while (i < num_triangles) : (i += 1) {
-                const itri = self.tree.data.indexTriangle(i);
-                const p = &self.parts[itri.part];
+                const trip = self.tree.data.trianglePart(i);
+                const p = &self.parts[trip];
                 const pm = p.num_triangles;
                 p.num_triangles = pm + 1;
                 primitive_mapping[i] = pm;
@@ -895,35 +899,10 @@ pub const Mesh = struct {
         return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
     }
 
-    pub fn surfaceDifferential(self: *const Mesh, primitive: u32, trafo: Trafo) DifferentialSurface {
+    pub fn surfaceDifferentials(self: *const Mesh, primitive: u32, trafo: Trafo) DifferentialSurface {
         const puv = self.tree.data.trianglePuv(self.tree.data.indexTriangle(primitive));
 
-        const duv02 = puv.uv[0] - puv.uv[2];
-        const duv12 = puv.uv[1] - puv.uv[2];
-        const determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
-
-        const dp02 = puv.p[0] - puv.p[2];
-        const dp12 = puv.p[1] - puv.p[2];
-
-        var dpdu: Vec4f = undefined;
-        var dpdv: Vec4f = undefined;
-
-        if (0.0 == @abs(determinant)) {
-            const ng = math.normalize3(math.cross3(puv.p[2] - puv.p[0], puv.p[1] - puv.p[0]));
-
-            if (@abs(ng[0]) > @abs(ng[1])) {
-                dpdu = Vec4f{ -ng[2], 0.0, ng[0], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[0] * ng[0] + ng[2] * ng[2])));
-            } else {
-                dpdu = Vec4f{ 0.0, ng[2], -ng[1], 0.0 } / @as(Vec4f, @splat(@sqrt(ng[1] * ng[1] + ng[2] * ng[2])));
-            }
-
-            dpdv = math.cross3(ng, dpdu);
-        } else {
-            const invdet: Vec4f = @splat(1.0 / determinant);
-
-            dpdu = invdet * (@as(Vec4f, @splat(duv12[1])) * dp02 - @as(Vec4f, @splat(duv02[1])) * dp12);
-            dpdv = invdet * (@as(Vec4f, @splat(-duv12[0])) * dp02 + @as(Vec4f, @splat(duv02[0])) * dp12);
-        }
+        const dpdu, const dpdv = tri.positionDifferentials(puv.p[0], puv.p[1], puv.p[2], puv.uv[0], puv.uv[1], puv.uv[2]);
 
         const dpdu_w = trafo.objectToWorldVector(dpdu);
         const dpdv_w = trafo.objectToWorldVector(dpdv);

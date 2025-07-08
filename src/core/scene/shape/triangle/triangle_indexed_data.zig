@@ -14,27 +14,28 @@ const Allocator = std.mem.Allocator;
 pub const IndexedData = struct {
     pub const Fragment = triangle.Fragment;
 
-    const Triangle = packed struct {
+    const Triangle = struct {
         a: u32,
         b: u32,
         c: u32,
-        part: u32,
     };
 
     num_triangles: u32 = 0,
     num_vertices: u32 = 0,
 
     triangles: [*]Triangle = undefined,
+    triangle_parts: [*]u16 = undefined,
     positions: [*]f32 = undefined,
-    frames: [*]Vec4f = undefined,
+    normals: [*]f32 = undefined,
     uvs: [*]Vec2f = undefined,
 
     const Self = @This();
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
         alloc.free(self.uvs[0..self.num_vertices]);
-        alloc.free(self.frames[0..self.num_vertices]);
+        alloc.free(self.normals[0 .. self.num_vertices * 3 + 1]);
         alloc.free(self.positions[0 .. self.num_vertices * 3 + 1]);
+        alloc.free(self.triangle_parts[0..self.num_triangles]);
         alloc.free(self.triangles[0..self.num_triangles]);
     }
 
@@ -44,21 +45,28 @@ pub const IndexedData = struct {
         self.num_triangles = num_triangles;
         self.num_vertices = num_vertices;
 
-        self.triangles = (try alloc.alignedAlloc(Triangle, .@"16", num_triangles)).ptr;
+        self.triangles = (try alloc.alloc(Triangle, num_triangles)).ptr;
+        self.triangle_parts = (try alloc.alloc(u16, num_triangles)).ptr;
         self.positions = (try alloc.alloc(f32, num_vertices * 3 + 1)).ptr;
-        self.frames = (try alloc.alloc(Vec4f, num_vertices)).ptr;
+        self.normals = (try alloc.alloc(f32, num_vertices * 3 + 1)).ptr;
         self.uvs = (try alloc.alloc(Vec2f, num_vertices)).ptr;
 
-        vertices.copy(self.positions, self.frames, self.uvs, num_vertices);
+        vertices.copy(self.positions, self.normals, self.uvs, num_vertices);
         self.positions[num_vertices * 3] = 0.0;
+        self.normals[num_vertices * 3] = 0.0;
     }
 
-    pub fn setTriangle(self: *Self, triangle_id: u32, a: u32, b: u32, c: u32, p: u32) void {
-        self.triangles[triangle_id] = .{ .a = a, .b = b, .c = c, .part = p };
+    pub fn setTriangle(self: *Self, triangle_id: u32, a: u32, b: u32, c: u32, part: u32) void {
+        self.triangles[triangle_id] = .{ .a = a, .b = b, .c = c };
+        self.triangle_parts[triangle_id] = @truncate(part);
     }
 
     inline fn position(self: Self, index: u32) Vec4f {
         return self.positions[index * 3 ..][0..4].*;
+    }
+
+    inline fn shadingNormal(self: Self, index: u32) Vec4f {
+        return self.normals[index * 3 ..][0..4].*;
     }
 
     pub fn intersect(self: Self, ray: Ray, index: u32) ?triangle.Fragment {
@@ -85,6 +93,10 @@ pub const IndexedData = struct {
         return self.triangles[index];
     }
 
+    pub fn trianglePart(self: Self, index: u32) u32 {
+        return self.triangle_parts[index];
+    }
+
     pub fn interpolateP(self: Self, tri: Triangle, u: f32, v: f32) Vec4f {
         const a = self.position(tri.a);
         const b = self.position(tri.b);
@@ -93,24 +105,34 @@ pub const IndexedData = struct {
         return triangle.interpolate3(a, b, c, u, v);
     }
 
-    pub fn interpolateData(self: Self, tri: Triangle, u: f32, v: f32, t: *Vec4f, n: *Vec4f, uv: *Vec2f, bit_sign: *f32) void {
-        const tna = quaternion.signedToTN(self.frames[tri.a]);
+    pub fn interpolateData(self: Self, tri: Triangle, u: f32, v: f32, p: *Vec4f, t: *Vec4f, b: *Vec4f, n: *Vec4f, uv: *Vec2f) void {
+        const pa = self.position(tri.a);
+        const pb = self.position(tri.b);
+        const pc = self.position(tri.c);
+        p.* = triangle.interpolate3(pa, pb, pc, u, v);
+
         const uva = self.uvs[tri.a];
-
-        const tnb = quaternion.signedToTN(self.frames[tri.b]);
         const uvb = self.uvs[tri.b];
-
-        const tnc = quaternion.signedToTN(self.frames[tri.c]);
         const uvc = self.uvs[tri.c];
+        uv.* = triangle.interpolate2(uva, uvb, uvc, u, v);
 
-        const ti = triangle.interpolate3(tna[0], tnb[0], tnc[0], u, v);
-        const ni = triangle.interpolate3(tna[1], tnb[1], tnc[1], u, v);
-        const uvi = triangle.interpolate2(uva, uvb, uvc, u, v);
+        const nb = self.shadingNormal(tri.b);
+        const na = self.shadingNormal(tri.a);
+        const nc = self.shadingNormal(tri.c);
+        const nv = triangle.interpolate3(na, nb, nc, u, v);
 
-        t.* = math.normalize3(ti);
-        n.* = math.normalize3(ni);
-        uv.* = uvi;
-        bit_sign.* = std.math.copysign(@as(f32, 1.0), tna[0][3] + tnb[0][3] + tnc[0][3]);
+        const ni = math.normalize3(nv);
+
+        n.* = ni;
+
+        const dpdu, const dpdv = triangle.positionDifferentials(pa, pb, pc, uva, uvb, uvc);
+
+        t.* = math.normalize3(gramSchmidt(dpdu, ni));
+        b.* = math.normalize3(gramSchmidt(dpdv, ni));
+    }
+
+    fn gramSchmidt(v: Vec4f, w: Vec4f) Vec4f {
+        return v - @as(Vec4f, @splat(math.dot3(v, w))) * w;
     }
 
     pub fn interpolateUv(self: Self, tri: Triangle, u: f32, v: f32) Vec2f {

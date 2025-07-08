@@ -147,7 +147,7 @@ pub const Writer = struct {
         const range = max - min;
 
         for (data, 0..) |p, i| {
-            const turbo = spectrum.turbo((p - min) / range);
+            const turbo = spectrum.mapping.turbo((p - min) / range);
 
             buffer[i * 3 + 0] = turbo[0];
             buffer[i * 3 + 1] = turbo[1];

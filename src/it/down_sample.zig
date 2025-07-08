@@ -37,7 +37,7 @@ pub const DownSample = struct {
 
                 const average = @as(Vec4f, @splat(0.25)) * (a + b + c + d);
 
-                const srgb = spectrum.AP1tosRGB(average);
+                const srgb = spectrum.aces.AP1tosRGB(average);
 
                 target.set2D(ix, iy, Pack4f.init4(srgb[0], srgb[1], srgb[2], 1.0));
             }

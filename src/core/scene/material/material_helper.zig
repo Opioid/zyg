@@ -97,7 +97,7 @@ pub fn triplanarMapping(p: Vec4f, n: Vec4f) Vec2f {
     }
 }
 
-pub fn triplanarDifferential(wn: Vec4f, trafo: Trafo) DifferentialSurface {
+pub fn triplanarDifferentials(wn: Vec4f, trafo: Trafo) DifferentialSurface {
     const n = trafo.worldToObjectNormal(wn);
 
     const an = @abs(n);

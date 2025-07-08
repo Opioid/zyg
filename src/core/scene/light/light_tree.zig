@@ -510,7 +510,7 @@ pub const PrimitiveTree = struct {
 
     const TraversalStack = TraversalStackT(MaxSplitDepth);
 
-    bounds: AABB = math.aabb.Empty,
+    bounds: AABB = .empty,
 
     num_lights: u32 = 0,
     num_nodes: u32 = 0,

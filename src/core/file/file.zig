@@ -11,7 +11,6 @@ pub const Type = enum {
     PNG,
     RGBE,
     SUB,
-    ZSTD,
 };
 
 pub fn queryType(stream: ReadStream) Type {
