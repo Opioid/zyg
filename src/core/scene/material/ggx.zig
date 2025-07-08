@@ -14,14 +14,14 @@ const std = @import("std");
 pub const MinRoughness: f32 = 0.01314;
 pub const MinAlpha: f32 = MinRoughness * MinRoughness;
 
-const E_m_tex = math.ifunc.InterpolatedFunction2D_N(
+const E_m_tex = math.ifunc.InterpolatedFunction2DN(
     integral.E_m_size,
     integral.E_m_size,
 ).fromArray(&integral.E_m);
 
-const E_m_avg_tex = math.ifunc.InterpolatedFunction1D_N(integral.E_m_avg.len).fromArray(&integral.E_m_avg);
+const E_m_avg_tex = math.ifunc.InterpolatedFunction1DN(integral.E_m_avg.len).fromArray(&integral.E_m_avg);
 
-const E_s_tex = math.ifunc.InterpolatedFunction3D_N(
+const E_s_tex = math.ifunc.InterpolatedFunction3DN(
     integral.E_s_size,
     integral.E_s_size,
     integral.E_s_size,

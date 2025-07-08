@@ -5,9 +5,14 @@ const Scene = @import("../scene/scene.zig").Scene;
 const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
+const Vec2f = math.Vec2f;
 const Vec4i = math.Vec4i;
 
+const std = @import("std");
+
 pub const Base = struct {
+    const N = 63;
+
     const DefaultFrameTime = Scene.UnitsPerSecond / 60;
 
     entity: u32 = Prop.Null,
@@ -20,6 +25,8 @@ pub const Base = struct {
     frame_step: u64 = DefaultFrameTime,
     frame_duration: u64 = DefaultFrameTime,
 
+    shutter_distribution: math.Distribution1DN(N) = .{},
+
     const Self = @This();
 
     pub fn setResolution(self: *Self, resolution: Vec2i, crop: Vec4i) void {
@@ -31,6 +38,37 @@ pub const Base = struct {
         cc[0] = @min(cc[0], cc[2]);
         cc[1] = @min(cc[1], cc[3]);
         self.crop = cc;
+    }
+
+    pub fn setShutter(self: *Self, shutter: Vec2f) void {
+        var shutter_function: [N]f32 = undefined;
+
+        for (0..N) |i| {
+            const t = @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(N - 1));
+            const f = evalShutter(shutter[0], shutter[1], t);
+
+            shutter_function[i] = f;
+        }
+
+        self.shutter_distribution.configure(shutter_function);
+    }
+
+    fn evalShutter(open: f32, close: f32, t: f32) f32 {
+        if (t < open) {
+            return math.lerp(0.0, 1.0, t / open);
+        } else if (t > close) {
+            return math.lerp(1.0, 0.0, (t - close) / (1.0 - close));
+        }
+
+        return 1.0;
+    }
+
+    pub fn sampleShutterTime(self: Self, t: f32) f32 {
+        if (self.shutter_distribution.integral < 0.0) {
+            return t;
+        }
+
+        return self.shutter_distribution.sampleContinous(t).offset;
     }
 
     pub fn absoluteTime(self: Self, frame: u32, frame_delta: f32) u64 {

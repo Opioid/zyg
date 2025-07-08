@@ -110,6 +110,8 @@ pub const Orthographic = struct {
                 } else {
                     self.super.frame_step = @intFromFloat(@round(@as(f64, @floatFromInt(Scene.UnitsPerSecond)) / fps));
                 }
+            } else if (std.mem.eql(u8, "shutter", entry.key_ptr.*)) {
+                self.super.setShutter(json.readVec2f(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "motion_blur", entry.key_ptr.*)) {
                 motion_blur = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "size", entry.key_ptr.*)) {

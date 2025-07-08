@@ -145,14 +145,66 @@ pub const Distribution1D = struct {
     fn map(self: Self, s: f32) u32 {
         return @intFromFloat(s * self.lut_range);
     }
+};
 
-    fn search(buffer: [*]const f32, begin: u32, end: u32, key: f32) u32 {
-        for (buffer[begin..end], begin..) |b, i| {
-            if (b >= key) {
-                return @intCast(i);
+pub fn Distribution1DN(comptime N: u32) type {
+    return struct {
+        integral: f32 = -1.0,
+
+        cdf: [N + 1]f32 = undefined,
+
+        const Self = @This();
+
+        const Num_samples = N;
+
+        pub fn configure(self: *Self, data: [N]f32) void {
+            var integral: f32 = 0.0;
+            for (data) |d| {
+                integral += d;
             }
+
+            const ii = 1.0 / integral;
+
+            var p: f32 = 0.0;
+            self.cdf[0] = 0.0;
+
+            for (data[0 .. data.len - 1], self.cdf[1..data.len]) |d, *cdf| {
+                const c = @mulAdd(f32, d, ii, p);
+                cdf.* = c;
+                p = c;
+            }
+
+            self.cdf[data.len] = 1.0;
+            self.integral = integral;
         }
 
-        return end;
+        pub fn sampleContinous(self: Self, r: f32) Distribution1D.Continuous {
+            const offset = self.sample(r);
+
+            const c = self.cdf[offset + 1];
+            const v = c - self.cdf[offset];
+
+            if (0.0 == v) {
+                return .{ .offset = 0.0, .pdf = 0.0 };
+            }
+
+            const t = (c - r) / v;
+            const result = (@as(f32, @floatFromInt(offset)) + t) / @as(f32, @floatFromInt(N));
+            return .{ .offset = result, .pdf = v };
+        }
+
+        fn sample(self: Self, r: f32) u32 {
+            return search(&self.cdf, 1, N, r) - 1;
+        }
+    };
+}
+
+fn search(buffer: [*]const f32, begin: u32, end: u32, key: f32) u32 {
+    for (buffer[begin..end], begin..) |b, i| {
+        if (b >= key) {
+            return @intCast(i);
+        }
     }
-};
+
+    return end;
+}

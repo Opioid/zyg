@@ -1,6 +1,8 @@
 pub const AABB = @import("aabb.zig").AABB;
 pub const cone = @import("cone.zig");
-pub const Distribution1D = @import("distribution_1d.zig").Distribution1D;
+const dist1D = @import("distribution_1d.zig");
+pub const Distribution1D = dist1D.Distribution1D;
+pub const Distribution1DN = dist1D.Distribution1DN;
 pub const Distribution2D = @import("distribution_2d.zig").Distribution2D;
 pub const Distribution3D = @import("distribution_3d.zig").Distribution3D;
 pub const Frame = @import("frame.zig").Frame;

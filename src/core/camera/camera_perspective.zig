@@ -139,7 +139,8 @@ pub const Perspective = struct {
             origin = self.eye_offsets[layer];
         }
 
-        const time = self.super.absoluteTime(frame, sample.time);
+        const shutter_time = self.super.sampleShutterTime(sample.time);
+        const time = self.super.absoluteTime(frame, shutter_time);
         const trafo = scene.propTransformationAt(self.super.entity, time);
 
         const origin_w = trafo.objectToWorldPoint(origin);
@@ -270,6 +271,8 @@ pub const Perspective = struct {
                 } else {
                     self.super.frame_step = @intFromFloat(@round(@as(f64, @floatFromInt(Scene.UnitsPerSecond)) / fps));
                 }
+            } else if (std.mem.eql(u8, "shutter", entry.key_ptr.*)) {
+                self.super.setShutter(json.readVec2f(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "motion_blur", entry.key_ptr.*)) {
                 motion_blur = json.readBool(entry.value_ptr.*);
             } else if (std.mem.eql(u8, "fov", entry.key_ptr.*)) {

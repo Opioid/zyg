@@ -102,7 +102,7 @@ pub fn InterpolatedFunction2D(comptime T: type) type {
     };
 }
 
-pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
+pub fn InterpolatedFunction1DN(comptime N: comptime_int) type {
     return struct {
         range_end: f32,
         inverse_interval: f32,
@@ -166,7 +166,7 @@ pub fn InterpolatedFunction1D_N(comptime N: comptime_int) type {
     };
 }
 
-pub fn InterpolatedFunction2D_N(comptime X: comptime_int, comptime Y: comptime_int) type {
+pub fn InterpolatedFunction2DN(comptime X: comptime_int, comptime Y: comptime_int) type {
     return struct {
         samples: [X * Y]f32 = undefined,
 
@@ -208,7 +208,7 @@ pub fn InterpolatedFunction2D_N(comptime X: comptime_int, comptime Y: comptime_i
     };
 }
 
-pub fn InterpolatedFunction3D_N(comptime X: comptime_int, comptime Y: comptime_int, comptime Z: comptime_int) type {
+pub fn InterpolatedFunction3DN(comptime X: comptime_int, comptime Y: comptime_int, comptime Z: comptime_int) type {
     return struct {
         samples: [X * Y * Z]f32 = undefined,
 
