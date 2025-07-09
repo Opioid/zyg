@@ -40,12 +40,14 @@ pub const Base = struct {
         self.crop = cc;
     }
 
-    pub fn setShutter(self: *Self, shutter: Vec2f) void {
+    pub fn setShutter(self: *Self, open: f32, close: f32) void {
+        const nf: f32 = @floatFromInt(N - 1);
+
         var shutter_function: [N]f32 = undefined;
 
         for (0..N) |i| {
-            const t = @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(N - 1));
-            const f = evalShutter(shutter[0], shutter[1], t);
+            const t = @as(f32, @floatFromInt(i)) / nf;
+            const f = evalShutter(open, close, t);
 
             shutter_function[i] = f;
         }

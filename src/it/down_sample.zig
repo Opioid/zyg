@@ -1,7 +1,7 @@
 const core = @import("core");
 const Texture = core.tx.Texture;
 const image = core.image;
-const scn = core.scn;
+const scn = core.scene;
 
 const base = @import("base");
 const math = base.math;

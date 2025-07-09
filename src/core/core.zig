@@ -6,8 +6,8 @@ pub const progress = @import("progress.zig");
 pub const rendering = @import("rendering/driver.zig");
 pub const resource = @import("resource/manager.zig");
 pub const sampler = @import("sampler/sampler.zig");
-pub const scn = @import("scene/scene.zig");
-pub const tk = @import("take/take.zig");
+pub const scene = @import("scene/scene.zig");
+pub const take = @import("take/take.zig");
 pub const tx = @import("texture/texture_provider.zig");
 
 pub const ex = @import("exporting/ffmpeg.zig");

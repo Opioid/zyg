@@ -9,7 +9,7 @@ const core = @import("core");
 const log = core.log;
 const rendering = core.rendering;
 const resource = core.resource;
-const scn = core.scn;
+const scn = core.scene;
 
 const base = @import("base");
 const chrono = base.chrono;

@@ -3,7 +3,7 @@ const Denoise = @import("denoise.zig").Denoise;
 const DownSample = @import("down_sample.zig").DownSample;
 
 const core = @import("core");
-const scn = core.scn;
+const scn = core.scene;
 const img = core.image;
 
 const base = @import("base");

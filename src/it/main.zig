@@ -5,7 +5,7 @@ const core = @import("core");
 const log = core.log;
 const img = core.image;
 const resource = core.resource;
-const scn = core.scn;
+const scn = core.scene;
 const tk = core.tk;
 
 const base = @import("base");

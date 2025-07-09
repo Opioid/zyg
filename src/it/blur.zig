@@ -1,6 +1,6 @@
 const core = @import("core");
 const image = core.image;
-const scn = core.scn;
+const scn = core.scene;
 
 const base = @import("base");
 const math = base.math;

@@ -1,4 +1,4 @@
-const Base = @import("camera_base.zig").Base;
+pub const Base = @import("camera_base.zig").Base;
 pub const Orthographic = @import("camera_orthographic.zig").Orthographic;
 pub const Perspective = @import("camera_perspective.zig").Perspective;
 const cs = @import("camera_sample.zig");

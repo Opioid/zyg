@@ -1,7 +1,6 @@
 const Graph = @import("scene_graph.zig").Graph;
 const Keyframe = @import("animation.zig").Keyframe;
-
-const Scene = @import("core").scn.Scene;
+const Scene = @import("core").scene.Scene;
 
 const base = @import("base");
 const json = base.json;
