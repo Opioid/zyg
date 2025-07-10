@@ -165,8 +165,11 @@ fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources:
 fn loadShutter(value: std.json.Value, camera: *cam.Base) void {
     var motion_blur = true;
 
-    var shutter_open: f32 = 0.0;
-    var shutter_close: f32 = 1.0;
+    var open: f32 = 0.0;
+    var close: f32 = 1.0;
+
+    var slope_buffer: [8]f32 = undefined;
+    var slope: []f32 = &.{};
 
     var iter = value.object.iterator();
     while (iter.next()) |entry| {
@@ -180,15 +183,21 @@ fn loadShutter(value: std.json.Value, camera: *cam.Base) void {
                 camera.frame_step = @intFromFloat(@round(@as(f64, @floatFromInt(core.scene.Scene.UnitsPerSecond)) / fps));
             }
         } else if (std.mem.eql(u8, "open", entry.key_ptr.*)) {
-            shutter_open = json.readFloat(f32, entry.value_ptr.*);
+            open = json.readFloat(f32, entry.value_ptr.*);
         } else if (std.mem.eql(u8, "close", entry.key_ptr.*)) {
-            shutter_close = json.readFloat(f32, entry.value_ptr.*);
+            close = json.readFloat(f32, entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "slope", entry.key_ptr.*)) {
+            const num_elem = @min(slope_buffer.len, entry.value_ptr.array.items.len);
+            for (0..num_elem) |i| {
+                slope_buffer[i] = json.readFloat(f32, entry.value_ptr.array.items[i]);
+            }
+            slope = slope_buffer[0..num_elem];
         } else if (std.mem.eql(u8, "motion_blur", entry.key_ptr.*)) {
             motion_blur = json.readBool(entry.value_ptr.*);
         }
     }
 
-    camera.setShutter(shutter_open, shutter_close);
+    camera.setShutter(open, close, slope);
 
     camera.frame_duration = if (motion_blur) camera.frame_step else 0;
 }

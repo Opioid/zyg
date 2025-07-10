@@ -208,13 +208,19 @@ pub const Generator = struct {
 
                 out_pos[i] = math.vec4fTo3f(pos);
 
-                const max_age: f32 = @floatFromInt(state.max_ages[i] - 1);
-                const age: f32 = @floatFromInt(state.ages[i]);
+                // const max_age: f32 = @floatFromInt(state.max_ages[i] - 1);
+                // const age: f32 = @floatFromInt(state.ages[i]);
 
-                const decay_age = 0.8 * max_age;
+                // const decay_age = 0.8 * max_age;
 
-                if (age > decay_age) {
-                    out_radius[i] = ((age - max_age) / (decay_age - max_age)) * point_radius;
+                // if (age > decay_age) {
+                //     out_radius[i] = ((age - max_age) / (decay_age - max_age)) * point_radius;
+                // } else {
+                //     out_radius[i] = point_radius;
+                // }
+
+                if (state.ages[i] >= (state.max_ages[i] - 1)) {
+                    out_radius[i] = 0.0;
                 } else {
                     out_radius[i] = point_radius;
                 }
