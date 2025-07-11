@@ -12,13 +12,13 @@ const Ray = math.Ray;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const IndexedData = struct {
-    pub const Fragment = struct {
+pub const Data = struct {
+    pub const Hit = struct {
         t: f32,
         u: f32,
     };
 
-    pub const Data = struct {
+    const Fragment = struct {
         geo_n: Vec4f,
         dpdu: Vec4f,
         dpdv: Vec4f,
@@ -65,7 +65,7 @@ pub const IndexedData = struct {
         self.partitions[curve_id] = partition;
     }
 
-    pub fn intersect(self: *const Self, ray: Ray, id: u32) ?Fragment {
+    pub fn intersect(self: *const Self, ray: Ray, id: u32) ?Hit {
         const index = self.indices[id];
 
         const partition = curve.partition(self.curvePoints(index), self.partitions[id]);
@@ -117,7 +117,7 @@ pub const IndexedData = struct {
         return recursiveIntersectSegmentP(ray, cpr, width, partition.u_range, depth);
     }
 
-    pub fn interpolateData(self: *const Self, ray: Ray, id: u32, u: f32) Data {
+    pub fn interpolateData(self: *const Self, ray: Ray, id: u32, u: f32) Fragment {
         const index = self.indices[id];
 
         const cp = self.curvePoints(index);
@@ -181,7 +181,7 @@ pub const IndexedData = struct {
         width: Vec2f,
         u_range: Vec2f,
         depth: u32,
-    ) ?Fragment {
+    ) ?Hit {
         const curve_bounds = segmentBounds(cp, width, u_range);
         const ray_bounds = AABB.init(@splat(0.0), .{ 0.0, 0.0, math.length3(ray.direction) * ray.max_t, 0.0 });
         if (!curve_bounds.overlaps(ray_bounds)) {
@@ -211,7 +211,7 @@ pub const IndexedData = struct {
         return hit0;
     }
 
-    fn intersectSegment(ray: Ray, cp: [4]Vec4f, width: Vec2f, u_range: Vec2f) ?Fragment {
+    fn intersectSegment(ray: Ray, cp: [4]Vec4f, width: Vec2f, u_range: Vec2f) ?Hit {
         if (!testTangents(cp)) {
             return null;
         }

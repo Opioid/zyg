@@ -6,13 +6,12 @@ const Vec2f = math.Vec2f;
 const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
-const quaternion = math.quaternion;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const IndexedData = struct {
-    pub const Fragment = triangle.Fragment;
+pub const Data = struct {
+    pub const Hit = triangle.Hit;
 
     const Triangle = struct {
         a: u32,
@@ -69,7 +68,7 @@ pub const IndexedData = struct {
         return self.normals[index * 3 ..][0..4].*;
     }
 
-    pub fn intersect(self: Self, ray: Ray, index: u32) ?triangle.Fragment {
+    pub fn intersect(self: Self, ray: Ray, index: u32) ?Hit {
         const tri = self.triangles[index];
 
         const a = self.position(tri.a);

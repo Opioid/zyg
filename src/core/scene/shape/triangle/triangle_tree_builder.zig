@@ -1,6 +1,5 @@
 const Tree = @import("triangle_tree.zig").Tree;
 const tri = @import("triangle.zig");
-const IndexTriangle = tri.IndexTriangle;
 const VertexBuffer = @import("vertex_buffer.zig").Buffer;
 const Reference = @import("../../bvh/split_candidate.zig").Reference;
 const Base = @import("../../bvh/builder_base.zig").Base;
@@ -14,6 +13,11 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Builder = struct {
+    pub const IndexTriangle = struct {
+        i: [3]u32,
+        part: u32,
+    };
+
     super: Base,
 
     pub fn init(alloc: Allocator, num_slices: u32, sweep_threshold: u32, max_primitives: u32) !Builder {

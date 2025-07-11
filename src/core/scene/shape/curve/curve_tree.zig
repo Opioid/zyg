@@ -1,4 +1,4 @@
-pub const IndexedData = @import("curve_indexed_data.zig").IndexedData;
+const Data = @import("curve_data.zig").Data;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Node = @import("../../bvh/node.zig").Node;
 const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
@@ -15,7 +15,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Tree = struct {
     nodes: []Node = &.{},
-    data: IndexedData = .{},
+    data: Data = .{},
 
     pub fn allocateNodes(self: *Tree, alloc: Allocator, num_nodes: u32) !void {
         self.nodes = try alloc.alloc(Node, num_nodes);
@@ -31,14 +31,14 @@ pub const Tree = struct {
     }
 
     pub fn intersect(self: Tree, ray: Ray, trafo: Trafo, isec: *Intersection) bool {
-        var tray = ray;
+        var local_ray = trafo.worldToObjectRay(ray);
 
         var stack = NodeStack{};
         var n: u32 = 0;
 
         const nodes = self.nodes;
 
-        var hpoint: IndexedData.Fragment = undefined;
+        var hpoint: Data.Hit = undefined;
         var primitive = Intersection.Null;
 
         while (NodeStack.End != n) {
@@ -49,8 +49,8 @@ pub const Tree = struct {
                 var i = node.indicesStart();
                 const e = i + num;
                 while (i < e) : (i += 1) {
-                    if (self.data.intersect(tray, i)) |hit| {
-                        tray.max_t = hit.t;
+                    if (self.data.intersect(local_ray, i)) |hit| {
+                        local_ray.max_t = hit.t;
                         hpoint = hit;
                         primitive = i;
                     }
@@ -63,8 +63,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = nodes[a].intersect(tray);
-            var distb = nodes[b].intersect(tray);
+            var dista = nodes[a].intersect(local_ray);
+            var distb = nodes[b].intersect(local_ray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);

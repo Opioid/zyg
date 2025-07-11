@@ -23,8 +23,7 @@ pub const Mesh = struct {
     }
 
     pub fn intersect(self: *const Mesh, ray: Ray, trafo: Trafo, isec: *Intersection) bool {
-        const local_ray = trafo.worldToObjectRay(ray);
-        return self.tree.intersect(local_ray, trafo, isec);
+        return self.tree.intersect(ray, trafo, isec);
     }
 
     pub fn fragment(self: *const Mesh, ray: Ray, frag: *Fragment) void {
@@ -54,15 +53,5 @@ pub const Mesh = struct {
     pub fn intersectP(self: *const Mesh, ray: Ray, trafo: Trafo) bool {
         const local_ray = trafo.worldToObjectRay(ray);
         return self.tree.intersectP(local_ray);
-    }
-
-    pub fn visibility(self: *const Mesh, ray: Ray, trafo: Trafo, tr: *Vec4f) bool {
-        _ = tr;
-
-        if (self.intersectP(ray, trafo)) {
-            return false;
-        }
-
-        return true;
     }
 };

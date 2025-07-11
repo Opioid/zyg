@@ -1,4 +1,4 @@
-pub const IndexedData = @import("triangle_indexed_data.zig").IndexedData;
+const Data = @import("triangle_data.zig").Data;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Context = @import("../../context.zig").Context;
 const Scene = @import("../../scene.zig").Scene;
@@ -24,7 +24,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Tree = struct {
     nodes: []Node = &.{},
-    data: IndexedData = .{},
+    data: Data = .{},
 
     pub fn allocateNodes(self: *Tree, alloc: Allocator, num_nodes: u32) !void {
         self.nodes = try alloc.alloc(Node, num_nodes);
@@ -44,12 +44,12 @@ pub const Tree = struct {
     }
 
     pub fn intersect(self: Tree, ray: Ray, trafo: Trafo, isec: *Intersection) bool {
-        var tray = ray;
+        var local_ray = trafo.worldToObjectRay(ray);
 
         var stack = NodeStack{};
         var n: u32 = 0;
 
-        var hpoint: IndexedData.Fragment = undefined;
+        var hpoint: Data.Hit = undefined;
         var primitive = Intersection.Null;
 
         const nodes = self.nodes;
@@ -62,8 +62,8 @@ pub const Tree = struct {
                 var i = node.indicesStart();
                 const e = i + num;
                 while (i < e) : (i += 1) {
-                    if (self.data.intersect(tray, i)) |hit| {
-                        tray.max_t = hit.t;
+                    if (self.data.intersect(local_ray, i)) |hit| {
+                        local_ray.max_t = hit.t;
                         hpoint = hit;
                         primitive = i;
                     }
@@ -76,8 +76,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = nodes[a].intersect(tray);
-            var distb = nodes[b].intersect(tray);
+            var dista = nodes[a].intersect(local_ray);
+            var distb = nodes[b].intersect(local_ray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);
@@ -109,12 +109,12 @@ pub const Tree = struct {
     }
 
     pub fn intersectOpacity(self: Tree, ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, isec: *Intersection) bool {
-        var tray = ray;
+        var local_ray = trafo.worldToObjectRay(ray);
 
         var stack = NodeStack{};
         var n: u32 = 0;
 
-        var hpoint: IndexedData.Fragment = undefined;
+        var hpoint: Data.Hit = undefined;
         var primitive = Intersection.Null;
 
         const nodes = self.nodes;
@@ -127,7 +127,7 @@ pub const Tree = struct {
                 var i = node.indicesStart();
                 const e = i + num;
                 while (i < e) : (i += 1) {
-                    if (self.data.intersect(tray, i)) |hit| {
+                    if (self.data.intersect(local_ray, i)) |hit| {
                         const material = scene.propMaterial(entity, self.data.trianglePart(i));
 
                         if (material.evaluateVisibility()) {
@@ -135,12 +135,12 @@ pub const Tree = struct {
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
 
                             if (material.super().stochasticOpacity(uv, sampler, scene)) {
-                                tray.max_t = hit.t;
+                                local_ray.max_t = hit.t;
                                 hpoint = hit;
                                 primitive = i;
                             }
                         } else {
-                            tray.max_t = hit.t;
+                            local_ray.max_t = hit.t;
                             hpoint = hit;
                             primitive = i;
                         }
@@ -154,8 +154,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = nodes[a].intersect(tray);
-            var distb = nodes[b].intersect(tray);
+            var dista = nodes[a].intersect(local_ray);
+            var distb = nodes[b].intersect(local_ray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);
@@ -311,22 +311,22 @@ pub const Tree = struct {
         const data = self.data;
         const RayMaxT = ray.max_t;
 
-        var tray = ray;
-        tray.max_t = ro.RayMaxT;
+        var local_ray = trafo.worldToObjectRay(ray);
+        local_ray.max_t = ro.RayMaxT;
 
         var isec: Intersection = undefined;
 
         while (true) {
-            if (!self.intersect(tray, trafo, &isec)) {
+            if (!self.intersect(local_ray, trafo, &isec)) {
                 break;
             }
 
             const n = data.normal(data.indexTriangle(isec.primitive));
 
             if (math.dot3(n, ray.direction) > 0.0) {
-                tray.max_t = math.min(isec.t, RayMaxT);
+                local_ray.max_t = math.min(isec.t, RayMaxT);
 
-                if (!context.propTransmittance(tray, material, entity, depth, sampler, tr)) {
+                if (!context.propTransmittance(local_ray, material, entity, depth, sampler, tr)) {
                     return false;
                 }
             }
@@ -336,7 +336,7 @@ pub const Tree = struct {
                 break;
             }
 
-            tray.setMinMaxT(ray_min_t, ro.RayMaxT);
+            local_ray.setMinMaxT(ray_min_t, ro.RayMaxT);
         }
 
         return true;
@@ -356,24 +356,24 @@ pub const Tree = struct {
         const data = self.data;
         const RayMaxT = ray.max_t;
 
-        var tray = ray;
-        tray.max_t = ro.RayMaxT;
+        var local_ray = trafo.worldToObjectRay(ray);
+        local_ray.max_t = ro.RayMaxT;
 
         var tr: Vec4f = @splat(1.0);
 
         var isec: Intersection = undefined;
 
         while (true) {
-            if (!self.intersect(tray, trafo, &isec)) {
+            if (!self.intersect(local_ray, trafo, &isec)) {
                 break;
             }
 
             const n = data.normal(data.indexTriangle(isec.primitive));
 
             if (math.dot3(n, ray.direction) > 0.0) {
-                tray.max_t = math.min(isec.t, RayMaxT);
+                local_ray.max_t = math.min(isec.t, RayMaxT);
 
-                var result = context.propScatter(tray, throughput, material, entity, depth, sampler);
+                var result = context.propScatter(local_ray, throughput, material, entity, depth, sampler);
 
                 tr *= result.tr;
 
@@ -388,7 +388,7 @@ pub const Tree = struct {
                 break;
             }
 
-            tray.setMinMaxT(ray_min_t, ro.RayMaxT);
+            local_ray.setMinMaxT(ray_min_t, ro.RayMaxT);
         }
 
         return Volume.initPass(tr);

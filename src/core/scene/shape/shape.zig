@@ -229,7 +229,6 @@ pub const Shape = union(enum) {
     ) bool {
         return switch (self.*) {
             .Cube => Cube.visibility(probe.ray, trafo, entity, sampler, context, tr),
-            .CurveMesh => |m| m.visibility(probe.ray, trafo, tr),
             .Disk => Disk.visibility(probe.ray, trafo, entity, sampler, context, tr),
             .Rectangle => Rectangle.visibility(probe.ray, trafo, entity, sampler, context, tr),
             .Sphere => Sphere.visibility(probe.ray, trafo, entity, sampler, context, tr),
