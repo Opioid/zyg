@@ -3,6 +3,12 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
+pub const Triangle = struct {
+    a: u32,
+    b: u32,
+    c: u32,
+};
+
 pub const Hit = struct {
     t: f32,
     u: f32,

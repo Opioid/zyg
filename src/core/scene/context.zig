@@ -132,7 +132,7 @@ pub const Context = struct {
 
         const ds: DifferentialSurface =
             if (.UV0 == texcoord)
-                self.scene.propShape(rs.prop).surfaceDifferentials(rs.primitive, rs.trafo)
+                self.scene.propShape(rs.prop).surfaceDifferentials(rs.primitive, rs.trafo, rs.time, self.scene.frame_start)
             else
                 hlp.triplanarDifferentials(rs.geo_n, rs.trafo);
 

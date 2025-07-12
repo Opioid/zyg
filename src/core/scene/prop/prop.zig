@@ -228,7 +228,7 @@ pub const Prop = struct {
             if (Volumetric) {
                 return shape.transmittance(probe, trafo, prototype, sampler, context, tr);
             } else if (properties.evaluate_visibility) {
-                return shape.visibility(probe, trafo, prototype, sampler, context, tr);
+                return shape.visibility(probe, trafo, scene.frame_start, prototype, sampler, context, tr);
             } else {
                 return !shape.intersectP(probe, trafo, scene.frame_start);
             }

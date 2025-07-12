@@ -1,4 +1,5 @@
 const Data = @import("point_motion_data.zig").MotionData;
+const Probe = @import("../probe.zig").Probe;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Context = @import("../../context.zig").Context;
 const Scene = @import("../../scene.zig").Scene;
@@ -8,7 +9,6 @@ const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const int = @import("../../shape/intersection.zig");
 const Fragment = int.Fragment;
 const Intersection = int.Intersection;
-const Probe = @import("../probe.zig").Probe;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 
 const base = @import("base");
@@ -57,6 +57,7 @@ pub const Tree = struct {
     }
 
     pub fn intersect(self: Self, probe: Probe, trafo: Trafo, frame_start: u64, isec: *Intersection) bool {
+        const nodes = self.nodes;
         const indices = self.indices;
         const frame = self.data.frameAt(probe.time, frame_start);
 
@@ -67,8 +68,6 @@ pub const Tree = struct {
 
         var hit_t: f32 = undefined;
         var primitive = Intersection.Null;
-
-        const nodes = self.nodes;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -125,6 +124,7 @@ pub const Tree = struct {
     }
 
     pub fn intersectP(self: Self, probe: Probe, trafo: Trafo, frame_start: u64) bool {
+        const nodes = self.nodes;
         const indices = self.indices;
         const frame = self.data.frameAt(probe.time, frame_start);
 
@@ -132,8 +132,6 @@ pub const Tree = struct {
 
         var stack = NodeStack{};
         var n: u32 = 0;
-
-        const nodes = self.nodes;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -187,6 +185,7 @@ pub const Tree = struct {
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
+        const nodes = self.nodes;
         const indices = self.indices;
         const frame = self.data.frameAt(vertex.probe.time, context.scene.frame_start);
 
@@ -197,8 +196,6 @@ pub const Tree = struct {
 
         const shading_p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
-
-        const nodes = self.nodes;
 
         while (NodeStack.End != n) {
             const node = nodes[n];

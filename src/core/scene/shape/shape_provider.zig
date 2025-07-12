@@ -5,8 +5,10 @@ const PointMotionCloud = @import("point/point_motion_cloud.zig").MotionCloud;
 const PointMotionFrameDuration = @import("point/point_motion_data.zig").MotionData.FrameDuration;
 const PointMotionTreeBuilder = @import("point/point_motion_tree_builder.zig").Builder;
 const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
+const TriangleMotionMesh = @import("triangle/triangle_motion_mesh.zig").MotionMesh;
 const tvb = @import("triangle/vertex_buffer.zig");
 const TriangleTree = @import("triangle/triangle_tree.zig").Tree;
+const TriangleMotionTree = @import("triangle/triangle_motion_tree.zig").Tree;
 const TriangleBuilder = @import("triangle/triangle_tree_builder.zig").Builder;
 const IndexTriangle = TriangleBuilder.IndexTriangle;
 const CurveBuilder = @import("curve/curve_tree_builder.zig").Builder;
@@ -106,7 +108,8 @@ pub const Provider = struct {
     index_bytes: u64 = undefined,
     delta_indices: bool = undefined,
     handler: Handler = undefined,
-    tree: TriangleTree = .{},
+    triangle_tree: TriangleTree = .{},
+    triangle_motion_tree: TriangleMotionTree = .{},
     parts: []Part = undefined,
     indices: []u8 = undefined,
     vertices: tvb.Buffer = undefined,
@@ -120,15 +123,18 @@ pub const Provider = struct {
     }
 
     pub fn commitAsync(self: *Provider, resources: *Resources) void {
-        if (0 == self.tree.nodes.len) {
+        if (0 == self.triangle_tree.nodes.len and 0 == self.triangle_motion_tree.nodes.len) {
             return;
         }
 
         if (resources.shapes.getLast()) |last| {
             switch (last.*) {
                 .TriangleMesh => |*m| {
-                    std.mem.swap(TriangleTree, &m.tree, &self.tree);
+                    std.mem.swap(TriangleTree, &m.tree, &self.triangle_tree);
                     m.calculateAreas();
+                },
+                .TriangleMotionMesh => |*m| {
+                    std.mem.swap(TriangleMotionTree, &m.tree, &self.triangle_motion_tree);
                 },
                 else => {},
             }
@@ -219,21 +225,39 @@ pub const Provider = struct {
                 }
             }
 
-            var mesh = try TriangleMesh.init(alloc, @intCast(handler.parts.len));
+            if (handler.positions.len > 1) {
+                var mesh = try TriangleMotionMesh.init(alloc, @intCast(handler.parts.len));
 
-            for (handler.parts, 0..) |p, i| {
-                mesh.setMaterialForPart(i, p.material_index);
+                for (handler.parts, 0..) |p, i| {
+                    mesh.setMaterialForPart(i, p.material_index);
+                }
+
+                resources.commitAsync();
+
+                self.handler = handler;
+                self.alloc = alloc;
+                self.threads = resources.threads;
+
+                resources.threads.runAsync(self, buildAsync);
+
+                return .{ .data = .{ .TriangleMotionMesh = mesh } };
+            } else {
+                var mesh = try TriangleMesh.init(alloc, @intCast(handler.parts.len));
+
+                for (handler.parts, 0..) |p, i| {
+                    mesh.setMaterialForPart(i, p.material_index);
+                }
+
+                resources.commitAsync();
+
+                self.handler = handler;
+                self.alloc = alloc;
+                self.threads = resources.threads;
+
+                resources.threads.runAsync(self, buildAsync);
+
+                return .{ .data = .{ .TriangleMesh = mesh } };
             }
-
-            resources.commitAsync();
-
-            self.handler = handler;
-            self.alloc = alloc;
-            self.threads = resources.threads;
-
-            resources.threads.runAsync(self, buildAsync);
-
-            return .{ .data = .{ .TriangleMesh = mesh } };
         }
     }
 
@@ -277,14 +301,18 @@ pub const Provider = struct {
         const handler = self.handler;
 
         const vertices = tvb.Buffer{ .Separate = tvb.Separate.init(
-            handler.positions[0],
+            handler.positions,
             handler.normals,
             handler.tangents,
             handler.uvs,
             handler.bitangent_signs,
         ) };
 
-        buildBVH(self.alloc, &self.tree, self.handler.triangles, vertices, self.threads) catch {};
+        if (handler.positions.len > 1) {
+            buildMotionBVH(self.alloc, &self.triangle_motion_tree, self.handler.triangles, vertices, self.threads) catch {};
+        } else {
+            buildBVH(self.alloc, &self.triangle_tree, self.handler.triangles, vertices, self.threads) catch {};
+        }
 
         self.handler.deinit(self.alloc);
     }
@@ -607,8 +635,9 @@ pub const Provider = struct {
         if (interleaved_vertex_stream) {
             log.err("interleaved", .{});
         } else {
-            const positions = try alloc.alloc(Pack3f, num_vertices);
-            _ = try stream.read(std.mem.sliceAsBytes(positions));
+            const positions = try alloc.alloc([]Pack3f, 1);
+            positions[0] = try alloc.alloc(Pack3f, num_vertices);
+            _ = try stream.read(std.mem.sliceAsBytes(positions[0]));
 
             if (tangent_space_as_quaternion) {
                 const ts = try alloc.alloc(Pack4f, num_vertices);
@@ -713,7 +742,7 @@ pub const Provider = struct {
             }
         }
 
-        buildBVH(self.alloc, &self.tree, triangles, self.vertices, self.threads) catch {};
+        buildBVH(self.alloc, &self.triangle_tree, triangles, self.vertices, self.threads) catch {};
 
         self.alloc.free(self.indices);
         self.alloc.free(self.parts);
@@ -785,7 +814,7 @@ pub const Provider = struct {
             if (desc.uvs) |uvs| uvs else &null_floats,
         ) };
 
-        buildBVH(self.alloc, &self.tree, triangles, vertices, self.threads) catch {};
+        buildBVH(self.alloc, &self.triangle_tree, triangles, vertices, self.threads) catch {};
     }
 
     fn buildBVH(
@@ -799,6 +828,19 @@ pub const Provider = struct {
         defer builder.deinit(alloc);
 
         try builder.build(alloc, tree, triangles, vertices, threads);
+    }
+
+    fn buildMotionBVH(
+        alloc: Allocator,
+        tree: *TriangleMotionTree,
+        triangles: []const IndexTriangle,
+        vertices: tvb.Buffer,
+        threads: *Threads,
+    ) !void {
+        var builder = try TriangleBuilder.init(alloc, 16, 64, 4);
+        defer builder.deinit(alloc);
+
+        try builder.buildMotion(alloc, tree, triangles, vertices, threads);
     }
 
     fn fillTriangles(

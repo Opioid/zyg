@@ -32,10 +32,6 @@ pub const MotionCloud = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn aabb(self: *const Self) AABB {
-        return self.tree.nodes[0].aabb();
-    }
-
     pub fn area(self: *const Self, scale: Vec4f) f32 {
         const data = self.tree.data;
 

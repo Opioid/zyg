@@ -8,6 +8,7 @@ pub const PointMotionCloud = @import("point/point_motion_cloud.zig").MotionCloud
 pub const Rectangle = @import("rectangle.zig").Rectangle;
 pub const Sphere = @import("sphere.zig").Sphere;
 pub const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
+pub const TriangleMotionMesh = @import("triangle/triangle_motion_mesh.zig").MotionMesh;
 const ro = @import("../ray_offset.zig");
 const Material = @import("../material/material.zig").Material;
 const Context = @import("../context.zig").Context;
@@ -51,6 +52,7 @@ pub const Shape = union(enum) {
     Rectangle: Rectangle,
     Sphere: Sphere,
     TriangleMesh: TriangleMesh,
+    TriangleMotionMesh: TriangleMotionMesh,
 
     pub fn deinit(self: *Shape, alloc: Allocator) void {
         switch (self.*) {
@@ -61,14 +63,14 @@ pub const Shape = union(enum) {
 
     pub fn frameDependant(self: *const Shape) bool {
         return switch (self.*) {
-            .PointMotionCloud => true,
+            .PointMotionCloud, .TriangleMotionMesh => true,
             else => false,
         };
     }
 
     pub fn numParts(self: *const Shape) u32 {
         return switch (self.*) {
-            .TriangleMesh => |m| m.numParts(),
+            inline .TriangleMesh, .TriangleMotionMesh => |m| m.numParts(),
             else => 1,
         };
     }
@@ -82,7 +84,7 @@ pub const Shape = union(enum) {
 
     pub fn partIdToMaterialId(self: *const Shape, part: u32) u32 {
         return switch (self.*) {
-            .TriangleMesh => |m| m.partMaterialId(part),
+            inline .TriangleMesh, .TriangleMotionMesh => |m| m.partMaterialId(part),
             else => part,
         };
     }
@@ -96,7 +98,7 @@ pub const Shape = union(enum) {
 
     pub fn analytical(self: *const Shape) bool {
         return switch (self.*) {
-            .CurveMesh, .PointMotionCloud, .TriangleMesh => false,
+            .CurveMesh, .PointMotionCloud, .TriangleMesh, .TriangleMotionMesh => false,
             else => true,
         };
     }
@@ -106,8 +108,7 @@ pub const Shape = union(enum) {
             .Canopy, .DistantSphere, .InfiniteSphere => .empty,
             .Disk, .Rectangle => AABB.init(.{ -0.5, -0.5, 0.0, 0.0 }, .{ 0.5, 0.5, 0.0, 0.0 }),
             .Cube, .Sphere => AABB.init(@splat(-0.5), @splat(0.5)),
-            .PointMotionCloud => |c| c.aabb(),
-            inline .CurveMesh, .TriangleMesh => |m| m.tree.aabb(),
+            inline .CurveMesh, .PointMotionCloud, .TriangleMesh, .TriangleMotionMesh => |m| m.tree.aabb(),
         };
     }
 
@@ -142,6 +143,7 @@ pub const Shape = union(enum) {
             .Rectangle => scale[0] * scale[1],
             .Sphere => (4.0 * std.math.pi) * math.pow2(0.5 * scale[0]),
             .TriangleMesh => |m| m.area(part, scale),
+            .TriangleMotionMesh => 0.0,
         };
     }
 
@@ -164,6 +166,7 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.intersect(probe.ray, trafo, isec),
             .Sphere => Sphere.intersect(probe.ray, trafo, isec),
             .TriangleMesh => |m| m.intersect(probe.ray, trafo, isec),
+            .TriangleMotionMesh => |m| m.intersect(probe, trafo, frame_start, isec),
         };
     }
 
@@ -187,6 +190,7 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.intersectOpacity(probe.ray, trafo, entity, sampler, scene, isec),
             .Sphere => Sphere.intersect(probe.ray, trafo, isec),
             .TriangleMesh => |m| m.intersectOpacity(probe.ray, trafo, entity, sampler, scene, isec),
+            .TriangleMotionMesh => |m| m.intersectOpacity(probe, trafo, entity, sampler, scene, isec),
         };
     }
 
@@ -202,6 +206,7 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.fragment(probe.ray, frag),
             .Sphere => Sphere.fragment(probe.ray, frag),
             .TriangleMesh => |m| m.fragment(frag),
+            .TriangleMotionMesh => |m| m.fragment(probe.time, frame_start, frag),
         }
     }
 
@@ -214,6 +219,7 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.intersectP(probe.ray, trafo),
             .Sphere => Sphere.intersectP(probe.ray, trafo),
             .TriangleMesh => |m| m.intersectP(probe.ray, trafo),
+            .TriangleMotionMesh => |m| m.intersectP(probe, trafo, frame_start),
             else => false,
         };
     }
@@ -222,6 +228,7 @@ pub const Shape = union(enum) {
         self: *const Shape,
         probe: Probe,
         trafo: Trafo,
+        frame_start: u64,
         entity: u32,
         sampler: *Sampler,
         context: Context,
@@ -233,6 +240,7 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.visibility(probe.ray, trafo, entity, sampler, context, tr),
             .Sphere => Sphere.visibility(probe.ray, trafo, entity, sampler, context, tr),
             .TriangleMesh => |m| m.visibility(probe.ray, trafo, entity, sampler, context, tr),
+            .TriangleMotionMesh => |m| m.visibility(probe, trafo, frame_start, entity, sampler, context, tr),
             else => true,
         };
     }
@@ -250,6 +258,7 @@ pub const Shape = union(enum) {
             .Cube => Cube.transmittance(probe, trafo, entity, sampler, context, tr),
             .Sphere => Sphere.transmittance(probe, trafo, entity, sampler, context, tr),
             .TriangleMesh => |m| m.transmittance(probe, trafo, entity, sampler, context, tr),
+            //  .TriangleMotionMesh => |m| m.transmittance(probe, trafo, entity, sampler, context, tr),
             else => true,
         };
     }
@@ -267,6 +276,7 @@ pub const Shape = union(enum) {
             .Cube => Cube.scatter(probe, trafo, throughput, entity, sampler, context),
             .Sphere => Sphere.scatter(probe, trafo, throughput, entity, sampler, context),
             .TriangleMesh => |m| m.scatter(probe, trafo, throughput, entity, sampler, context),
+            //  .TriangleMotionMesh => |m| m.scatter(probe, trafo, throughput, entity, sampler, context),
             else => Volume.initPass(@splat(1.0)),
         };
     }
@@ -285,6 +295,7 @@ pub const Shape = union(enum) {
             .Rectangle => Rectangle.emission(vertex, frag, split_threshold, sampler, context),
             .Sphere => Sphere.emission(vertex, frag, split_threshold, sampler, context),
             .TriangleMesh => |m| m.emission(vertex, frag, split_threshold, sampler, context),
+            .TriangleMotionMesh => |m| m.emission(vertex, frag, split_threshold, sampler, context),
             else => @splat(0.0),
         };
     }
@@ -507,10 +518,11 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn surfaceDifferentials(self: *const Shape, primitive: u32, trafo: Trafo) DifferentialSurface {
+    pub fn surfaceDifferentials(self: *const Shape, primitive: u32, trafo: Trafo, time: u64, frame_start: u64) DifferentialSurface {
         return switch (self.*) {
             .Rectangle => Rectangle.surfaceDifferentials(trafo),
-            .TriangleMesh => |*m| m.surfaceDifferentials(primitive, trafo),
+            .TriangleMesh => |m| m.surfaceDifferentials(primitive, trafo),
+            .TriangleMotionMesh => |m| m.surfaceDifferentials(primitive, trafo, time, frame_start),
             else => .{
                 .dpdu = @as(Vec4f, @splat(-trafo.scaleX())) * trafo.rotation.r[0],
                 .dpdv = @as(Vec4f, @splat(-trafo.scaleY())) * trafo.rotation.r[1],
