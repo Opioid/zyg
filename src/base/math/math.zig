@@ -66,6 +66,7 @@ pub const cross3 = vec4.cross3;
 pub const reflect3 = vec4.reflect3;
 pub const orthonormalBasis3 = vec4.orthonormalBasis3;
 pub const tangent3 = vec4.tangent3;
+pub const gramSchmidt = vec4.gramSchmidt;
 pub const min4 = vec4.min4;
 pub const max4 = vec4.max4;
 pub const clamp4 = vec4.clamp4;

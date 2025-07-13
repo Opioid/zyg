@@ -1,7 +1,6 @@
 const VertexBuffer = @import("vertex_buffer.zig").Buffer;
 const triangle = @import("triangle.zig");
-
-const Scene = @import("../../scene.zig").Scene;
+const motion = @import("../../motion.zig");
 
 const math = @import("base").math;
 const Vec2f = math.Vec2f;
@@ -13,12 +12,14 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const MotionData = struct {
-    const FrameDuration = Scene.TickDuration / 2;
-
     pub const Hit = triangle.Hit;
 
     const Triangle = triangle.Triangle;
 
+    const Frame = motion.Frame;
+
+    frame_duration: u32 = 0,
+    start_frame: u32 = 0,
     num_frames: u32 = 0,
     num_triangles: u32 = 0,
     num_vertices: u32 = 0,
@@ -65,21 +66,8 @@ pub const MotionData = struct {
         self.triangle_parts[triangle_id] = @truncate(part);
     }
 
-    const Frame = struct {
-        f: u32,
-        w: f32,
-    };
-
-    pub fn frameAt(self: Self, time: u64, frame_start: u64) Frame {
-        _ = self;
-
-        const i = (time - frame_start) / FrameDuration;
-        const a_time = frame_start + i * FrameDuration;
-        const delta = time - a_time;
-
-        const t: f32 = @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(FrameDuration)));
-
-        return .{ .f = @intCast(i), .w = t };
+    pub fn frameAt(self: Self, time: u64) Frame {
+        return motion.frameAt(time, self.frame_duration, self.start_frame);
     }
 
     inline fn position(self: Self, frame: Frame, index: u32) Vec4f {
@@ -168,12 +156,8 @@ pub const MotionData = struct {
 
         const dpdu, const dpdv = triangle.positionDifferentials(pa, pb, pc, uva, uvb, uvc);
 
-        t.* = math.normalize3(gramSchmidt(dpdu, ni));
-        b.* = math.normalize3(gramSchmidt(dpdv, ni));
-    }
-
-    fn gramSchmidt(v: Vec4f, w: Vec4f) Vec4f {
-        return v - @as(Vec4f, @splat(math.dot3(v, w))) * w;
+        t.* = math.normalize3(math.gramSchmidt(dpdu, ni));
+        b.* = math.normalize3(math.gramSchmidt(dpdv, ni));
     }
 
     pub fn interpolateUv(self: Self, tri: Triangle, u: f32, v: f32) Vec2f {

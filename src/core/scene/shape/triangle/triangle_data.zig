@@ -122,12 +122,8 @@ pub const Data = struct {
 
         const dpdu, const dpdv = triangle.positionDifferentials(pa, pb, pc, uva, uvb, uvc);
 
-        t.* = math.normalize3(gramSchmidt(dpdu, ni));
-        b.* = math.normalize3(gramSchmidt(dpdv, ni));
-    }
-
-    fn gramSchmidt(v: Vec4f, w: Vec4f) Vec4f {
-        return v - @as(Vec4f, @splat(math.dot3(v, w))) * w;
+        t.* = math.normalize3(math.gramSchmidt(dpdu, ni));
+        b.* = math.normalize3(math.gramSchmidt(dpdv, ni));
     }
 
     pub fn interpolateUv(self: Self, tri: Triangle, u: f32, v: f32) Vec2f {

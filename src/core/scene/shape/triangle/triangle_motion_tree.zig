@@ -44,8 +44,8 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, probe: Probe, trafo: Trafo, frame_start: u64, isec: *Intersection) bool {
-        const frame = self.data.frameAt(probe.time, frame_start);
+    pub fn intersect(self: Tree, probe: Probe, trafo: Trafo, isec: *Intersection) bool {
+        const frame = self.data.frameAt(probe.time);
 
         var local_ray = trafo.worldToObjectRay(probe.ray);
 
@@ -120,7 +120,7 @@ pub const Tree = struct {
         scene: *const Scene,
         isec: *Intersection,
     ) bool {
-        const frame = self.data.frameAt(probe.time, scene.frame_start);
+        const frame = self.data.frameAt(probe.time);
         const nodes = self.nodes;
 
         var local_ray = trafo.worldToObjectRay(probe.ray);
@@ -198,8 +198,8 @@ pub const Tree = struct {
         return true;
     }
 
-    pub fn intersectP(self: Tree, probe: Probe, trafo: Trafo, frame_start: u64) bool {
-        const frame = self.data.frameAt(probe.time, frame_start);
+    pub fn intersectP(self: Tree, probe: Probe, trafo: Trafo) bool {
+        const frame = self.data.frameAt(probe.time);
         const nodes = self.nodes;
 
         const local_ray = trafo.worldToObjectRay(probe.ray);
@@ -248,17 +248,8 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(
-        self: Tree,
-        ray: Ray,
-        time: u64,
-        frame_start: u64,
-        entity: u32,
-        sampler: *Sampler,
-        context: Context,
-        tr: *Vec4f,
-    ) bool {
-        const frame = self.data.frameAt(time, frame_start);
+    pub fn visibility(self: Tree, ray: Ray, time: u64, entity: u32, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
+        const frame = self.data.frameAt(time);
 
         const ray_dir = ray.direction;
 
@@ -429,7 +420,7 @@ pub const Tree = struct {
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
-        const frame = self.data.frameAt(vertex.probe.time, context.scene.frame_start);
+        const frame = self.data.frameAt(vertex.probe.time);
         const nodes = self.nodes;
 
         const shading_p = vertex.origin;

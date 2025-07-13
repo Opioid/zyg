@@ -13,10 +13,6 @@ const Frame = math.Frame;
 
 const std = @import("std");
 
-fn gramSchmidt(v: Vec4f, w: Vec4f) Vec4f {
-    return v - @as(Vec4f, @splat(math.dot3(v, w))) * w;
-}
-
 pub fn sampleNormal(wo: Vec4f, rs: Renderstate, map: Texture, sampler: *Sampler, context: Context) Vec4f {
     // Reconstruct normal from normal texture
     const nmxy = ts.sample2D_2(map, rs, sampler, context);

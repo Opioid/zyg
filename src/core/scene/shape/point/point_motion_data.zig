@@ -1,4 +1,4 @@
-const Scene = @import("../../scene.zig").Scene;
+const motion = @import("../../motion.zig");
 
 const base = @import("base");
 const math = base.math;
@@ -9,8 +9,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const MotionData = struct {
-    pub const FrameDuration = Scene.TickDuration / 2;
+    const Frame = motion.Frame;
 
+    frame_duration: u32 = 0,
+    start_frame: u32 = 0,
     num_frames: u32 = 0,
     num_vertices: u32 = 0,
 
@@ -74,21 +76,8 @@ pub const MotionData = struct {
         alloc.free(self.positions[0..num_point_components]);
     }
 
-    const Frame = struct {
-        f: u32,
-        w: f32,
-    };
-
-    pub fn frameAt(self: Self, time: u64, frame_start: u64) Frame {
-        _ = self;
-
-        const i = (time - frame_start) / FrameDuration;
-        const a_time = frame_start + i * FrameDuration;
-        const delta = time - a_time;
-
-        const t: f32 = @floatCast(@as(f64, @floatFromInt(delta)) / @as(f64, @floatFromInt(FrameDuration)));
-
-        return .{ .f = @intCast(i), .w = t };
+    pub fn frameAt(self: Self, time: u64) Frame {
+        return motion.frameAt(time, self.frame_duration, self.start_frame);
     }
 
     pub fn positionAndRadiusAt(self: Self, index: u32, frame: Frame) Vec4f {

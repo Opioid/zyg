@@ -9,8 +9,10 @@ const Fragment = @import("scene/shape/intersection.zig").Fragment;
 const smpl = @import("scene/shape/sample.zig");
 const Renderstate = @import("scene/renderstate.zig").Renderstate;
 const Vertex = @import("scene/vertex.zig").Vertex;
+const Shape = @import("scene/shape/shape.zig").Shape;
 const TriangleMesh = @import("scene/shape/triangle/triangle_mesh.zig").Mesh;
 const TriangleBvh = @import("scene/shape/triangle/triangle_tree.zig").Tree;
+const TriangleMotionMesh = @import("scene/shape/triangle/triangle_motion_mesh.zig").MotionMesh;
 const Texture = @import("texture/texture.zig").Texture;
 const Worker = @import("rendering/worker.zig").Worker;
 
@@ -46,7 +48,9 @@ pub fn testSize() void {
     testType(mtsmpl.Substitute, "SubstituteSample", 256);
     testType(mtsmpl.Hair, "HairSample", 272);
     testType(Texture, "Texture", 16);
+    testType(Shape, "Shape", 104);
     testType(TriangleMesh, "TriangleMesh", 88);
+    testType(TriangleMotionMesh, "TriangleMotionMesh", 96);
     testType(TriangleBvh, "TriangleBvh", 64);
     testType(Worker, "Worker", 368);
 }

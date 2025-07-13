@@ -154,7 +154,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn intersect(self: *const Shape, probe: Probe, trafo: Trafo, frame_start: u64, isec: *Intersection) bool {
+    pub fn intersect(self: *const Shape, probe: Probe, trafo: Trafo, isec: *Intersection) bool {
         return switch (self.*) {
             .Canopy => Canopy.intersect(probe.ray, trafo, isec),
             .Cube => Cube.intersect(probe.ray, trafo, isec),
@@ -162,11 +162,11 @@ pub const Shape = union(enum) {
             .Disk => Disk.intersect(probe.ray, trafo, isec),
             .DistantSphere => DistantSphere.intersect(probe.ray, trafo, isec),
             .InfiniteSphere => InfiniteSphere.intersect(probe.ray, trafo, isec),
-            .PointMotionCloud => |c| c.intersect(probe, trafo, frame_start, isec),
+            .PointMotionCloud => |c| c.intersect(probe, trafo, isec),
             .Rectangle => Rectangle.intersect(probe.ray, trafo, isec),
             .Sphere => Sphere.intersect(probe.ray, trafo, isec),
             .TriangleMesh => |m| m.intersect(probe.ray, trafo, isec),
-            .TriangleMotionMesh => |m| m.intersect(probe, trafo, frame_start, isec),
+            .TriangleMotionMesh => |m| m.intersect(probe, trafo, isec),
         };
     }
 
@@ -186,7 +186,7 @@ pub const Shape = union(enum) {
             .Disk => Disk.intersectOpacity(probe.ray, trafo, entity, sampler, scene, isec),
             .DistantSphere => DistantSphere.intersect(probe.ray, trafo, isec),
             .InfiniteSphere => InfiniteSphere.intersect(probe.ray, trafo, isec),
-            .PointMotionCloud => |c| c.intersect(probe, trafo, 0, isec),
+            .PointMotionCloud => |c| c.intersect(probe, trafo, isec),
             .Rectangle => Rectangle.intersectOpacity(probe.ray, trafo, entity, sampler, scene, isec),
             .Sphere => Sphere.intersect(probe.ray, trafo, isec),
             .TriangleMesh => |m| m.intersectOpacity(probe.ray, trafo, entity, sampler, scene, isec),
@@ -194,7 +194,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn fragment(self: *const Shape, probe: Probe, frame_start: u64, frag: *Fragment) void {
+    pub fn fragment(self: *const Shape, probe: Probe, frag: *Fragment) void {
         switch (self.*) {
             .Canopy => Canopy.fragment(probe.ray, frag),
             .Cube => Cube.fragment(probe.ray, frag),
@@ -202,45 +202,36 @@ pub const Shape = union(enum) {
             .Disk => Disk.fragment(probe.ray, frag),
             .DistantSphere => DistantSphere.fragment(probe.ray, frag),
             .InfiniteSphere => InfiniteSphere.fragment(probe.ray, frag),
-            .PointMotionCloud => |c| c.fragment(probe, frame_start, frag),
+            .PointMotionCloud => |c| c.fragment(probe, frag),
             .Rectangle => Rectangle.fragment(probe.ray, frag),
             .Sphere => Sphere.fragment(probe.ray, frag),
             .TriangleMesh => |m| m.fragment(frag),
-            .TriangleMotionMesh => |m| m.fragment(probe.time, frame_start, frag),
+            .TriangleMotionMesh => |m| m.fragment(probe.time, frag),
         }
     }
 
-    pub fn intersectP(self: *const Shape, probe: Probe, trafo: Trafo, frame_start: u64) bool {
+    pub fn intersectP(self: *const Shape, probe: Probe, trafo: Trafo) bool {
         return switch (self.*) {
             .Cube => Cube.intersectP(probe.ray, trafo),
             .CurveMesh => |m| m.intersectP(probe.ray, trafo),
             .Disk => Disk.intersectP(probe.ray, trafo),
-            .PointMotionCloud => |c| c.intersectP(probe, trafo, frame_start),
+            .PointMotionCloud => |c| c.intersectP(probe, trafo),
             .Rectangle => Rectangle.intersectP(probe.ray, trafo),
             .Sphere => Sphere.intersectP(probe.ray, trafo),
             .TriangleMesh => |m| m.intersectP(probe.ray, trafo),
-            .TriangleMotionMesh => |m| m.intersectP(probe, trafo, frame_start),
+            .TriangleMotionMesh => |m| m.intersectP(probe, trafo),
             else => false,
         };
     }
 
-    pub fn visibility(
-        self: *const Shape,
-        probe: Probe,
-        trafo: Trafo,
-        frame_start: u64,
-        entity: u32,
-        sampler: *Sampler,
-        context: Context,
-        tr: *Vec4f,
-    ) bool {
+    pub fn visibility(self: *const Shape, probe: Probe, trafo: Trafo, entity: u32, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
         return switch (self.*) {
             .Cube => Cube.visibility(probe.ray, trafo, entity, sampler, context, tr),
             .Disk => Disk.visibility(probe.ray, trafo, entity, sampler, context, tr),
             .Rectangle => Rectangle.visibility(probe.ray, trafo, entity, sampler, context, tr),
             .Sphere => Sphere.visibility(probe.ray, trafo, entity, sampler, context, tr),
             .TriangleMesh => |m| m.visibility(probe.ray, trafo, entity, sampler, context, tr),
-            .TriangleMotionMesh => |m| m.visibility(probe, trafo, frame_start, entity, sampler, context, tr),
+            .TriangleMotionMesh => |m| m.visibility(probe, trafo, entity, sampler, context, tr),
             else => true,
         };
     }
@@ -306,7 +297,6 @@ pub const Shape = union(enum) {
         n: Vec4f,
         trafo: Trafo,
         time: u64,
-        frame_start: u64,
         part: u32,
         variant: u32,
         two_sided: bool,
@@ -321,7 +311,7 @@ pub const Shape = union(enum) {
             .Disk => Disk.sampleTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
             .DistantSphere => DistantSphere.sampleTo(n, trafo, total_sphere, sampler, buffer),
             .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, buffer),
-            .PointMotionCloud => |c| c.sampleTo(p, n, trafo, time, frame_start, total_sphere, split_threshold, material, sampler, buffer),
+            .PointMotionCloud => |c| c.sampleTo(p, n, trafo, time, total_sphere, split_threshold, material, sampler, buffer),
             .Rectangle => Rectangle.sampleTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
             .Sphere => Sphere.sampleTo(p, n, trafo, total_sphere, split_threshold, material, sampler, buffer),
             .TriangleMesh => |m| m.sampleTo(
@@ -451,7 +441,6 @@ pub const Shape = union(enum) {
         n: Vec4f,
         frag: *const Fragment,
         time: u64,
-        frame_start: u64,
         total_sphere: bool,
         split_threshold: f32,
         material: *const Material,
@@ -461,7 +450,7 @@ pub const Shape = union(enum) {
             .Disk => Disk.pdf(dir, p, frag, split_threshold, material),
             .DistantSphere => DistantSphere.pdf(frag.isec.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
-            .PointMotionCloud => |c| c.pdf(dir, p, frag, time, frame_start, split_threshold),
+            .PointMotionCloud => |c| c.pdf(dir, p, frag, time, split_threshold),
             .Rectangle => Rectangle.pdf(dir, p, frag, split_threshold, material),
             .Sphere => Sphere.pdf(p, frag.isec.trafo, split_threshold, material),
             .TriangleMesh => |m| m.pdf(part, variant, dir, p, n, frag, total_sphere, split_threshold),
@@ -518,11 +507,11 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn surfaceDifferentials(self: *const Shape, primitive: u32, trafo: Trafo, time: u64, frame_start: u64) DifferentialSurface {
+    pub fn surfaceDifferentials(self: *const Shape, primitive: u32, trafo: Trafo, time: u64) DifferentialSurface {
         return switch (self.*) {
             .Rectangle => Rectangle.surfaceDifferentials(trafo),
             .TriangleMesh => |m| m.surfaceDifferentials(primitive, trafo),
-            .TriangleMotionMesh => |m| m.surfaceDifferentials(primitive, trafo, time, frame_start),
+            .TriangleMotionMesh => |m| m.surfaceDifferentials(primitive, trafo, time),
             else => .{
                 .dpdu = @as(Vec4f, @splat(-trafo.scaleX())) * trafo.rotation.r[0],
                 .dpdv = @as(Vec4f, @splat(-trafo.scaleY())) * trafo.rotation.r[1],

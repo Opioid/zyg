@@ -12,6 +12,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Particles = struct {
+    frames_per_second: u32,
     radius: f32,
 
     position_samples: [][]Pack3f,
@@ -79,10 +80,13 @@ pub const Generator = struct {
             velocities[i] = math.vec4fTo3f((s * velocity));
         }
 
+        const fps = 120;
+
         for (1..project.particles.num_frames) |f| {
-            simulate(1.0 / 120.0, position_samples[f], position_samples[f - 1], velocities);
+            simulate(1.0 / fps, position_samples[f], position_samples[f - 1], velocities);
         }
 
+        particles.frames_per_second = fps;
         particles.radius = project.particles.radius;
         particles.position_samples = position_samples;
         particles.radius_samples = &.{};
@@ -129,7 +133,8 @@ pub const Generator = struct {
         // const radius: Vec4f = @splat(0.005);
         // const velocity: Vec4f = @splat(2.0);
 
-        const TickDuration = 1.0 / 120.0;
+        const fps = 120;
+        const TickDuration = 1.0 / @as(f32, @floatFromInt(fps));
 
         for (0..num_particles) |i| {
             // const sphere_uv = Vec2f{ rng.randomFloat(), rng.randomFloat() };
@@ -160,6 +165,7 @@ pub const Generator = struct {
             simulateSparks(TickDuration, &rng, position_samples[f], radius_samples[f], position_samples[f - 1], &state, point_radius);
         }
 
+        particles.frames_per_second = fps;
         particles.radius = project.particles.radius;
         particles.position_samples = position_samples;
         particles.radius_samples = radius_samples;

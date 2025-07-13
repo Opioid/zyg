@@ -56,10 +56,10 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Self, probe: Probe, trafo: Trafo, frame_start: u64, isec: *Intersection) bool {
+    pub fn intersect(self: Self, probe: Probe, trafo: Trafo, isec: *Intersection) bool {
         const nodes = self.nodes;
         const indices = self.indices;
-        const frame = self.data.frameAt(probe.time, frame_start);
+        const frame = self.data.frameAt(probe.time);
 
         var local_ray = trafo.worldToObjectRay(probe.ray);
 
@@ -123,10 +123,10 @@ pub const Tree = struct {
         return true;
     }
 
-    pub fn intersectP(self: Self, probe: Probe, trafo: Trafo, frame_start: u64) bool {
+    pub fn intersectP(self: Self, probe: Probe, trafo: Trafo) bool {
         const nodes = self.nodes;
         const indices = self.indices;
-        const frame = self.data.frameAt(probe.time, frame_start);
+        const frame = self.data.frameAt(probe.time);
 
         const local_ray = trafo.worldToObjectRay(probe.ray);
 
@@ -187,7 +187,7 @@ pub const Tree = struct {
     ) Vec4f {
         const nodes = self.nodes;
         const indices = self.indices;
-        const frame = self.data.frameAt(vertex.probe.time, context.scene.frame_start);
+        const frame = self.data.frameAt(vertex.probe.time);
 
         var stack = NodeStack{};
         var n: u32 = 0;

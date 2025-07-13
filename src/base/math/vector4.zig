@@ -108,6 +108,10 @@ pub inline fn tangent3(n: Vec4f) Vec4f {
     return .{ 1.0 + sign * n[0] * n[0] * c, sign * d, -sign * n[0], 0.0 };
 }
 
+pub inline fn gramSchmidt(v: Vec4f, w: Vec4f) Vec4f {
+    return v - @as(Vec4f, @splat(dot3(v, w))) * w;
+}
+
 pub inline fn min4(a: Vec4f, b: Vec4f) Vec4f {
     return switch (builtin.target.cpu.arch) {
         .aarch64, .aarch64_be => @min(a, b),

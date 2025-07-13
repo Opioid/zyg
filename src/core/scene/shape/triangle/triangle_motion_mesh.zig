@@ -53,8 +53,8 @@ pub const MotionMesh = struct {
         self.part_materials[part] = material;
     }
 
-    pub fn intersect(self: *const Self, probe: Probe, trafo: Trafo, frame_start: u64, isec: *Intersection) bool {
-        return self.tree.intersect(probe, trafo, frame_start, isec);
+    pub fn intersect(self: *const Self, probe: Probe, trafo: Trafo, isec: *Intersection) bool {
+        return self.tree.intersect(probe, trafo, isec);
     }
 
     pub fn intersectOpacity(
@@ -69,7 +69,7 @@ pub const MotionMesh = struct {
         return self.tree.intersectOpacity(probe, trafo, entity, sampler, scene, isec);
     }
 
-    pub fn fragment(self: *const Self, time: u64, frame_start: u64, frag: *Fragment) void {
+    pub fn fragment(self: *const Self, time: u64, frag: *Fragment) void {
         const data = self.tree.data;
 
         frag.part = data.trianglePart(frag.isec.primitive);
@@ -79,7 +79,7 @@ pub const MotionMesh = struct {
 
         const itri = data.indexTriangle(frag.isec.primitive);
 
-        const frame = data.frameAt(time, frame_start);
+        const frame = data.frameAt(time);
 
         const geo_n = data.normal(frame, itri);
         frag.geo_n = frag.isec.trafo.objectToWorldNormal(geo_n);
@@ -98,22 +98,13 @@ pub const MotionMesh = struct {
         frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
     }
 
-    pub fn intersectP(self: *const Self, probe: Probe, trafo: Trafo, frame_start: u64) bool {
-        return self.tree.intersectP(probe, trafo, frame_start);
+    pub fn intersectP(self: *const Self, probe: Probe, trafo: Trafo) bool {
+        return self.tree.intersectP(probe, trafo);
     }
 
-    pub fn visibility(
-        self: *const Self,
-        probe: Probe,
-        trafo: Trafo,
-        frame_start: u64,
-        entity: u32,
-        sampler: *Sampler,
-        context: Context,
-        tr: *Vec4f,
-    ) bool {
+    pub fn visibility(self: *const Self, probe: Probe, trafo: Trafo, entity: u32, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
         const local_ray = trafo.worldToObjectRay(probe.ray);
-        return self.tree.visibility(local_ray, probe.time, frame_start, entity, sampler, context, tr);
+        return self.tree.visibility(local_ray, probe.time, entity, sampler, context, tr);
     }
 
     pub fn transmittance(
@@ -152,8 +143,8 @@ pub const MotionMesh = struct {
         return self.tree.emission(local_ray, vertex, frag, split_threshold, sampler, context);
     }
 
-    pub fn surfaceDifferentials(self: *const Self, primitive: u32, trafo: Trafo, time: u64, frame_start: u64) DifferentialSurface {
-        const frame = self.tree.data.frameAt(time, frame_start);
+    pub fn surfaceDifferentials(self: *const Self, primitive: u32, trafo: Trafo, time: u64) DifferentialSurface {
+        const frame = self.tree.data.frameAt(time);
 
         const puv = self.tree.data.trianglePuv(frame, self.tree.data.indexTriangle(primitive));
 

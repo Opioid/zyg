@@ -2,7 +2,6 @@ const log = @import("../../log.zig");
 const Shape = @import("shape.zig").Shape;
 const CurveMesh = @import("curve/curve_mesh.zig").Mesh;
 const PointMotionCloud = @import("point/point_motion_cloud.zig").MotionCloud;
-const PointMotionFrameDuration = @import("point/point_motion_data.zig").MotionData.FrameDuration;
 const PointMotionTreeBuilder = @import("point/point_motion_tree_builder.zig").Builder;
 const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
 const TriangleMotionMesh = @import("triangle/triangle_motion_mesh.zig").MotionMesh;
@@ -15,6 +14,8 @@ const CurveBuilder = @import("curve/curve_tree_builder.zig").Builder;
 const HairReader = @import("curve/hair_reader.zig").Reader;
 const Resources = @import("../../resource/manager.zig").Manager;
 const Result = @import("../../resource/result.zig").Result;
+const Scene = @import("../../scene/Scene.zig").Scene;
+const motion = @import("../../scene/motion.zig");
 const file = @import("../../file/file.zig");
 const ReadStream = @import("../../file/read_stream.zig").ReadStream;
 
@@ -47,6 +48,8 @@ const Handler = struct {
     };
 
     topology: Topology = .TriangleList,
+    frame_duration: u64 = 0,
+    start_frame: u32 = 0,
     point_radius: f32 = 0.0,
     parts: []Part = &.{},
     triangles: []IndexTriangle = &.{},
@@ -80,8 +83,9 @@ const Handler = struct {
 };
 
 const Error = error{
-    NoVertices,
     NoGeometryNode,
+    NoVertices,
+    NoTriangles,
     BitangentSignNotUInt8,
     PartIndicesOutOfBounds,
 };
@@ -185,11 +189,8 @@ pub const Provider = struct {
 
             const root = parsed.value;
 
-            var iter = root.object.iterator();
-            while (iter.next()) |entry| {
-                if (std.mem.eql(u8, "geometry", entry.key_ptr.*)) {
-                    try loadGeometry(alloc, &handler, entry.value_ptr.*, resources);
-                }
+            if (root.object.get("geometry")) |value| {
+                try loadGeometry(alloc, &handler, value, resources);
             }
         }
 
@@ -199,6 +200,9 @@ pub const Provider = struct {
 
         if (.PointList == handler.topology) {
             var cloud = PointMotionCloud{};
+
+            cloud.tree.data.frame_duration = @intCast(handler.frame_duration);
+            cloud.tree.data.start_frame = handler.start_frame;
 
             var builder = try PointMotionTreeBuilder.init(alloc);
             defer builder.deinit(alloc);
@@ -216,6 +220,10 @@ pub const Provider = struct {
 
             return .{ .data = .{ .PointMotionCloud = cloud } };
         } else {
+            if (0 == handler.triangles.len) {
+                return Error.NoTriangles;
+            }
+
             for (handler.parts, 0..) |p, i| {
                 const triangles_start = p.start_index / 3;
                 const triangles_end = (p.start_index + p.num_indices) / 3;
@@ -309,6 +317,8 @@ pub const Provider = struct {
         ) };
 
         if (handler.positions.len > 1) {
+            self.triangle_motion_tree.data.frame_duration = @intCast(handler.frame_duration);
+            self.triangle_motion_tree.data.start_frame = handler.start_frame;
             buildMotionBVH(self.alloc, &self.triangle_motion_tree, self.handler.triangles, vertices, self.threads) catch {};
         } else {
             buildBVH(self.alloc, &self.triangle_tree, self.handler.triangles, vertices, self.threads) catch {};
@@ -318,6 +328,12 @@ pub const Provider = struct {
     }
 
     fn loadGeometry(alloc: Allocator, handler: *Handler, value: std.json.Value, resources: *Resources) !void {
+        const fps = json.readFloatMember(value, "frames_per_second", 60.0);
+
+        const animation_frame_duration: u64 = @intFromFloat(@round(@as(f64, @floatFromInt(Scene.UnitsPerSecond)) / fps));
+
+        handler.frame_duration = animation_frame_duration;
+
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "primitive_topology", entry.key_ptr.*)) {
@@ -346,60 +362,95 @@ pub const Provider = struct {
             } else if (std.mem.eql(u8, "vertices", entry.key_ptr.*)) {
                 var viter = entry.value_ptr.object.iterator();
                 while (viter.next()) |ventry| {
-                    // Try position samples first, then try positions...
-                    if (std.mem.eql(u8, "position_samples", ventry.key_ptr.*)) {
-                        const position_samples = ventry.value_ptr.array.items;
-                        const num_frames = position_samples.len;
+                    if (std.mem.eql(u8, "positions", ventry.key_ptr.*)) {
+                        const position_items = ventry.value_ptr.array.items;
 
-                        const start_frame = @min(resources.frame_start / PointMotionFrameDuration, num_frames - 1);
-                        const end_frame = @min((start_frame + 1) + resources.frame_duration / PointMotionFrameDuration, num_frames);
+                        switch (position_items[0]) {
+                            .array => {
+                                const position_samples = position_items;
+                                const num_frames = position_samples.len;
 
-                        handler.positions = try alloc.alloc([]Pack3f, end_frame - start_frame);
+                                const start_frame = @min(resources.frame_start / animation_frame_duration, num_frames - 1);
+                                const counted_frames = motion.countFrames(resources.frame_duration, animation_frame_duration);
+                                const end_frame = @min(start_frame + counted_frames + 1, num_frames);
 
-                        for (position_samples[start_frame..end_frame], 0..) |frame, f| {
-                            const positions = frame.array.items;
-                            const num_positions = positions.len / 3;
+                                handler.positions = try alloc.alloc([]Pack3f, end_frame - start_frame);
 
-                            const dest_positions = try alloc.alloc(Pack3f, num_positions);
+                                for (position_samples[start_frame..end_frame], 0..) |frame, f| {
+                                    const positions = frame.array.items;
+                                    const num_positions = positions.len / 3;
 
-                            for (dest_positions, 0..) |*p, i| {
-                                p.* = Pack3f.init3(
-                                    json.readFloat(f32, positions[i * 3 + 0]),
-                                    json.readFloat(f32, positions[i * 3 + 1]),
-                                    json.readFloat(f32, positions[i * 3 + 2]),
-                                );
-                            }
+                                    const dest_positions = try alloc.alloc(Pack3f, num_positions);
 
-                            handler.positions[f] = dest_positions;
+                                    for (dest_positions, 0..) |*p, i| {
+                                        p.* = Pack3f.init3(
+                                            json.readFloat(f32, positions[i * 3 + 0]),
+                                            json.readFloat(f32, positions[i * 3 + 1]),
+                                            json.readFloat(f32, positions[i * 3 + 2]),
+                                        );
+                                    }
+
+                                    handler.positions[f] = dest_positions;
+                                }
+
+                                handler.start_frame = @intCast(start_frame);
+                            },
+                            .integer, .float => {
+                                const positions = position_items;
+                                const num_positions = positions.len / 3;
+
+                                const dest_positions = try alloc.alloc(Pack3f, num_positions);
+
+                                for (dest_positions, 0..) |*p, i| {
+                                    p.* = Pack3f.init3(
+                                        json.readFloat(f32, positions[i * 3 + 0]),
+                                        json.readFloat(f32, positions[i * 3 + 1]),
+                                        json.readFloat(f32, positions[i * 3 + 2]),
+                                    );
+                                }
+
+                                handler.positions = try alloc.alloc([]Pack3f, 1);
+                                handler.positions[0] = dest_positions;
+                                handler.start_frame = 0;
+                            },
+                            else => {},
                         }
-                    } else if (std.mem.eql(u8, "positions", ventry.key_ptr.*) and 0 == handler.positions.len) {
-                        const positions = ventry.value_ptr.array.items;
-                        const num_positions = positions.len / 3;
-
-                        const dest_positions = try alloc.alloc(Pack3f, num_positions);
-
-                        for (dest_positions, 0..) |*p, i| {
-                            p.* = Pack3f.init3(
-                                json.readFloat(f32, positions[i * 3 + 0]),
-                                json.readFloat(f32, positions[i * 3 + 1]),
-                                json.readFloat(f32, positions[i * 3 + 2]),
-                            );
-                        }
-
-                        handler.positions = try alloc.alloc([]Pack3f, 1);
-                        handler.positions[0] = dest_positions;
                     } else if (std.mem.eql(u8, "normals", ventry.key_ptr.*)) {
-                        const normals = ventry.value_ptr.array.items;
-                        const num_normals = normals.len / 3;
+                        const normal_items = ventry.value_ptr.array.items;
 
-                        handler.normals = try alloc.alloc(Pack3f, num_normals);
+                        switch (normal_items[0]) {
+                            .array => {
+                                const num_frames = normal_items.len;
+                                const start_frame = @min(resources.frame_start / animation_frame_duration, num_frames - 1);
 
-                        for (handler.normals, 0..) |*n, i| {
-                            n.* = Pack3f.init3(
-                                json.readFloat(f32, normals[i * 3 + 0]),
-                                json.readFloat(f32, normals[i * 3 + 1]),
-                                json.readFloat(f32, normals[i * 3 + 2]),
-                            );
+                                const normals = normal_items[start_frame].array.items;
+                                const num_normals = normals.len / 3;
+
+                                handler.normals = try alloc.alloc(Pack3f, num_normals);
+
+                                for (handler.normals, 0..) |*n, i| {
+                                    n.* = Pack3f.init3(
+                                        json.readFloat(f32, normals[i * 3 + 0]),
+                                        json.readFloat(f32, normals[i * 3 + 1]),
+                                        json.readFloat(f32, normals[i * 3 + 2]),
+                                    );
+                                }
+                            },
+                            .integer, .float => {
+                                const normals = normal_items;
+                                const num_normals = normals.len / 3;
+
+                                handler.normals = try alloc.alloc(Pack3f, num_normals);
+
+                                for (handler.normals, 0..) |*n, i| {
+                                    n.* = Pack3f.init3(
+                                        json.readFloat(f32, normals[i * 3 + 0]),
+                                        json.readFloat(f32, normals[i * 3 + 1]),
+                                        json.readFloat(f32, normals[i * 3 + 2]),
+                                    );
+                                }
+                            },
+                            else => {},
                         }
                     } else if (std.mem.eql(u8, "tangents_and_bitangent_signs", ventry.key_ptr.*)) {
                         const tangents = ventry.value_ptr.array.items;
@@ -465,8 +516,9 @@ pub const Provider = struct {
                         const radius_samples = ventry.value_ptr.array.items;
                         const num_frames = radius_samples.len;
 
-                        const start_frame = @min(resources.frame_start / PointMotionFrameDuration, num_frames - 1);
-                        const end_frame = @min((start_frame + 1) + resources.frame_duration / PointMotionFrameDuration, num_frames);
+                        const start_frame = @min(resources.frame_start / animation_frame_duration, num_frames - 1);
+                        const counted_frames = motion.countFrames(resources.frame_duration, animation_frame_duration);
+                        const end_frame = @min(start_frame + counted_frames + 1, num_frames);
 
                         handler.radii = try alloc.alloc([]f32, end_frame - start_frame);
 
