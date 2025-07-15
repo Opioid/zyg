@@ -7,6 +7,8 @@ const prj = @import("project.zig");
 const Project = prj.Project;
 const ProjectLoader = @import("project_loader.zig");
 
+const merger = @import("triangle_motion_merger.zig");
+
 const util = @import("util");
 const Graph = util.SceneGraph;
 const SceneLoader = util.SceneLoader;
@@ -73,6 +75,11 @@ pub fn main() !void {
         for (options.mounts.items) |i| {
             try fs.pushMount(alloc, i);
         }
+    }
+
+    if (try merger.merge(alloc, &resources)) {
+        log.info("We end the merger", .{});
+        return;
     }
 
     var stream = resources.fs.readStream(alloc, options.project) catch |err| {
