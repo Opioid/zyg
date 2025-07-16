@@ -70,6 +70,8 @@ pub const Builder = struct {
         tree: *MotionTree,
         triangles: []const IndexTriangle,
         vertices: VertexBuffer,
+        frame_duration: u64,
+        start_frame: u32,
         threads: *Threads,
     ) !void {
         var context = ReferencesContext{
@@ -92,6 +94,9 @@ pub const Builder = struct {
 
         try tree.data.allocateTriangles(alloc, self.super.numReferenceIds(), vertices);
         try tree.allocateNodes(alloc, self.super.numBuildNodes());
+
+        tree.data.frame_duration = @intCast(frame_duration);
+        tree.data.start_frame = start_frame;
 
         var current_triangle: u32 = 0;
         self.super.newNode();

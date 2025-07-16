@@ -55,21 +55,16 @@ const Handler = struct {
     triangles: []IndexTriangle = &.{},
     positions: [][]Pack3f = &.{},
     normals: []Pack3f = &.{},
-    tangents: []Pack3f = &.{},
     uvs: []Vec2f = &.{},
     radii: [][]f32 = &.{},
-    bitangent_signs: []u8 = &.{},
 
     pub fn deinit(self: *Handler, alloc: Allocator) void {
-        alloc.free(self.bitangent_signs);
-
         for (self.radii) |r| {
             alloc.free(r);
         }
         alloc.free(self.radii);
 
         alloc.free(self.uvs);
-        alloc.free(self.tangents);
         alloc.free(self.normals);
 
         for (self.positions) |p| {
@@ -107,6 +102,9 @@ pub const Provider = struct {
         tangents: ?[*]const f32,
         uvs: ?[*]const f32,
     };
+
+    frame_duration: u64 = 0,
+    start_frame: u32 = 0,
 
     num_indices: u32 = undefined,
     index_bytes: u64 = undefined,
@@ -175,7 +173,7 @@ pub const Provider = struct {
                     return e;
                 };
 
-                return .{ .data = .{ .TriangleMesh = mesh } };
+                return .{ .data = mesh };
             }
 
             const buffer = try stream.readAll(alloc);
@@ -311,15 +309,19 @@ pub const Provider = struct {
         const vertices = tvb.Buffer{ .Separate = tvb.Separate.init(
             handler.positions,
             handler.normals,
-            handler.tangents,
             handler.uvs,
-            handler.bitangent_signs,
         ) };
 
         if (handler.positions.len > 1) {
-            self.triangle_motion_tree.data.frame_duration = @intCast(handler.frame_duration);
-            self.triangle_motion_tree.data.start_frame = handler.start_frame;
-            buildMotionBVH(self.alloc, &self.triangle_motion_tree, self.handler.triangles, vertices, self.threads) catch {};
+            buildMotionBVH(
+                self.alloc,
+                &self.triangle_motion_tree,
+                self.handler.triangles,
+                vertices,
+                handler.frame_duration,
+                handler.start_frame,
+                self.threads,
+            ) catch {};
         } else {
             buildBVH(self.alloc, &self.triangle_tree, self.handler.triangles, vertices, self.threads) catch {};
         }
@@ -452,53 +454,22 @@ pub const Provider = struct {
                             },
                             else => {},
                         }
-                    } else if (std.mem.eql(u8, "tangents_and_bitangent_signs", ventry.key_ptr.*)) {
-                        const tangents = ventry.value_ptr.array.items;
-                        const num_tangents = tangents.len / 4;
-
-                        handler.tangents = try alloc.alloc(Pack3f, num_tangents);
-
-                        handler.bitangent_signs = try alloc.alloc(u8, num_tangents);
-
-                        for (handler.tangents, 0..) |*t, i| {
-                            t.* = Pack3f.init3(
-                                json.readFloat(f32, tangents[i * 4 + 0]),
-                                json.readFloat(f32, tangents[i * 4 + 1]),
-                                json.readFloat(f32, tangents[i * 4 + 2]),
-                            );
-
-                            handler.bitangent_signs[i] = if (json.readFloat(f32, tangents[i * 4 + 3]) >= 0.0) 0 else 1;
-                        }
                     } else if (std.mem.eql(u8, "tangent_space", ventry.key_ptr.*)) {
-                        log.warning("It is reading tangent space", .{});
                         const tangent_spaces = ventry.value_ptr.array.items;
                         const num_tangent_spaces = tangent_spaces.len / 4;
 
                         handler.normals = try alloc.alloc(Pack3f, num_tangent_spaces);
-                        handler.tangents = try alloc.alloc(Pack3f, num_tangent_spaces);
-                        handler.bitangent_signs = try alloc.alloc(u8, num_tangent_spaces);
 
                         for (handler.normals, 0..) |*n, i| {
-                            var ts = Quaternion{
+                            const ts = Quaternion{
                                 json.readFloat(f32, tangent_spaces[i * 4 + 0]),
                                 json.readFloat(f32, tangent_spaces[i * 4 + 1]),
                                 json.readFloat(f32, tangent_spaces[i * 4 + 2]),
                                 json.readFloat(f32, tangent_spaces[i * 4 + 3]),
                             };
 
-                            var bts = false;
-
-                            if (ts[3] < 0.0) {
-                                ts[3] = -ts[3];
-                                bts = true;
-                            }
-
                             const tbn = quaternion.toMat3x3(ts);
                             n.* = math.vec4fTo3f(tbn.r[2]);
-                            const t = &handler.tangents[i];
-                            t.* = math.vec4fTo3f(tbn.r[0]);
-
-                            handler.bitangent_signs[i] = if (bts) 1 else 0;
                         }
                     } else if (std.mem.eql(u8, "texture_coordinates_0", ventry.key_ptr.*)) {
                         const uvs = ventry.value_ptr.array.items;
@@ -551,8 +522,10 @@ pub const Provider = struct {
         }
     }
 
-    fn loadBinary(self: *Provider, alloc: Allocator, stream: ReadStream, resources: *Resources) !TriangleMesh {
+    fn loadBinary(self: *Provider, alloc: Allocator, stream: ReadStream, resources: *Resources) !Shape {
         try stream.seekTo(4);
+
+        var frame_duration: u64 = 0;
 
         var parts: []Part = &.{};
 
@@ -565,6 +538,9 @@ pub const Provider = struct {
 
         var num_vertices: u32 = 0;
         var num_indices: u32 = 0;
+
+        var num_position_frames: u32 = 1;
+        var num_normal_frames: u32 = 1;
 
         var interleaved_vertex_stream: bool = false;
         var tangent_space_as_quaternion: bool = false;
@@ -595,7 +571,9 @@ pub const Provider = struct {
 
             var iter = geometry_node.object.iterator();
             while (iter.next()) |entry| {
-                if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
+                if (std.mem.eql(u8, "frame_duration", entry.key_ptr.*)) {
+                    frame_duration = json.readUInt64(entry.value_ptr.*);
+                } else if (std.mem.eql(u8, "parts", entry.key_ptr.*)) {
                     const parts_slice = entry.value_ptr.array.items;
 
                     parts = try alloc.alloc(Part, parts_slice.len);
@@ -616,11 +594,15 @@ pub const Provider = struct {
                         } else if (std.mem.eql(u8, "layout", vn.key_ptr.*)) {
                             for (vn.value_ptr.array.items) |ln| {
                                 const semantic_name = json.readStringMember(ln, "semantic_name", "");
-                                if (std.mem.eql(u8, "Tangent", semantic_name)) {
+                                if (std.mem.eql(u8, "Position", semantic_name)) {
+                                    num_position_frames = json.readUIntMember(ln, "num_frames", 1);
+                                } else if (std.mem.eql(u8, "Normal", semantic_name)) {
+                                    num_normal_frames = json.readUIntMember(ln, "num_frames", 1);
+                                } else if (std.mem.eql(u8, "Tangent", semantic_name)) {
                                     has_tangents = true;
                                 } else if (std.mem.eql(u8, "Tangent_space", semantic_name)) {
                                     tangent_space_as_quaternion = true;
-                                } else if (std.mem.eql(u8, "Texture_coordinate", semantic_name)) {
+                                } else if (std.mem.eql(u8, "TextureCoordinate", semantic_name) or std.mem.eql(u8, "Texture_coordinate", semantic_name)) {
                                     has_uvs = true;
                                 } else if (std.mem.eql(u8, "Bitangent_sign", semantic_name)) {
                                     if (!std.mem.eql(u8, "UInt8", json.readStringMember(ln, "encoding", ""))) {
@@ -687,9 +669,26 @@ pub const Provider = struct {
         if (interleaved_vertex_stream) {
             log.err("interleaved", .{});
         } else {
-            const positions = try alloc.alloc([]Pack3f, 1);
-            positions[0] = try alloc.alloc(Pack3f, num_vertices);
-            _ = try stream.read(std.mem.sliceAsBytes(positions[0]));
+            const start_frame = @min(resources.frame_start / frame_duration, num_position_frames - 1);
+            const counted_frames = motion.countFrames(resources.frame_duration, frame_duration);
+            const end_frame = start_frame + @min(start_frame + counted_frames + 1, num_position_frames);
+
+            const positions = try alloc.alloc([]Pack3f, end_frame - start_frame);
+
+            if (start_frame > 0) {
+                try stream.seekBy(@sizeOf(Pack3f) * num_vertices * start_frame);
+            }
+
+            for (0..positions.len) |f| {
+                positions[f] = try alloc.alloc(Pack3f, num_vertices);
+                _ = try stream.read(std.mem.sliceAsBytes(positions[f]));
+            }
+
+            if (num_position_frames - end_frame > 0) {
+                try stream.seekBy(@sizeOf(Pack3f) * num_vertices * (num_position_frames - end_frame));
+            }
+
+            self.start_frame = @intCast(start_frame);
 
             if (tangent_space_as_quaternion) {
                 const ts = try alloc.alloc(Pack4f, num_vertices);
@@ -704,32 +703,43 @@ pub const Provider = struct {
                     uvs,
                 ) };
             } else {
+                const start_normal_frame = @min(resources.frame_start / frame_duration, num_normal_frames - 1);
+
+                if (start_normal_frame > 0) {
+                    try stream.seekBy(@sizeOf(Pack3f) * num_vertices * start_normal_frame);
+                }
+
                 const normals = try alloc.alloc(Pack3f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(normals));
 
+                if ((num_normal_frames - start_normal_frame) > 1) {
+                    try stream.seekBy(@sizeOf(Pack3f) * num_vertices * (num_normal_frames - start_normal_frame - 1));
+                }
+
                 if (has_uvs_and_tangents) {
-                    const tangents = try alloc.alloc(Pack3f, num_vertices);
-                    _ = try stream.read(std.mem.sliceAsBytes(tangents));
+                    try stream.seekBy(@sizeOf(Pack3f) * num_vertices);
 
                     const uvs = try alloc.alloc(Vec2f, num_vertices);
                     _ = try stream.read(std.mem.sliceAsBytes(uvs));
 
-                    const bts = try alloc.alloc(u8, num_vertices);
-                    _ = try stream.read(bts);
+                    vertices = tvb.Buffer{ .Separate = tvb.Separate.initOwned(
+                        positions,
+                        normals,
+                        uvs,
+                    ) };
+                } else if (has_uvs) {
+                    const uvs = try alloc.alloc(Vec2f, num_vertices);
+                    _ = try stream.read(std.mem.sliceAsBytes(uvs));
 
                     vertices = tvb.Buffer{ .Separate = tvb.Separate.initOwned(
                         positions,
                         normals,
-                        tangents,
                         uvs,
-                        bts,
                     ) };
                 } else {
                     vertices = tvb.Buffer{ .Separate = tvb.Separate.initOwned(
                         positions,
                         normals,
-                        &.{},
-                        &.{},
                         &.{},
                     ) };
                 }
@@ -746,18 +756,37 @@ pub const Provider = struct {
 
         _ = try stream.read(indices);
 
-        var mesh = try TriangleMesh.init(alloc, @intCast(parts.len));
+        var shape: Shape = undefined;
 
-        for (parts, 0..) |p, i| {
-            if (p.start_index + p.num_indices > num_indices) {
-                return Error.PartIndicesOutOfBounds;
+        if (vertices.numFrames() > 1) {
+            var mesh = try TriangleMotionMesh.init(alloc, @intCast(parts.len));
+
+            for (parts, 0..) |p, i| {
+                if (p.start_index + p.num_indices > num_indices) {
+                    return Error.PartIndicesOutOfBounds;
+                }
+
+                mesh.setMaterialForPart(i, p.material_index);
             }
 
-            mesh.setMaterialForPart(i, p.material_index);
+            shape = .{ .TriangleMotionMesh = mesh };
+        } else {
+            var mesh = try TriangleMesh.init(alloc, @intCast(parts.len));
+
+            for (parts, 0..) |p, i| {
+                if (p.start_index + p.num_indices > num_indices) {
+                    return Error.PartIndicesOutOfBounds;
+                }
+
+                mesh.setMaterialForPart(i, p.material_index);
+            }
+
+            shape = .{ .TriangleMesh = mesh };
         }
 
         resources.commitAsync();
 
+        self.frame_duration = frame_duration;
         self.num_indices = num_indices;
         self.index_bytes = index_bytes;
         self.delta_indices = delta_indices;
@@ -770,7 +799,7 @@ pub const Provider = struct {
 
         resources.threads.runAsync(self, buildBinaryAsync);
 
-        return mesh;
+        return shape;
     }
 
     fn buildBinaryAsync(context: ThreadContext) void {
@@ -794,7 +823,19 @@ pub const Provider = struct {
             }
         }
 
-        buildBVH(self.alloc, &self.triangle_tree, triangles, self.vertices, self.threads) catch {};
+        if (self.vertices.numFrames() > 1) {
+            buildMotionBVH(
+                self.alloc,
+                &self.triangle_motion_tree,
+                triangles,
+                self.vertices,
+                self.frame_duration,
+                self.start_frame,
+                self.threads,
+            ) catch {};
+        } else {
+            buildBVH(self.alloc, &self.triangle_tree, triangles, self.vertices, self.threads) catch {};
+        }
 
         self.alloc.free(self.indices);
         self.alloc.free(self.parts);
@@ -887,12 +928,14 @@ pub const Provider = struct {
         tree: *TriangleMotionTree,
         triangles: []const IndexTriangle,
         vertices: tvb.Buffer,
+        frame_duration: u64,
+        start_frame: u32,
         threads: *Threads,
     ) !void {
         var builder = try TriangleBuilder.init(alloc, 16, 64, 4);
         defer builder.deinit(alloc);
 
-        try builder.buildMotion(alloc, tree, triangles, vertices, threads);
+        try builder.buildMotion(alloc, tree, triangles, vertices, frame_duration, start_frame, threads);
     }
 
     fn fillTriangles(
