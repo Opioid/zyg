@@ -3,15 +3,16 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
-pub const Fragment = struct {
+pub const Triangle = struct {
+    a: u32,
+    b: u32,
+    c: u32,
+};
+
+pub const Hit = struct {
     t: f32,
     u: f32,
     v: f32,
-};
-
-pub const IndexTriangle = struct {
-    i: [3]u32,
-    part: u32,
 };
 
 pub fn min(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
@@ -22,7 +23,7 @@ pub fn max(a: Vec4f, b: Vec4f, c: Vec4f) Vec4f {
     return math.max4(a, math.max4(b, c));
 }
 
-pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Fragment {
+pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Hit {
     const e1 = b - a;
     const e2 = c - a;
 
@@ -44,7 +45,7 @@ pub fn intersect(ray: Ray, a: Vec4f, b: Vec4f, c: Vec4f) ?Fragment {
     const uv = u + v;
 
     if (u >= 0.0 and 1.0 >= u and v >= 0.0 and 1.0 >= uv and hit_t >= ray.min_t and ray.max_t >= hit_t) {
-        return Fragment{ .t = hit_t, .u = u, .v = v };
+        return Hit{ .t = hit_t, .u = u, .v = v };
     }
 
     return null;

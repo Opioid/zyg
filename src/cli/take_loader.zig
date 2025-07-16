@@ -2,8 +2,8 @@ const Graph = @import("util").SceneGraph;
 
 const core = @import("core");
 const cam = core.camera;
-const View = core.tk.View;
-const Prop = core.scn.Prop;
+const View = core.take.View;
+const Prop = core.scene.Prop;
 const snsr = core.rendering.snsr;
 const Buffer = snsr.Buffer;
 const Sensor = snsr.Sensor;
@@ -94,98 +94,112 @@ pub fn load(alloc: Allocator, stream: ReadStream, graph: *Graph, resources: *Res
 fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources: *Resources) !void {
     const parent_trafo: Transformation = .identity;
 
+    var cam_value_ptr: ?*std.json.Value = null;
+
     var cam_iter = value.object.iterator();
     while (cam_iter.next()) |cam_entry| {
         if (std.mem.eql(u8, "Orthographic", cam_entry.key_ptr.*)) {
             var camera = cam.Orthographic{};
 
-            var trafo: Transformation = .identity;
-
-            var animation_ptr: ?*std.json.Value = null;
-
-            var iter = cam_entry.value_ptr.object.iterator();
-            while (iter.next()) |entry| {
-                if (std.mem.eql(u8, "parameters", entry.key_ptr.*)) {
-                    camera.setParameters(entry.value_ptr.*);
-                } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
-                    json.readTransformation(entry.value_ptr.*, &trafo);
-                } else if (std.mem.eql(u8, "animation", entry.key_ptr.*)) {
-                    animation_ptr = entry.value_ptr;
-                }
+            if (cam_entry.value_ptr.object.get("parameters")) |parameters| {
+                camera.setParameters(parameters);
             }
 
-            graph.scene.calculateNumInterpolationFrames(camera.super.frame_step, camera.super.frame_duration);
-
-            const entity_id = try graph.scene.createEntity(alloc);
-
-            _ = try graph.propSetTransformation(
-                alloc,
-                entity_id,
-                Prop.Null,
-                trafo,
-                parent_trafo,
-                animation_ptr,
-                false,
-            );
-
-            camera.super.entity = entity_id;
-
-            const resolution = json.readVec2iMember(cam_entry.value_ptr.*, "resolution", .{ 0, 0 });
-            const crop = json.readVec4iMember(cam_entry.value_ptr.*, "crop", .{ 0, 0, resolution[0], resolution[1] });
-
-            camera.super.setResolution(resolution, crop);
+            cam_value_ptr = cam_entry.value_ptr;
 
             try graph.take.view.cameras.append(alloc, .{ .Orthographic = camera });
 
-            try graph.camera_trafos.append(alloc, trafo);
-
-            return;
+            break;
         } else if (std.mem.eql(u8, "Perspective", cam_entry.key_ptr.*)) {
             var camera = cam.Perspective{};
 
-            var trafo: Transformation = .identity;
-
-            var animation_ptr: ?*std.json.Value = null;
-
-            var iter = cam_entry.value_ptr.object.iterator();
-            while (iter.next()) |entry| {
-                if (std.mem.eql(u8, "parameters", entry.key_ptr.*)) {
-                    try camera.setParameters(alloc, entry.value_ptr.*, &graph.scene, resources);
-                } else if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
-                    json.readTransformation(entry.value_ptr.*, &trafo);
-                } else if (std.mem.eql(u8, "animation", entry.key_ptr.*)) {
-                    animation_ptr = entry.value_ptr;
-                }
+            if (cam_entry.value_ptr.object.get("parameters")) |parameters| {
+                try camera.setParameters(alloc, parameters, &graph.scene, resources);
             }
 
-            graph.scene.calculateNumInterpolationFrames(camera.super.frame_step, camera.super.frame_duration);
-
-            const entity_id = try graph.scene.createEntity(alloc);
-
-            _ = try graph.propSetTransformation(
-                alloc,
-                entity_id,
-                Prop.Null,
-                trafo,
-                parent_trafo,
-                animation_ptr,
-                false,
-            );
-
-            camera.super.entity = entity_id;
-
-            const resolution = json.readVec2iMember(cam_entry.value_ptr.*, "resolution", .{ 0, 0 });
-            const crop = json.readVec4iMember(cam_entry.value_ptr.*, "crop", .{ 0, 0, resolution[0], resolution[1] });
-
-            camera.super.setResolution(resolution, crop);
+            cam_value_ptr = cam_entry.value_ptr;
 
             try graph.take.view.cameras.append(alloc, .{ .Perspective = camera });
 
-            try graph.camera_trafos.append(alloc, trafo);
-
-            return;
+            break;
         }
     }
+
+    if (cam_value_ptr) |cam_value| {
+        const num_cameras = graph.take.view.cameras.items.len;
+        var camera = graph.take.view.cameras.items[num_cameras - 1].super();
+
+        if (cam_value.object.get("shutter")) |shutter_value| {
+            loadShutter(shutter_value, camera);
+        }
+
+        graph.scene.calculateNumInterpolationFrames(camera.frame_step, camera.frame_duration);
+
+        const entity_id = try graph.scene.createEntity(alloc);
+        camera.entity = entity_id;
+
+        var trafo: Transformation = .identity;
+        if (cam_value.object.get("transformation")) |trafo_value| {
+            json.readTransformation(trafo_value, &trafo);
+        }
+
+        _ = try graph.propSetTransformation(
+            alloc,
+            entity_id,
+            Prop.Null,
+            trafo,
+            parent_trafo,
+            cam_value.object.getPtr("animation"),
+            false,
+        );
+
+        const resolution = json.readVec2iMember(cam_value.*, "resolution", .{ 0, 0 });
+        const crop = json.readVec4iMember(cam_value.*, "crop", .{ 0, 0, resolution[0], resolution[1] });
+
+        camera.setResolution(resolution, crop);
+
+        try graph.camera_trafos.append(alloc, trafo);
+    }
+}
+
+fn loadShutter(value: std.json.Value, camera: *cam.Base) void {
+    var motion_blur = true;
+
+    var open: f32 = 0.0;
+    var close: f32 = 1.0;
+
+    var slope_buffer: [8]f32 = undefined;
+    var slope: []f32 = &.{};
+
+    var iter = value.object.iterator();
+    while (iter.next()) |entry| {
+        if (std.mem.eql(u8, "frame_step", entry.key_ptr.*)) {
+            camera.frame_step = core.scene.Scene.absoluteTime(json.readFloat(f64, entry.value_ptr.*));
+        } else if (std.mem.eql(u8, "frames_per_second", entry.key_ptr.*)) {
+            const fps = json.readFloat(f64, entry.value_ptr.*);
+            if (0.0 == fps) {
+                camera.frame_step = 0;
+            } else {
+                camera.frame_step = @intFromFloat(@round(@as(f64, @floatFromInt(core.scene.Scene.UnitsPerSecond)) / fps));
+            }
+        } else if (std.mem.eql(u8, "open", entry.key_ptr.*)) {
+            open = json.readFloat(f32, entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "close", entry.key_ptr.*)) {
+            close = json.readFloat(f32, entry.value_ptr.*);
+        } else if (std.mem.eql(u8, "slope", entry.key_ptr.*)) {
+            const num_elem = @min(slope_buffer.len, entry.value_ptr.array.items.len);
+            for (0..num_elem) |i| {
+                slope_buffer[i] = json.readFloat(f32, entry.value_ptr.array.items[i]);
+            }
+            slope = slope_buffer[0..num_elem];
+        } else if (std.mem.eql(u8, "motion_blur", entry.key_ptr.*)) {
+            motion_blur = json.readBool(entry.value_ptr.*);
+        }
+    }
+
+    camera.setShutter(open, close, slope);
+
+    camera.frame_duration = if (motion_blur) camera.frame_step else 0;
 }
 
 fn loadSensor(value: std.json.Value) snsr.Sensor {

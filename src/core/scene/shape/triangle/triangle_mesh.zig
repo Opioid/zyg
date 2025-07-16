@@ -1,10 +1,5 @@
-const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
-const Context = @import("../../context.zig").Context;
-const Scene = @import("../../scene.zig").Scene;
-const Vertex = @import("../../vertex.zig").Vertex;
-const Renderstate = @import("../../renderstate.zig").Renderstate;
-const Sampler = @import("../../../sampler/sampler.zig").Sampler;
-const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
+const Tree = @import("triangle_tree.zig").Tree;
+const tri = @import("triangle.zig");
 const int = @import("../intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
@@ -14,8 +9,13 @@ const Probe = @import("../probe.zig").Probe;
 const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const Tree = @import("triangle_tree.zig").Tree;
-const tri = @import("triangle.zig");
+const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
+const Context = @import("../../context.zig").Context;
+const Scene = @import("../../scene.zig").Scene;
+const Vertex = @import("../../vertex.zig").Vertex;
+const Renderstate = @import("../../renderstate.zig").Renderstate;
+const Sampler = @import("../../../sampler/sampler.zig").Sampler;
+const NodeStack = @import("../../bvh/node_stack.zig").NodeStack;
 const LightTree = @import("../../light/light_tree.zig").PrimitiveTree;
 const LightTreeBuilder = @import("../../light/light_tree_builder.zig").Builder;
 const LightProperties = @import("../../light/light.zig").Properties;
@@ -430,8 +430,7 @@ pub const Mesh = struct {
     }
 
     pub fn intersect(self: *const Mesh, ray: Ray, trafo: Trafo, isec: *Intersection) bool {
-        const local_ray = trafo.worldToObjectRay(ray);
-        return self.tree.intersect(local_ray, trafo, isec);
+        return self.tree.intersect(ray, trafo, isec);
     }
 
     pub fn intersectOpacity(
@@ -443,8 +442,7 @@ pub const Mesh = struct {
         scene: *const Scene,
         isec: *Intersection,
     ) bool {
-        const local_ray = trafo.worldToObjectRay(ray);
-        return self.tree.intersectOpacity(local_ray, trafo, entity, sampler, scene, isec);
+        return self.tree.intersectOpacity(ray, trafo, entity, sampler, scene, isec);
     }
 
     pub fn fragment(self: *const Mesh, frag: *Fragment) void {
@@ -501,8 +499,7 @@ pub const Mesh = struct {
         context: Context,
         tr: *Vec4f,
     ) bool {
-        const local_ray = trafo.worldToObjectRay(probe.ray);
-        return self.tree.transmittance(local_ray, trafo, entity, probe.depth.volume, sampler, context, tr);
+        return self.tree.transmittance(probe.ray, trafo, entity, probe.depth.volume, sampler, context, tr);
     }
 
     pub fn scatter(
@@ -514,8 +511,7 @@ pub const Mesh = struct {
         sampler: *Sampler,
         context: Context,
     ) Volume {
-        const local_ray = trafo.worldToObjectRay(probe.ray);
-        return self.tree.scatter(local_ray, trafo, throughput, entity, probe.depth.volume, sampler, context);
+        return self.tree.scatter(probe.ray, trafo, throughput, entity, probe.depth.volume, sampler, context);
     }
 
     pub fn emission(

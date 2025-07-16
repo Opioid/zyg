@@ -2,7 +2,7 @@ const Graph = @import("scene_graph.zig").Graph;
 
 const core = @import("core");
 const cam = core.camera;
-const scn = core.scn;
+const scn = core.scene;
 const Shape = scn.Shape;
 const resource = core.resource;
 const Resources = resource.Manager;

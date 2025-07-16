@@ -140,7 +140,8 @@ pub const Perspective = struct {
             origin = self.eye_offsets[layer];
         }
 
-        const time = self.super.absoluteTime(frame, sample.time);
+        const shutter_time = self.super.sampleShutterTime(sample.time);
+        const time = self.super.absoluteTime(frame, shutter_time);
         const trafo = scene.propTransformationAt(self.super.entity, time);
 
         const origin_w = trafo.objectToWorldPoint(origin);
@@ -258,22 +259,9 @@ pub const Perspective = struct {
     }
 
     pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, scene: *const Scene, resources: *Resources) !void {
-        var motion_blur = true;
-
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "frame_step", entry.key_ptr.*)) {
-                self.super.frame_step = Scene.absoluteTime(json.readFloat(f64, entry.value_ptr.*));
-            } else if (std.mem.eql(u8, "frames_per_second", entry.key_ptr.*)) {
-                const fps = json.readFloat(f64, entry.value_ptr.*);
-                if (0.0 == fps) {
-                    self.super.frame_step = 0;
-                } else {
-                    self.super.frame_step = @intFromFloat(@round(@as(f64, @floatFromInt(Scene.UnitsPerSecond)) / fps));
-                }
-            } else if (std.mem.eql(u8, "motion_blur", entry.key_ptr.*)) {
-                motion_blur = json.readBool(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "fov", entry.key_ptr.*)) {
+            if (std.mem.eql(u8, "fov", entry.key_ptr.*)) {
                 const fov = json.readFloat(f32, entry.value_ptr.*);
                 self.fov = math.degreesToRadians(fov);
             } else if (std.mem.eql(u8, "lens", entry.key_ptr.*)) {
@@ -321,8 +309,6 @@ pub const Perspective = struct {
                 self.eye_offsets[1] = .{ 0.5 * ipd, 0.0, 0.0, 0.0 };
             }
         }
-
-        self.super.frame_duration = if (motion_blur) self.super.frame_step else 0;
     }
 
     fn setFocus(self: *Self, focus: Focus) void {

@@ -7,6 +7,8 @@ const prj = @import("project.zig");
 const Project = prj.Project;
 const ProjectLoader = @import("project_loader.zig");
 
+const merger = @import("triangle_motion_merger.zig");
+
 const util = @import("util");
 const Graph = util.SceneGraph;
 const SceneLoader = util.SceneLoader;
@@ -17,11 +19,11 @@ const resource = core.resource;
 const Sampler = core.sampler.Sampler;
 
 const Camera = core.camera.Camera;
-const Context = core.scn.Context;
-const Vertex = core.scn.Vertex;
-const Fragment = core.scn.shp.int.Fragment;
-const Probe = core.scn.shp.Probe;
-const Shape = core.scn.Shape;
+const Context = core.scene.Context;
+const Vertex = core.scene.Vertex;
+const Fragment = core.scene.shp.int.Fragment;
+const Probe = core.scene.shp.Probe;
+const Shape = core.scene.Shape;
 
 const base = @import("base");
 const math = base.math;
@@ -73,6 +75,11 @@ pub fn main() !void {
         for (options.mounts.items) |i| {
             try fs.pushMount(alloc, i);
         }
+    }
+
+    if (try merger.merge(alloc, &resources)) {
+        log.info("We end the merger", .{});
+        return;
     }
 
     var stream = resources.fs.readStream(alloc, options.project) catch |err| {
@@ -214,12 +221,12 @@ const Up = enum {
 
     pub fn ray(self: Up, region: AABB, x: f32, y: f32) Ray {
         return switch (self) {
-            .XPos => Ray.init(.{ region.bounds[1][0] + 1.0, x, y, 0.0 }, .{ -1.0, 0.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
-            .XNeg => Ray.init(.{ region.bounds[0][0] - 1.0, x, y, 0.0 }, .{ 1.0, 0.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
-            .YPos => Ray.init(.{ x, region.bounds[1][1] + 1.0, y, 0.0 }, .{ 0.0, -1.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
-            .YNeg => Ray.init(.{ x, region.bounds[0][1] - 1.0, y, 0.0 }, .{ 0.0, 1.0, 0.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
-            .ZPos => Ray.init(.{ x, y, region.bounds[1][1] + 1.0, 0.0 }, .{ 0.0, 0.0, -1.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
-            .ZNeg => Ray.init(.{ x, y, region.bounds[0][1] - 1.0, 0.0 }, .{ 0.0, 0.0, 1.0, 0.0 }, 0.0, core.scn.ro.RayMaxT),
+            .XPos => Ray.init(.{ region.bounds[1][0] + 1.0, x, y, 0.0 }, .{ -1.0, 0.0, 0.0, 0.0 }, 0.0, core.scene.ro.RayMaxT),
+            .XNeg => Ray.init(.{ region.bounds[0][0] - 1.0, x, y, 0.0 }, .{ 1.0, 0.0, 0.0, 0.0 }, 0.0, core.scene.ro.RayMaxT),
+            .YPos => Ray.init(.{ x, region.bounds[1][1] + 1.0, y, 0.0 }, .{ 0.0, -1.0, 0.0, 0.0 }, 0.0, core.scene.ro.RayMaxT),
+            .YNeg => Ray.init(.{ x, region.bounds[0][1] - 1.0, y, 0.0 }, .{ 0.0, 1.0, 0.0, 0.0 }, 0.0, core.scene.ro.RayMaxT),
+            .ZPos => Ray.init(.{ x, y, region.bounds[1][1] + 1.0, 0.0 }, .{ 0.0, 0.0, -1.0, 0.0 }, 0.0, core.scene.ro.RayMaxT),
+            .ZNeg => Ray.init(.{ x, y, region.bounds[0][1] - 1.0, 0.0 }, .{ 0.0, 0.0, 1.0, 0.0 }, 0.0, core.scene.ro.RayMaxT),
         };
     }
 

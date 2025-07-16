@@ -40,6 +40,9 @@ pub const Exporter = struct {
             try stream.objectField("primitive_topology");
             try stream.write("point_list");
 
+            try stream.objectField("frames_per_second");
+            try stream.write(particles.frames_per_second);
+
             try stream.objectField("point_radius");
             try stream.write(particles.radius);
 
@@ -47,7 +50,7 @@ pub const Exporter = struct {
             {
                 try stream.beginObject();
 
-                try stream.objectField("position_samples");
+                try stream.objectField("positions");
                 {
                     try stream.beginArray();
 

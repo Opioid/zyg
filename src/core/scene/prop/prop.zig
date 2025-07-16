@@ -190,7 +190,7 @@ pub const Prop = struct {
             if (properties.evaluate_visibility) {
                 return shape.intersectOpacity(probe, trafo, prototype, sampler, scene, isec);
             } else {
-                return shape.intersect(probe, trafo, scene.frame_start, isec);
+                return shape.intersect(probe, trafo, isec);
             }
         }
     }
@@ -230,7 +230,7 @@ pub const Prop = struct {
             } else if (properties.evaluate_visibility) {
                 return shape.visibility(probe, trafo, prototype, sampler, context, tr);
             } else {
-                return !shape.intersectP(probe, trafo, scene.frame_start);
+                return !shape.intersectP(probe, trafo);
             }
         }
     }

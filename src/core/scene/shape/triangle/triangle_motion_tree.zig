@@ -1,4 +1,5 @@
-const Data = @import("triangle_data.zig").Data;
+const Data = @import("triangle_motion_data.zig").MotionData;
+const Probe = @import("../probe.zig").Probe;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Context = @import("../../context.zig").Context;
 const Scene = @import("../../scene.zig").Scene;
@@ -43,16 +44,18 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, ray: Ray, trafo: Trafo, isec: *Intersection) bool {
-        const nodes = self.nodes;
+    pub fn intersect(self: Tree, probe: Probe, trafo: Trafo, isec: *Intersection) bool {
+        const frame = self.data.frameAt(probe.time);
 
-        var local_ray = trafo.worldToObjectRay(ray);
+        var local_ray = trafo.worldToObjectRay(probe.ray);
 
         var stack = NodeStack{};
         var n: u32 = 0;
 
         var hpoint: Data.Hit = undefined;
         var primitive = Intersection.Null;
+
+        const nodes = self.nodes;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -62,7 +65,7 @@ pub const Tree = struct {
                 var i = node.indicesStart();
                 const e = i + num;
                 while (i < e) : (i += 1) {
-                    if (self.data.intersect(local_ray, i)) |hit| {
+                    if (self.data.intersect(local_ray, frame, i)) |hit| {
                         local_ray.max_t = hit.t;
                         hpoint = hit;
                         primitive = i;
@@ -110,16 +113,17 @@ pub const Tree = struct {
 
     pub fn intersectOpacity(
         self: Tree,
-        ray: Ray,
+        probe: Probe,
         trafo: Trafo,
         entity: u32,
         sampler: *Sampler,
         scene: *const Scene,
         isec: *Intersection,
     ) bool {
+        const frame = self.data.frameAt(probe.time);
         const nodes = self.nodes;
 
-        var local_ray = trafo.worldToObjectRay(ray);
+        var local_ray = trafo.worldToObjectRay(probe.ray);
 
         var stack = NodeStack{};
         var n: u32 = 0;
@@ -135,7 +139,7 @@ pub const Tree = struct {
                 var i = node.indicesStart();
                 const e = i + num;
                 while (i < e) : (i += 1) {
-                    if (self.data.intersect(local_ray, i)) |hit| {
+                    if (self.data.intersect(local_ray, frame, i)) |hit| {
                         const material = scene.propMaterial(entity, self.data.trianglePart(i));
 
                         if (material.evaluateVisibility()) {
@@ -194,8 +198,11 @@ pub const Tree = struct {
         return true;
     }
 
-    pub fn intersectP(self: Tree, ray: Ray) bool {
+    pub fn intersectP(self: Tree, probe: Probe, trafo: Trafo) bool {
+        const frame = self.data.frameAt(probe.time);
         const nodes = self.nodes;
+
+        const local_ray = trafo.worldToObjectRay(probe.ray);
 
         var stack = NodeStack{};
         var n: u32 = 0;
@@ -208,7 +215,7 @@ pub const Tree = struct {
                 var i = node.indicesStart();
                 const e = i + num;
                 while (i < e) : (i += 1) {
-                    if (self.data.intersectP(ray, i)) {
+                    if (self.data.intersectP(local_ray, frame, i)) {
                         return true;
                     }
                 }
@@ -220,8 +227,8 @@ pub const Tree = struct {
             var a = node.children();
             var b = a + 1;
 
-            var dista = nodes[a].intersect(ray);
-            var distb = nodes[b].intersect(ray);
+            var dista = nodes[a].intersect(local_ray);
+            var distb = nodes[b].intersect(local_ray);
 
             if (dista > distb) {
                 std.mem.swap(u32, &a, &b);
@@ -241,10 +248,12 @@ pub const Tree = struct {
         return false;
     }
 
-    pub fn visibility(self: Tree, ray: Ray, entity: u32, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
-        const nodes = self.nodes;
+    pub fn visibility(self: Tree, ray: Ray, time: u64, entity: u32, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
+        const frame = self.data.frameAt(time);
 
         const ray_dir = ray.direction;
+
+        const nodes = self.nodes;
 
         var stack = NodeStack{};
         var n: u32 = 0;
@@ -259,12 +268,12 @@ pub const Tree = struct {
                 var i = node.indicesStart();
                 const e = i + num;
                 while (i < e) : (i += 1) {
-                    if (self.data.intersect(ray, i)) |hit| {
+                    if (self.data.intersect(ray, frame, i)) |hit| {
                         const material = context.scene.propMaterial(entity, self.data.trianglePart(i));
 
                         if (material.evaluateVisibility()) {
                             const itri = self.data.indexTriangle(i);
-                            rs.geo_n = self.data.normal(itri);
+                            rs.geo_n = self.data.normal(frame, itri);
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
                             rs.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
@@ -411,15 +420,16 @@ pub const Tree = struct {
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
+        const frame = self.data.frameAt(vertex.probe.time);
         const nodes = self.nodes;
+
+        const shading_p = vertex.origin;
+        const wo = -vertex.probe.ray.direction;
 
         var stack = NodeStack{};
         var n: u32 = 0;
 
         var energy: Vec4f = @splat(0.0);
-
-        const shading_p = vertex.origin;
-        const wo = -vertex.probe.ray.direction;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -429,7 +439,7 @@ pub const Tree = struct {
                 var i = node.indicesStart();
                 const e = i + num;
                 while (i < e) : (i += 1) {
-                    if (self.data.intersect(ray, i)) |hit| {
+                    if (self.data.intersect(ray, frame, i)) |hit| {
                         frag.isec.t = hit.t;
                         frag.isec.u = hit.u;
                         frag.isec.v = hit.v;
@@ -439,10 +449,10 @@ pub const Tree = struct {
 
                         const itri = self.data.indexTriangle(i);
 
-                        const p = self.data.interpolateP(itri, hit.u, hit.v);
+                        const p = self.data.interpolateP(frame, itri, hit.u, hit.v);
                         frag.p = frag.isec.trafo.objectToWorldPoint(p);
 
-                        const geo_n = self.data.normal(itri);
+                        const geo_n = self.data.normal(frame, itri);
                         frag.geo_n = frag.isec.trafo.objectToWorldNormal(geo_n);
 
                         const uv = self.data.interpolateUv(itri, hit.u, hit.v);

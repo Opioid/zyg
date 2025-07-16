@@ -108,7 +108,7 @@ pub const Context = struct {
     }
 
     pub fn propInterpolateFragment(self: Self, entity: u32, probe: Probe, frag: *Fragment) void {
-        self.scene.propShape(entity).fragment(probe, self.scene.frame_start, frag);
+        self.scene.propShape(entity).fragment(probe, frag);
     }
 
     pub fn sampleProcedural2D_1(self: Self, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {
@@ -132,7 +132,7 @@ pub const Context = struct {
 
         const ds: DifferentialSurface =
             if (.UV0 == texcoord)
-                self.scene.propShape(rs.prop).surfaceDifferentials(rs.primitive, rs.trafo)
+                self.scene.propShape(rs.prop).surfaceDifferentials(rs.primitive, rs.trafo, rs.time)
             else
                 hlp.triplanarDifferentials(rs.geo_n, rs.trafo);
 

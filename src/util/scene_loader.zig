@@ -3,7 +3,7 @@ const Graph = @import("scene_graph.zig").Graph;
 
 const core = @import("core");
 const log = core.log;
-const scn = core.scn;
+const scn = core.scene;
 const Scene = scn.Scene;
 const Prop = scn.Prop;
 const Material = scn.Material;
@@ -804,8 +804,6 @@ pub const Loader = struct {
 
     fn loadSky(alloc: Allocator, value: std.json.Value, graph: *Graph) !u32 {
         const sky = try graph.scene.createSky(alloc);
-
-        // try graph.bumpProps(alloc);
 
         if (value.object.get("parameters")) |parameters| {
             sky.setParameters(parameters);

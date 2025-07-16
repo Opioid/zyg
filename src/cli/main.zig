@@ -9,7 +9,7 @@ const core = @import("core");
 const log = core.log;
 const rendering = core.rendering;
 const resource = core.resource;
-const scn = core.scn;
+const scn = core.scene;
 
 const base = @import("base");
 const chrono = base.chrono;
@@ -211,8 +211,10 @@ fn reloadFrameDependant(
     const num_take_cameras = graph.camera_trafos.items.len;
     for (graph.take.view.cameras.items[0..num_take_cameras], graph.camera_trafos.items) |*camera, trafo| {
         const entity_id = try graph.scene.createEntity(alloc);
-        camera.super().entity = entity_id;
+        var camera_base = camera.super();
+        camera_base.entity = entity_id;
         graph.scene.prop_space.setWorldTransformation(entity_id, trafo);
+        graph.scene.calculateNumInterpolationFrames(camera_base.frame_step, camera_base.frame_duration);
     }
 
     scene_loader.load(alloc, graph) catch |err| {

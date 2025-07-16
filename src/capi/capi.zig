@@ -3,8 +3,11 @@ const log = core.log;
 const img = core.image;
 const rendering = core.rendering;
 const resource = core.resource;
-const scn = core.scn;
-const Take = core.tk.Take;
+const Material = core.scene.Material;
+const Prop = core.scene.Prop;
+const Scene = core.scene.Scene;
+const Shape = core.scene.Shape;
+const Take = core.take.Take;
 const prg = core.progress;
 
 const base = @import("base");
@@ -35,7 +38,7 @@ const Engine = struct {
 
     threads: Threads = .{},
 
-    scene: scn.Scene = undefined,
+    scene: Scene = undefined,
     resources: resource.Manager = undefined,
     fallback_material: u32 = undefined,
     materials: std.ArrayListUnmanaged(u32) = .empty,
@@ -66,7 +69,7 @@ export fn su_init() i32 {
             return -1;
         };
 
-        e.scene = scn.Scene.init(alloc) catch {
+        e.scene = Scene.init(alloc) catch {
             engine = null;
             return -1;
         };
@@ -142,7 +145,7 @@ export fn su_perspective_camera_create(width: u32, height: u32) i32 {
         camera.super().setResolution(resolution, crop);
         camera.setFov(math.degreesToRadians(80.0));
 
-        if (scn.Prop.Null == camera.super().entity) {
+        if (Prop.Null == camera.super().entity) {
             const prop_id = e.scene.createEntity(e.alloc) catch {
                 return -1;
             };
@@ -336,7 +339,7 @@ export fn su_material_create(id: u32, string: [*:0]const u8) i32 {
         var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
         defer parsed.deinit();
 
-        const material = e.resources.loadData(scn.Material, e.alloc, id, &parsed.value, .{}) catch return -1;
+        const material = e.resources.loadData(Material, e.alloc, id, &parsed.value, .{}) catch return -1;
 
         return @intCast(material);
     }
@@ -402,7 +405,7 @@ export fn su_triangle_mesh_create(
             .uvs = uvs,
         };
 
-        const mesh_id = e.resources.loadData(scn.Shape, e.alloc, id, &desc, .{}) catch return -1;
+        const mesh_id = e.resources.loadData(Shape, e.alloc, id, &desc, .{}) catch return -1;
 
         if (!asyncr) {
             e.resources.commitAsync();
@@ -505,7 +508,7 @@ export fn su_prop_set_transformation_frame(prop: u32, frame: u32, trafo: [*]cons
             return -1;
         }
 
-        if (scn.Prop.Null == e.scene.prop_space.frames.items[prop]) {
+        if (Prop.Null == e.scene.prop_space.frames.items[prop]) {
             e.scene.propAllocateFrames(e.alloc, prop) catch return -1;
         }
 
@@ -604,7 +607,7 @@ export fn su_render_iterations(num_steps: u32) i32 {
 
 export fn su_resolve_frame(aov: u32) i32 {
     if (engine) |*e| {
-        if (aov >= core.tk.View.AovValue.NumClasses) {
+        if (aov >= core.take.View.AovValue.NumClasses) {
             e.driver.resolve(0, 0);
             return 0;
         }
@@ -621,7 +624,7 @@ export fn su_resolve_frame_to_buffer(aov: u32, width: u32, height: u32, buffer: 
 
         const target: [*]Pack4f = @ptrCast(buffer);
 
-        if (aov >= core.tk.View.AovValue.NumClasses) {
+        if (aov >= core.take.View.AovValue.NumClasses) {
             e.driver.resolveToBuffer(0, 0, target, num_pixels);
             return 0;
         }

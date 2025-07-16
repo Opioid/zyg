@@ -1,6 +1,8 @@
 pub const AABB = @import("aabb.zig").AABB;
 pub const cone = @import("cone.zig");
-pub const Distribution1D = @import("distribution_1d.zig").Distribution1D;
+const dist1D = @import("distribution_1d.zig");
+pub const Distribution1D = dist1D.Distribution1D;
+pub const Distribution1DN = dist1D.Distribution1DN;
 const dist2D = @import("distribution_2d.zig");
 pub const Distribution2D = dist2D.Distribution2D;
 pub const Distribution2DN = dist2D.Distribution2DN;
@@ -66,6 +68,7 @@ pub const cross3 = vec4.cross3;
 pub const reflect3 = vec4.reflect3;
 pub const orthonormalBasis3 = vec4.orthonormalBasis3;
 pub const tangent3 = vec4.tangent3;
+pub const gramSchmidt = vec4.gramSchmidt;
 pub const min4 = vec4.min4;
 pub const max4 = vec4.max4;
 pub const clamp4 = vec4.clamp4;

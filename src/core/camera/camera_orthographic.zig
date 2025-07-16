@@ -98,26 +98,6 @@ pub const Orthographic = struct {
     }
 
     pub fn setParameters(self: *Self, value: std.json.Value) void {
-        var motion_blur = true;
-
-        var iter = value.object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "frame_step", entry.key_ptr.*)) {
-                self.super.frame_step = Scene.absoluteTime(json.readFloat(f64, entry.value_ptr.*));
-            } else if (std.mem.eql(u8, "frames_per_second", entry.key_ptr.*)) {
-                const fps = json.readFloat(f64, entry.value_ptr.*);
-                if (0.0 == fps) {
-                    self.super.frame_step = 0;
-                } else {
-                    self.super.frame_step = @intFromFloat(@round(@as(f64, @floatFromInt(Scene.UnitsPerSecond)) / fps));
-                }
-            } else if (std.mem.eql(u8, "motion_blur", entry.key_ptr.*)) {
-                motion_blur = json.readBool(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "size", entry.key_ptr.*)) {
-                self.size = json.readFloat(f32, entry.value_ptr.*);
-            }
-        }
-
-        self.super.frame_duration = if (motion_blur) self.super.frame_step else 0;
+        self.size = json.readFloatMember(value, "size", self.size);
     }
 };

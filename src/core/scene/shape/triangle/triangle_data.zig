@@ -6,19 +6,14 @@ const Vec2f = math.Vec2f;
 const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
-const quaternion = math.quaternion;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const IndexedData = struct {
-    pub const Fragment = triangle.Fragment;
+pub const Data = struct {
+    pub const Hit = triangle.Hit;
 
-    const Triangle = struct {
-        a: u32,
-        b: u32,
-        c: u32,
-    };
+    const Triangle = triangle.Triangle;
 
     num_triangles: u32 = 0,
     num_vertices: u32 = 0,
@@ -69,7 +64,7 @@ pub const IndexedData = struct {
         return self.normals[index * 3 ..][0..4].*;
     }
 
-    pub fn intersect(self: Self, ray: Ray, index: u32) ?triangle.Fragment {
+    pub fn intersect(self: Self, ray: Ray, index: u32) ?Hit {
         const tri = self.triangles[index];
 
         const a = self.position(tri.a);
@@ -127,12 +122,8 @@ pub const IndexedData = struct {
 
         const dpdu, const dpdv = triangle.positionDifferentials(pa, pb, pc, uva, uvb, uvc);
 
-        t.* = math.normalize3(gramSchmidt(dpdu, ni));
-        b.* = math.normalize3(gramSchmidt(dpdv, ni));
-    }
-
-    fn gramSchmidt(v: Vec4f, w: Vec4f) Vec4f {
-        return v - @as(Vec4f, @splat(math.dot3(v, w))) * w;
+        t.* = math.normalize3(math.gramSchmidt(dpdu, ni));
+        b.* = math.normalize3(math.gramSchmidt(dpdv, ni));
     }
 
     pub fn interpolateUv(self: Self, tri: Triangle, u: f32, v: f32) Vec2f {

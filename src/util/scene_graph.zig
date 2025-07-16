@@ -4,11 +4,10 @@ const Animation = anim.Animation;
 const Keyframe = anim.Keyframe;
 
 const core = @import("core");
-const Take = core.tk.Take;
-const scn = core.scn;
-const Scene = scn.Scene;
-const Material = scn.Material;
-const Transformation = scn.Transformation;
+const Take = core.take.Take;
+const Scene = core.scene.Scene;
+const Material = core.scene.Material;
+const Transformation = core.scene.Transformation;
 
 const base = @import("base");
 const math = base.math;
