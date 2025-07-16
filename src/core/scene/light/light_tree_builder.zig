@@ -465,9 +465,7 @@ pub const Builder = struct {
 
         var node = &self.build_nodes[node_id];
 
-        if (1 == len or
-            (2 == len and (depth > Tree.MaxSplitDepth or !scene.lightAabb(lights[0]).overlaps(scene.lightAabb(lights[1])))))
-        {
+        if (1 == len or (2 == len and depth > Tree.MaxSplitDepth)) {
             var node_two_sided = false;
 
             for (lights) |l| {
