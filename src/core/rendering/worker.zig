@@ -141,7 +141,7 @@ pub const Worker = struct {
         // Those values are only used for variance estimation
         // Exposure and tonemapping is not done here
         const ef: Vec4f = @splat(sensor.tonemapper.exposure_factor);
-        const wp: f32 = 1.0;
+        const wp: f32 = 0.98;
         const qm_threshold_squared = qm_threshold * qm_threshold;
 
         var rng = &self.rng;
