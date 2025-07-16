@@ -19,6 +19,8 @@ pub const Model = struct {
         material_index: u32,
     };
 
+    frame_duration: u64 = 0,
+
     parts: []Part = &.{},
     indices: []u32 = &.{},
     positions: List([]Pack3f) = .empty,

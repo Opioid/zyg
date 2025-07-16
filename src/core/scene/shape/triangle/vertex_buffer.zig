@@ -71,41 +71,33 @@ pub const Buffer = union(enum) {
 pub const Separate = struct {
     positions: []const []const Pack3f,
     normals: []const Pack3f,
-    tangents: []const Pack3f,
     uvs: []const Vec2f,
-    bts: []const u8,
 
     own: bool,
 
     const Self = @This();
 
-    pub fn init(positions: [][]Pack3f, normals: []Pack3f, tangents: []Pack3f, uvs: []Vec2f, bts: []u8) Self {
+    pub fn init(positions: [][]Pack3f, normals: []Pack3f, uvs: []Vec2f) Self {
         return Self{
             .positions = positions,
             .normals = normals,
-            .tangents = tangents,
             .uvs = uvs,
-            .bts = bts,
             .own = false,
         };
     }
 
-    pub fn initOwned(positions: [][]Pack3f, normals: []Pack3f, tangents: []Pack3f, uvs: []Vec2f, bts: []u8) Self {
+    pub fn initOwned(positions: [][]Pack3f, normals: []Pack3f, uvs: []Vec2f) Self {
         return .{
             .positions = positions,
             .normals = normals,
-            .tangents = tangents,
             .uvs = uvs,
-            .bts = bts,
             .own = true,
         };
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
         if (self.own) {
-            alloc.free(self.bts);
             alloc.free(self.uvs);
-            alloc.free(self.tangents);
             alloc.free(self.normals);
 
             for (self.positions) |p| {

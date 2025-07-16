@@ -26,8 +26,7 @@ pub fn merge(alloc: Allocator, resources: *Resources) !bool {
 
     var buf: [64]u8 = undefined;
 
-    const num_frames = 92;
-    for (1..num_frames) |f| {
+    for (1..100) |f| {
         const filename = try std.fmt.bufPrint(
             &buf,
             "models/wiggle/wiggle_{d:0>3}.json.gz",
@@ -36,6 +35,29 @@ pub fn merge(alloc: Allocator, resources: *Resources) !bool {
 
         try readAcum(alloc, filename, &model, resources);
     }
+
+    for (100..160) |f| {
+        const filename = try std.fmt.bufPrint(
+            &buf,
+            "models/wiggle/wiggle_{d:0>3}.json",
+            .{f},
+        );
+
+        try readAcum(alloc, filename, &model, resources);
+    }
+
+    for (160..211) |f| {
+        const filename = try std.fmt.bufPrint(
+            &buf,
+            "models/wiggle/wiggle_{d:0>3}.json.gz",
+            .{f},
+        );
+
+        try readAcum(alloc, filename, &model, resources);
+    }
+
+    const fps = 30;
+    model.frame_duration = @intFromFloat(@round(@as(f64, @floatFromInt(core.scene.Scene.UnitsPerSecond)) / fps));
 
     try JsonWriter.write(alloc, "../data/models/wiggle/wiggle.json", &model);
     try SubWriter.write(alloc, "../data/models/wiggle/wiggle.sub", &model);
@@ -202,7 +224,11 @@ fn loadInitGeometry(alloc: Allocator, model: *Model, value: std.json.Value) !voi
 }
 
 fn readAcum(alloc: Allocator, name: []const u8, model: *Model, resources: *Resources) !void {
-    var stream = try resources.fs.readStream(alloc, name);
+    var stream = resources.fs.readStream(alloc, name) catch |e| {
+        std.debug.print("Can't read {s}: {}\n", .{ name, e });
+        return e;
+    };
+
     defer stream.deinit();
 
     const buffer = try stream.readAll(alloc);

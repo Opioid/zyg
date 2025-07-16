@@ -142,8 +142,8 @@ pub fn write(alloc: Allocator, name: []const u8, model: *const Model) !void {
             try writer.objectField("primitive_topology");
             try writer.write("triangle_list");
 
-            try writer.objectField("frames_per_second");
-            try writer.write(30);
+            try writer.objectField("frame_duration");
+            try writer.write(model.frame_duration);
 
             const num_vertices = model.positions.items[0].len;
 
