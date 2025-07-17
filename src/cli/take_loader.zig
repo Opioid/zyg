@@ -149,7 +149,7 @@ fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources:
             Prop.Null,
             trafo,
             parent_trafo,
-            cam_value.object.getPtr("animation"),
+            cam_value.object.get("animation"),
             false,
         );
 
