@@ -91,6 +91,60 @@ pub const Sphere = struct {
         frag.uvw = .{ phi * (0.5 * math.pi_inv), theta * math.pi_inv, 0.0, 0.0 };
     }
 
+    pub fn intersectOpacity(ray: Ray, trafo: Trafo, entity: u32, sampler: *Sampler, scene: *const Scene, isec: *Intersection) bool {
+        const idl = 1.0 / math.length3(ray.direction);
+        const nd = ray.direction * @as(Vec4f, @splat(idl));
+
+        const v = trafo.position - ray.origin;
+        const b = math.dot3(nd, v);
+
+        const remedy_term = v - @as(Vec4f, @splat(b)) * nd;
+        const radius = 0.5 * trafo.scaleX();
+        const discriminant = radius * radius - math.dot3(remedy_term, remedy_term);
+
+        if (discriminant > 0.0) {
+            const dist = @sqrt(discriminant);
+
+            const t0 = (b - dist) * idl;
+            if (t0 >= ray.min_t and ray.max_t >= t0) {
+                const p = ray.point(t0);
+                const n = math.normalize3(p - trafo.position);
+                const xyz = math.normalize3(trafo.worldToObjectNormal(n));
+                const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
+                const theta = std.math.acos(xyz[1]);
+                const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
+
+                if (scene.propOpacity(entity, 0, uv, sampler)) {
+                    isec.t = t0;
+                    isec.primitive = 0;
+                    isec.prototype = Intersection.Null;
+                    isec.trafo = trafo;
+                    return true;
+                }
+            }
+
+            const t1 = (b + dist) * idl;
+            if (t1 >= ray.min_t and ray.max_t >= t1) {
+                const p = ray.point(t1);
+                const n = math.normalize3(p - trafo.position);
+                const xyz = math.normalize3(trafo.worldToObjectNormal(n));
+                const phi = -std.math.atan2(xyz[0], xyz[2]) + std.math.pi;
+                const theta = std.math.acos(xyz[1]);
+                const uv = Vec2f{ phi * (0.5 * math.pi_inv), theta * math.pi_inv };
+
+                if (scene.propOpacity(entity, 0, uv, sampler)) {
+                    isec.t = t1;
+                    isec.primitive = 0;
+                    isec.prototype = Intersection.Null;
+                    isec.trafo = trafo;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     pub fn intersectP(ray: Ray, trafo: Trafo) bool {
         const idl = 1.0 / math.length3(ray.direction);
         const nd = ray.direction * @as(Vec4f, @splat(idl));

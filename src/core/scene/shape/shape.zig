@@ -188,7 +188,7 @@ pub const Shape = union(enum) {
             .InfiniteSphere => InfiniteSphere.intersect(probe.ray, trafo, isec),
             .PointMotionCloud => |c| c.intersect(probe, trafo, isec),
             .Rectangle => Rectangle.intersectOpacity(probe.ray, trafo, entity, sampler, scene, isec),
-            .Sphere => Sphere.intersect(probe.ray, trafo, isec),
+            .Sphere => Sphere.intersectOpacity(probe.ray, trafo, entity, sampler, scene, isec),
             .TriangleMesh => |m| m.intersectOpacity(probe.ray, trafo, entity, sampler, scene, isec),
             .TriangleMotionMesh => |m| m.intersectOpacity(probe, trafo, entity, sampler, scene, isec),
         };
