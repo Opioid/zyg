@@ -21,15 +21,15 @@ fn sRGBtoAGX(srgb: Vec4f) Vec4f {
 }
 
 pub fn agx(srgb: Vec4f) Vec4f {
-    const min_ev: f32 = -12.47393;
-    const max_ev: f32 = 4.026069;
+    const min_ev: Vec4f = @splat(-12.47393);
+    const max_ev: Vec4f = @splat(4.026069);
 
     // Input transform (inset)
     var val = sRGBtoAGX(srgb);
 
     // Log2 space encoding
     val = math.clamp4(@log2(val), min_ev, max_ev);
-    val = (val - @as(Vec4f, @splat(min_ev))) / @as(Vec4f, @splat((max_ev - min_ev)));
+    val = (val - min_ev) / (max_ev - min_ev);
 
     // Apply sigmoid function approximation
     return math.max4(agxDefaultContrastApprox(val), @splat(0.0));

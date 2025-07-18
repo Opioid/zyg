@@ -136,8 +136,8 @@ pub inline fn max4(a: Vec4f, b: Vec4f) Vec4f {
     };
 }
 
-pub inline fn clamp4(v: Vec4f, mi: f32, ma: f32) Vec4f {
-    return min4(max4(v, @splat(mi)), @splat(ma));
+pub inline fn clamp4(v: Vec4f, mi: Vec4f, ma: Vec4f) Vec4f {
+    return min4(max4(v, mi), ma);
 }
 
 pub inline fn hmin3(v: Vec4f) f32 {
