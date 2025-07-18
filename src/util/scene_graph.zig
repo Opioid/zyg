@@ -175,11 +175,11 @@ pub const Graph = struct {
         parent_id: u32,
         trafo: math.Transformation,
         parent_trafo: math.Transformation,
-        animation_ptr: ?*std.json.Value,
+        animation_value: ?std.json.Value,
         animated: bool,
     ) !TrafoResult {
-        const animation = if (animation_ptr) |animation|
-            try AnimationLoader.load(alloc, animation.*, trafo, if (Null == parent_id) parent_trafo else null, self)
+        const animation = if (animation_value) |animation|
+            try AnimationLoader.load(alloc, animation, trafo, if (Null == parent_id) parent_trafo else null, self)
         else
             Null;
 

@@ -13,7 +13,7 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Parallelize_threshold = 1024;
+const ParallelizeThreshold = 1024;
 
 const Task = struct {
     kernel: Kernel,
@@ -81,7 +81,7 @@ const Kernel = struct {
             alloc.free(references);
         } else {
             if (!threads.running_parallel and tasks.capacity > 0 and
-                (num_primitives < Parallelize_threshold or depth == self.settings.parallel_build_depth))
+                (num_primitives < ParallelizeThreshold or depth == self.settings.parallel_build_depth))
             {
                 try tasks.append(alloc, .{
                     .kernel = try Kernel.init(alloc, self.settings),
@@ -163,6 +163,12 @@ const Kernel = struct {
 
         self.split_candidates.clearRetainingCapacity();
 
+        const aabb_surface_area = aabb.surfaceArea();
+
+        if (0.0 == aabb_surface_area) {
+            return null;
+        }
+
         const num_references: u32 = @intCast(references.len);
 
         const position = aabb.position();
@@ -205,9 +211,7 @@ const Kernel = struct {
             }
         }
 
-        const aabb_surface_area = aabb.surfaceArea();
-
-        if (threads.running_parallel or references.len < Parallelize_threshold) {
+        if (threads.running_parallel or references.len < ParallelizeThreshold) {
             for (self.split_candidates.items) |*sc| {
                 sc.evaluate(references, aabb_surface_area);
             }
@@ -332,7 +336,7 @@ pub const Base = struct {
 
         const num_tasks = @min(
             std.math.powi(u32, 2, self.settings.parallel_build_depth) catch 1,
-            @as(u32, @intCast(references.len / Parallelize_threshold)),
+            @as(u32, @intCast(references.len / ParallelizeThreshold)),
         );
 
         var tasks: Tasks = if (num_tasks > 0) try Tasks.initCapacity(alloc, num_tasks) else .{};

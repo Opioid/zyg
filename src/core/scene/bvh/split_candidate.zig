@@ -145,12 +145,12 @@ pub const SplitCandidate = struct {
         if (empty_side) {
             self.cost = 2.0 + @as(f32, @floatFromInt(references.len));
         } else {
-            const weight_0 = @as(f32, @floatFromInt(num_sides[0])) * aabbs[0].surfaceArea();
-            const weight_1 = @as(f32, @floatFromInt(num_sides[1])) * aabbs[1].surfaceArea();
+            const weight0 = @as(f32, @floatFromInt(num_sides[0])) * aabbs[0].surfaceArea();
+            const weight1 = @as(f32, @floatFromInt(num_sides[1])) * aabbs[1].surfaceArea();
 
             const duplication_penalty = 0.125 * @as(f32, @floatFromInt(num_sides[0] + num_sides[1] - references.len));
 
-            self.cost = 2.0 + (weight_0 + weight_1) / aabb_surface_area + duplication_penalty;
+            self.cost = 2.0 + (weight0 + weight1) / aabb_surface_area + duplication_penalty;
         }
 
         self.num_sides[0] = num_sides[0];

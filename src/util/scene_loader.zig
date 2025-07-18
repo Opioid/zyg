@@ -307,25 +307,8 @@ pub const Loader = struct {
         }
 
         var trafo: Transformation = .identity;
-
-        var animation_ptr: ?*std.json.Value = null;
-        var children_ptr: ?*std.json.Value = null;
-        var visibility_ptr: ?*std.json.Value = null;
-        var shadow_catcher_ptr: ?*std.json.Value = null;
-
-        var iter = value.object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "transformation", entry.key_ptr.*)) {
-                json.readTransformation(entry.value_ptr.*, &trafo);
-            } else if (std.mem.eql(u8, "animation", entry.key_ptr.*)) {
-                animation_ptr = entry.value_ptr;
-            } else if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
-                children_ptr = entry.value_ptr;
-            } else if (std.mem.eql(u8, "visibility", entry.key_ptr.*)) {
-                visibility_ptr = entry.value_ptr;
-            } else if (std.mem.eql(u8, "shadow_catcher", entry.key_ptr.*)) {
-                shadow_catcher_ptr = entry.value_ptr;
-            }
+        if (value.object.get("transformation")) |trafo_value| {
+            json.readTransformation(trafo_value, &trafo);
         }
 
         const scene = &graph.scene;
@@ -371,16 +354,16 @@ pub const Loader = struct {
             parent_id,
             trafo,
             parent_trafo,
-            animation_ptr,
+            value.object.get("animation"),
             animated,
         );
 
-        if (visibility_ptr) |visibility| {
-            setVisibility(entity_id, visibility.*, scene);
+        if (value.object.get("visibility")) |visibility| {
+            setVisibility(entity_id, visibility, scene);
         }
 
-        if (shadow_catcher_ptr) |shadow_catcher| {
-            setShadowCatcher(entity_id, shadow_catcher.*, scene);
+        if (value.object.get("shadow_catcher")) |shadow_catcher| {
+            setShadowCatcher(entity_id, shadow_catcher, scene);
         }
 
         if (is_light and scene.prop(entity_id).visibleInReflection()) {
@@ -390,7 +373,7 @@ pub const Loader = struct {
         return Leaf{
             .entity_id = entity_id,
             .graph = graph_trafo,
-            .children_ptr = children_ptr,
+            .children_ptr = value.object.getPtr("entities"),
             .is_scatterer = is_scatterer,
         };
     }

@@ -91,6 +91,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         resources: *List(T),
         entries: EntryHashMap = .empty,
         metadata: MetaHashMap = .empty,
+        latest_id: u32 = 0,
 
         const Self = @This();
 
@@ -137,6 +138,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
                     self.resources.items[id].deinit(alloc);
                     self.resources.items[id] = item.data;
+                    self.latest_id = id;
                     deprecated = true;
 
                     if (self.metadata.getEntry(id)) |e| {
@@ -182,6 +184,8 @@ pub fn Cache(comptime T: type, comptime P: type) type {
                 try self.metadata.put(alloc, id, item.meta);
             }
 
+            self.latest_id = id;
+
             return id;
         }
 
@@ -206,8 +210,8 @@ pub fn Cache(comptime T: type, comptime P: type) type {
             return null;
         }
 
-        pub fn getLast(self: *const Self) ?*T {
-            return self.get(@intCast(self.resources.items.len - 1));
+        pub fn getLatest(self: *const Self) ?*T {
+            return self.get(self.latest_id);
         }
 
         pub fn getByName(self: *const Self, name: []const u8, options: Variants) ?u32 {
@@ -226,7 +230,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         pub fn store(self: *Self, alloc: Allocator, id: u32, item: T) !u32 {
             if (id >= self.resources.items.len) {
                 try self.resources.append(alloc, item);
-                return @as(u32, @intCast(self.resources.items.len - 1));
+                return @intCast(self.resources.items.len - 1);
             } else {
                 self.resources.items[id].deinit(alloc);
                 self.resources.items[id] = item;
