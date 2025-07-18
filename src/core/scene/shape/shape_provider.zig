@@ -129,8 +129,8 @@ pub const Provider = struct {
             return;
         }
 
-        if (resources.shapes.getLast()) |last| {
-            switch (last.*) {
+        if (resources.shapes.getLatest()) |latest| {
+            switch (latest.*) {
                 .TriangleMesh => |*m| {
                     std.mem.swap(TriangleTree, &m.tree, &self.triangle_tree);
                     m.calculateAreas();
