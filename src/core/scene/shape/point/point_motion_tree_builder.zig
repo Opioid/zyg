@@ -1,5 +1,7 @@
 const Base = @import("../../bvh/builder_base.zig").Base;
-const Reference = @import("../../bvh/split_candidate.zig").Reference;
+const spc = @import("../../bvh/split_candidate.zig");
+const Reference = spc.Reference;
+const References = spc.References;
 const Tree = @import("point_motion_tree.zig").Tree;
 const Scene = @import("../../scene.zig").Scene;
 
@@ -45,7 +47,7 @@ pub const Builder = struct {
 
         const radiusv: Vec4f = @splat(radius);
 
-        var references = try alloc.alloc(Reference, num_primitives);
+        var references = try References.initCapacity(alloc, num_primitives);
 
         var bounds: AABB = .empty;
 
@@ -60,12 +62,14 @@ pub const Builder = struct {
                 box.mergeAssign(AABB.init(pos - r, pos + r));
             }
 
-            references[i].set(box.bounds[0], box.bounds[1], @truncate(i));
+            if (box.surfaceArea() > 0.0) {
+                references.appendAssumeCapacity(Reference.init(box, @intCast(i)));
+            }
 
             bounds.mergeAssign(box);
         }
 
-        try self.super.split(alloc, references, bounds, threads);
+        try self.super.split(alloc, try references.toOwnedSlice(alloc), bounds, threads);
 
         try tree.allocateIndices(alloc, self.super.numReferenceIds());
         try tree.allocateNodes(alloc, self.super.numBuildNodes());
