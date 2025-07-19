@@ -108,10 +108,12 @@ pub const Worker = struct {
     }
 
     fn curve(value: Vec4f) Vec4f {
+        const gamma = 1.0 / 2.4;
+        const mv = math.max4(value, @splat(0.0));
         const p = Vec4f{
-            std.math.pow(f32, value[0], 1.0 / 2.2),
-            std.math.pow(f32, value[1], 1.0 / 2.2),
-            std.math.pow(f32, value[2], 1.0 / 2.2),
+            std.math.pow(f32, mv[0], gamma),
+            std.math.pow(f32, mv[1], gamma),
+            std.math.pow(f32, mv[2], gamma),
             0.0,
         };
 
@@ -141,7 +143,7 @@ pub const Worker = struct {
         // Those values are only used for variance estimation
         // Exposure and tonemapping is not done here
         const ef: Vec4f = @splat(sensor.tonemapper.exposure_factor);
-        const wp: f32 = 0.98;
+        const wp: f32 = 1.0;
         const qm_threshold_squared = qm_threshold * qm_threshold;
 
         var rng = &self.rng;
@@ -206,7 +208,7 @@ pub const Worker = struct {
                             const weighted = sensor.addSample(layer, sample, ivalue, self.aov);
 
                             // This clipped value is what we use for the noise estimate
-                            const value = math.min4(@abs(ef * weighted), @splat(wp));
+                            const value = math.clamp4(ef * weighted, @splat(-wp), @splat(wp));
 
                             const new_m = old_m + (value - old_m) / @as(Vec4f, @splat(@floatFromInt(cs + 1)));
 
@@ -224,7 +226,7 @@ pub const Worker = struct {
                         const std_dev = @sqrt(variance);
 
                         const mapped_value = curve(old_m);
-                        const mapped_lower = curve(math.max4(old_m - std_dev, @splat(0.0)));
+                        const mapped_lower = curve(old_m - std_dev);
                         const mapped_upper = curve(old_m + std_dev);
 
                         const qm = math.max(math.hmax3(mapped_value - mapped_lower), math.hmax3(mapped_upper - mapped_value));
@@ -238,13 +240,13 @@ pub const Worker = struct {
                 const target_samples: u32 = @intFromFloat(@ceil(tile_qm / qm_threshold_squared));
 
                 if (target_samples > s_end) {
-                    if (s_end == 64) {
+                    if (s_end == 16) {
                         stack_b.pushQuartet(tile, offset, TileDimensions / 2 - 1);
-                    } else if (s_end == 128) {
+                    } else if (s_end == 64) {
                         stack_b.pushQuartet(tile, offset, TileDimensions / 4 - 1);
                     } else if (s_end == 256) {
                         stack_b.pushQuartet(tile, offset, TileDimensions / 8 - 1);
-                    } else if (s_end == 512) {
+                    } else if (s_end == 1024) {
                         stack_b.pushQuartet(tile, offset, TileDimensions / 16 - 1);
                     } else {
                         stack_b.push(tile, offset);
