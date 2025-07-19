@@ -4,10 +4,8 @@ const core = @import("core");
 const cam = core.camera;
 const View = core.take.View;
 const Prop = core.scene.Prop;
-const snsr = core.rendering.snsr;
-const Buffer = snsr.Buffer;
-const Sensor = snsr.Sensor;
-const Tonemapper = snsr.Tonemapper;
+const Sensor = core.rendering.Sensor;
+const Tonemapper = Sensor.Tonemapper;
 const ReadStream = core.file.ReadStream;
 const Resources = core.resource.Manager;
 
@@ -202,7 +200,7 @@ fn loadShutter(value: std.json.Value, camera: *cam.Base) void {
     camera.frame_duration = if (motion_blur) camera.frame_step else 0;
 }
 
-fn loadSensor(value: std.json.Value) snsr.Sensor {
+fn loadSensor(value: std.json.Value) Sensor {
     var alpha_transparency = false;
     var clamp_max: f32 = std.math.floatMax(f32);
 
@@ -224,7 +222,7 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
         }
     }
 
-    const class: Buffer.Class = if (alpha_transparency) .Transparent else .Opaque;
+    const class: Sensor.Buffer.Class = if (alpha_transparency) .Transparent else .Opaque;
 
     if (filter_value_ptr) |filter_value| {
         const radius: f32 = 2.0;
@@ -232,20 +230,20 @@ fn loadSensor(value: std.json.Value) snsr.Sensor {
         var iter = filter_value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Blackman", entry.key_ptr.*)) {
-                const filter = snsr.Blackman{ .r = radius };
+                const filter = Sensor.Blackman{ .r = radius };
 
-                return snsr.Sensor.init(class, clamp_max, radius, filter);
+                return Sensor.init(class, clamp_max, radius, filter);
             } else if (std.mem.eql(u8, "Mitchell", entry.key_ptr.*)) {
-                const filter = snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 };
+                const filter = Sensor.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 };
 
-                return snsr.Sensor.init(class, clamp_max, radius, filter);
+                return Sensor.init(class, clamp_max, radius, filter);
             }
         }
     }
 
-    const filter = snsr.Blackman{ .r = 0.0 };
+    const filter = Sensor.Blackman{ .r = 0.0 };
 
-    return snsr.Sensor.init(class, clamp_max, 0.0, filter);
+    return Sensor.init(class, clamp_max, 0.0, filter);
 }
 
 fn loadSampler(value: std.json.Value, view: *View) void {

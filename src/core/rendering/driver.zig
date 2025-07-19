@@ -11,7 +11,7 @@ const img = @import("../image/image.zig");
 const PhotonMap = @import("integrator/particle/photon/photon_map.zig").Map;
 const PngWriter = @import("../image/encoding/png/png_writer.zig").Writer;
 const Progressor = @import("../progress.zig").Progressor;
-pub const snsr = @import("sensor/sensor.zig");
+pub const Sensor = @import("sensor/sensor.zig").Sensor;
 
 const base = @import("base");
 const chrono = base.chrono;

@@ -12,8 +12,7 @@ const TexUsage = tx.Usage;
 const ts = @import("../../texture/texture_sampler.zig");
 const prcd = @import("../../texture/procedural.zig");
 const Procedural = prcd.Procedural;
-const rsc = @import("../../resource/manager.zig");
-const Resources = rsc.Manager;
+const Resources = @import("../../resource/manager.zig").Manager;
 const Result = @import("../../resource/result.zig").Result;
 
 const base = @import("base");
@@ -449,9 +448,9 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
 
 const TextureDescriptor = struct {
     filename: ?[]u8 = null,
-    procedural: u32 = rsc.Null,
-    procedural_data: u32 = rsc.Null,
-    id: u32 = rsc.Null,
+    procedural: u32 = Resources.Null,
+    procedural_data: u32 = Resources.Null,
+    id: u32 = Resources.Null,
 
     swizzle: ?Image.Swizzle = null,
 
@@ -715,7 +714,7 @@ fn createTexture(
         return TextureError.NoTexture;
     }
 
-    if (rsc.Null != desc.procedural) {
+    if (Resources.Null != desc.procedural) {
         return Texture.initProcedural(desc.procedural, desc.procedural_data, desc.sampler);
     } else if (desc.filename) |filename| {
         var options: Variants = .{};
@@ -734,7 +733,7 @@ fn createTexture(
             log.err("Could not load texture \"{s}\": {}", .{ filename, e });
             return TextureError.NoTexture;
         };
-    } else if (rsc.Null != desc.id) {
+    } else if (Resources.Null != desc.id) {
         return tx.Provider.createTexture(desc.id, usage, desc.sampler, desc.scale, resources) catch |e| {
             log.err("Could not create texture \"{}\": {}", .{ desc.id, e });
             return TextureError.NoTexture;

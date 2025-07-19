@@ -8,7 +8,7 @@ const SceneLoader = util.SceneLoader;
 const core = @import("core");
 const log = core.log;
 const rendering = core.rendering;
-const resource = core.resource;
+const Resources = core.resource.Manager;
 const scn = core.scene;
 
 const base = @import("base");
@@ -60,7 +60,7 @@ pub fn main() !void {
     var graph = try Graph.init(alloc);
     defer graph.deinit(alloc);
 
-    var resources = try resource.Manager.init(alloc, &graph.scene, &threads);
+    var resources = try Resources.init(alloc, &graph.scene, &threads);
     defer resources.deinit(alloc);
 
     resources.materials.provider.setSettings(options.no_tex, options.no_tex_dwim, options.debug_material);
@@ -75,7 +75,7 @@ pub fn main() !void {
         }
     }
 
-    var scene_loader = SceneLoader.init(alloc, &resources, resource.MaterialProvider.createFallbackMaterial());
+    var scene_loader = SceneLoader.init(alloc, &resources, Resources.MaterialProvider.createFallbackMaterial());
     defer scene_loader.deinit(alloc);
 
     var driver = try rendering.Driver.init(alloc, &threads, &resources.fs, .{ .StdOut = undefined });
@@ -150,7 +150,7 @@ fn loadTakeAndScene(
     frame: u32,
     graph: *Graph,
     scene_loader: *SceneLoader,
-    resources: *resource.Manager,
+    resources: *Resources,
 ) !bool {
     resources.fs.frame = frame;
 
@@ -183,7 +183,7 @@ fn reloadFrameDependant(
     frame: u32,
     graph: *Graph,
     scene_loader: *SceneLoader,
-    resources: *resource.Manager,
+    resources: *Resources,
 ) !void {
     var fs = &resources.fs;
 

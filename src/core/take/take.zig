@@ -1,6 +1,5 @@
 const aov = @import("../rendering/sensor/aov/aov_value.zig");
-const snsr = @import("../rendering/sensor/sensor.zig");
-const Sensor = snsr.Sensor;
+const Sensor = @import("../rendering/sensor/sensor.zig").Sensor;
 const surface = @import("../rendering/integrator/surface/integrator.zig");
 const Lighttracer = @import("../rendering/integrator/particle/lighttracer.zig").Lighttracer;
 const hlp = @import("../rendering/integrator/helper.zig");
@@ -60,7 +59,7 @@ pub const View = struct {
         .Opaque,
         std.math.floatMax(f32),
         2.0,
-        snsr.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
+        Sensor.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
     ),
 
     aovs: aov.Factory = .{},
@@ -137,13 +136,12 @@ pub const View = struct {
 
         const lighttracer = self.num_particles_per_pixel > 0;
 
-        var iter = value.object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
-                self.loadSurfaceIntegrator(entry.value_ptr.*, lighttracer);
-            } else if (std.mem.eql(u8, "photon", entry.key_ptr.*)) {
-                self.photon_settings = loadPhotonSettings(entry.value_ptr.*, lighttracer);
-            }
+        if (value.object.get("surface")) |surface_node| {
+            self.loadSurfaceIntegrator(surface_node, lighttracer);
+        }
+
+        if (value.object.get("photons")) |photons_node| {
+            self.photon_settings = loadPhotonSettings(photons_node, lighttracer);
         }
     }
 
@@ -259,27 +257,19 @@ pub const View = struct {
     }
 
     fn loadDepth(value: std.json.Value, default: Depth) Depth {
-        var depth = default;
+        const depth_node = value.object.get("depth") orelse return default;
 
-        const depth_node = value.object.get("depth") orelse return depth;
-
-        var iter = depth_node.object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "surface", entry.key_ptr.*)) {
-                depth.surface = @truncate(json.readUInt(entry.value_ptr.*));
-            } else if (std.mem.eql(u8, "volume", entry.key_ptr.*)) {
-                depth.volume = @truncate(json.readUInt(entry.value_ptr.*));
-            }
-        }
-
-        return depth;
+        return .{
+            .surface = @truncate(json.readUIntMember(depth_node, "surface", default.surface)),
+            .volume = @truncate(json.readUIntMember(depth_node, "surface", default.volume)),
+        };
     }
 
     fn loadLightSampling(value: std.json.Value) LightSampling {
-        const Default_split_threshold = 0.5;
-        const light_sampling_node = value.object.get("light_sampling") orelse return .{ .split_threshold = Default_split_threshold };
+        const DefaultSplitThreshold = 0.5;
+        const light_sampling_node = value.object.get("light_sampling") orelse return .{ .split_threshold = DefaultSplitThreshold };
 
-        const st = std.math.clamp(json.readFloatMember(light_sampling_node, "split_threshold", Default_split_threshold), 0.0, 1.0);
+        const st = std.math.clamp(json.readFloatMember(light_sampling_node, "split_threshold", DefaultSplitThreshold), 0.0, 1.0);
 
         const st2 = st * st;
         return .{ .split_threshold = st2 * st2 };

@@ -15,7 +15,7 @@ const SceneLoader = util.SceneLoader;
 
 const core = @import("core");
 const log = core.log;
-const resource = core.resource;
+const Resources = core.resource.Manager;
 const Sampler = core.sampler.Sampler;
 
 const Camera = core.camera.Camera;
@@ -62,7 +62,7 @@ pub fn main() !void {
     var graph = try Graph.init(alloc);
     defer graph.deinit(alloc);
 
-    var resources = try resource.Manager.init(alloc, &graph.scene, &threads);
+    var resources = try Resources.init(alloc, &graph.scene, &threads);
     defer resources.deinit(alloc);
 
     resources.materials.provider.setSettings(false, false, false);
@@ -118,7 +118,7 @@ pub fn main() !void {
         graph.take.resolved_filename = try resources.fs.cloneLastResolvedName(alloc);
         graph.take.scene_filename = try alloc.dupe(u8, project.scene_filename);
 
-        var scene_loader = SceneLoader.init(alloc, &resources, resource.MaterialProvider.createFallbackMaterial());
+        var scene_loader = SceneLoader.init(alloc, &resources, Resources.MaterialProvider.createFallbackMaterial());
         defer scene_loader.deinit(alloc);
 
         scene_loader.load(alloc, &graph) catch |err| {

@@ -5,6 +5,7 @@ const DownSample = @import("down_sample.zig").DownSample;
 const core = @import("core");
 const scn = core.scene;
 const img = core.image;
+const Tonemapper = core.rendering.Sensor.Tonemapper;
 
 const base = @import("base");
 const math = base.math;
@@ -27,7 +28,7 @@ pub const Operator = struct {
         MaxValue: Vec4f,
         Mul,
         Over,
-        Tonemap: core.Tonemapper.Class,
+        Tonemap: Tonemapper.Class,
     };
 
     class: Class,
@@ -35,7 +36,7 @@ pub const Operator = struct {
     textures: std.ArrayListUnmanaged(core.tx.Texture) = .empty,
     input_ids: std.ArrayListUnmanaged(u32) = .empty,
     target: img.Float4 = img.Float4.initEmpty(),
-    tonemapper: core.Tonemapper,
+    tonemapper: Tonemapper,
     scene: *const scn.Scene,
     current: u32 = 0,
 

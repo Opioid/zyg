@@ -2,7 +2,7 @@ const core = @import("core");
 const log = core.log;
 const img = core.image;
 const rendering = core.rendering;
-const resource = core.resource;
+const Resources = core.resource.Manager;
 const Material = core.scene.Material;
 const Prop = core.scene.Prop;
 const Scene = core.scene.Scene;
@@ -39,7 +39,7 @@ const Engine = struct {
     threads: Threads = .{},
 
     scene: Scene = undefined,
-    resources: resource.Manager = undefined,
+    resources: Resources = undefined,
     fallback_material: u32 = undefined,
     materials: std.ArrayListUnmanaged(u32) = .empty,
 
@@ -79,7 +79,7 @@ export fn su_init() i32 {
             return -1;
         };
 
-        e.resources = resource.Manager.init(alloc, &e.scene, &e.threads) catch {
+        e.resources = Resources.init(alloc, &e.scene, &e.threads) catch {
             engine = null;
             return -1;
         };
@@ -88,8 +88,8 @@ export fn su_init() i32 {
 
         e.fallback_material = resources.materials.store(
             alloc,
-            resource.Null,
-            resource.MaterialProvider.createFallbackMaterial(),
+            Resources.Null,
+            Resources.MaterialProvider.createFallbackMaterial(),
         ) catch {
             engine = null;
             return -1;
@@ -389,7 +389,7 @@ export fn su_triangle_mesh_create(
     asyncr: bool,
 ) i32 {
     if (engine) |*e| {
-        const desc = resource.ShapeProvider.Descriptor{
+        const desc = Resources.ShapeProvider.Descriptor{
             .num_parts = num_parts,
             .num_primitives = num_triangles,
             .num_vertices = num_vertices,
