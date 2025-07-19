@@ -26,7 +26,7 @@ pub const ChannelMix = struct {
         return math.clamp2(.{
             math.dot3(c, self.channels[0]),
             math.dot3(c, self.channels[1]),
-        }, 0.0, 1.0);
+        }, @splat(0.0), @splat(1.0));
     }
 
     pub fn evaluate3(self: ChannelMix, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
@@ -37,6 +37,6 @@ pub const ChannelMix = struct {
             math.dot3(c, self.channels[1]),
             math.dot3(c, self.channels[2]),
             0.0,
-        }, 0.0, 1.0);
+        }, @splat(0.0), @splat(1.0));
     }
 };

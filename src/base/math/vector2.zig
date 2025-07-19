@@ -32,6 +32,6 @@ pub inline fn max2(a: Vec2f, b: Vec2f) Vec2f {
     return .{ math.max(a[0], b[0]), math.max(a[1], b[1]) };
 }
 
-pub inline fn clamp2(v: Vec2f, mi: f32, ma: f32) Vec2f {
-    return min2(max2(v, @splat(mi)), @splat(ma));
+pub inline fn clamp2(v: Vec2f, mi: Vec2f, ma: Vec2f) Vec2f {
+    return min2(max2(v, mi), ma);
 }

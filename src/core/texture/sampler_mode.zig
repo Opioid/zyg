@@ -29,7 +29,7 @@ pub const Mode = packed struct {
 
         pub fn f3(m: Address, x: Vec4f) Vec4f {
             return switch (m) {
-                .Clamp => math.clamp4(x, 0.0, 1.0),
+                .Clamp => math.clamp4(x, @splat(0.0), @splat(1.0)),
                 .Repeat => math.frac(x),
             };
         }

@@ -37,7 +37,7 @@ pub fn attenuationCoefficient(color: Vec4f, distance: f32) Vec4f {
         return @splat(0.0);
     }
 
-    const ca = math.clamp4(color, 0.01, 0.991102);
+    const ca = math.clamp4(color, @splat(0.01), @splat(0.991102));
     const a = @log(ca);
 
     return -a / @as(Vec4f, @splat(distance));
@@ -45,7 +45,7 @@ pub fn attenuationCoefficient(color: Vec4f, distance: f32) Vec4f {
 
 pub fn scattering(mu_t: Vec4f, ssc: Vec4f, g: f32) CC {
     const root = @sqrt(@as(Vec4f, @splat(9.59217)) + ssc * (@as(Vec4f, @splat(41.6808)) + ssc * @as(Vec4f, @splat(17.7126))));
-    const factor = math.clamp4(@as(Vec4f, @splat(4.097125)) + @as(Vec4f, @splat(4.20863)) * ssc - root, 0.0, 1.0);
+    const factor = math.clamp4(@as(Vec4f, @splat(4.097125)) + @as(Vec4f, @splat(4.20863)) * ssc - root, @splat(0.0), @splat(1.0));
 
     const fsq = factor * factor;
     const pss = (@as(Vec4f, @splat(1.0)) - fsq) / (@as(Vec4f, @splat(1.0)) - @as(Vec4f, @splat(g)) * fsq);

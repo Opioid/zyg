@@ -136,7 +136,7 @@ pub const AOV = struct {
 
         vec = .{ vec[0], vec[1], vec[2], 1.0 };
 
-        return math.clamp4(@as(Vec4f, @splat(0.5)) * (vec + @as(Vec4f, @splat(1.0))), 0.0, 1.0);
+        return math.clamp4(@as(Vec4f, @splat(0.5)) * (vec + @as(Vec4f, @splat(1.0))), @splat(0.0), @splat(1.0));
     }
 
     fn lightSampleCount(self: Self, vertex: Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
