@@ -1,16 +1,11 @@
-const cache = @import("cache.zig");
-const Cache = cache.Cache;
+const Cache = @import("cache.zig").Cache;
 const Filesystem = @import("../file/system.zig").System;
 const Image = @import("../image/image.zig").Image;
 const ImageProvider = @import("../image/image_provider.zig").Provider;
 const Images = Cache(Image, ImageProvider);
 const Material = @import("../scene/material/material.zig").Material;
-pub const MaterialProvider = @import("../scene/material/material_provider.zig").Provider;
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
-const Materials = Cache(Material, MaterialProvider);
-pub const ShapeProvider = @import("../scene/shape/shape_provider.zig").Provider;
-const Shapes = Cache(Shape, ShapeProvider);
 const Instancer = @import("../scene/prop/instancer.zig").Instancer;
 const Instancers = Cache(Instancer, void);
 const Camera = @import("../camera/camera_base.zig").Base;
@@ -18,8 +13,6 @@ const Camera = @import("../camera/camera_base.zig").Base;
 const base = @import("base");
 const Threads = base.thread.Pool;
 const Variants = base.memory.VariantMap;
-
-pub const Null = cache.Null;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -29,6 +22,14 @@ const Error = error{
 };
 
 pub const Manager = struct {
+    pub const ShapeProvider = @import("../scene/shape/shape_provider.zig").Provider;
+    pub const MaterialProvider = @import("../scene/material/material_provider.zig").Provider;
+
+    const Shapes = Cache(Shape, ShapeProvider);
+    const Materials = Cache(Material, MaterialProvider);
+
+    pub const Null = 0xFFFFFFFF;
+
     scene: *Scene,
     threads: *Threads,
 

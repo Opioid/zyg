@@ -12,7 +12,6 @@ pub const tx = @import("texture/texture_provider.zig");
 
 pub const ex = @import("exporting/ffmpeg.zig");
 pub const ImageWriter = @import("image/image_writer.zig").Writer;
-pub const Tonemapper = @import("rendering/sensor/tonemapper.zig").Tonemapper;
 
 pub const size_test = @import("size_test.zig");
 pub const ggx_integrate = @import("scene/material/ggx_integrate.zig");

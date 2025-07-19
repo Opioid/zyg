@@ -6,7 +6,7 @@ const log = core.log;
 const img = core.image;
 const resource = core.resource;
 const scn = core.scene;
-const tk = core.tk;
+const Tonemapper = core.rendering.Sensor.Tonemapper;
 
 const base = @import("base");
 const chrono = base.chrono;
@@ -54,7 +54,7 @@ pub fn main() !void {
 
     var operator = Operator{
         .class = options.operator,
-        .tonemapper = core.Tonemapper.init(
+        .tonemapper = Tonemapper.init(
             switch (options.operator) {
                 .Tonemap => |tmc| tmc,
                 else => .Linear,

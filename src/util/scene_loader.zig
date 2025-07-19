@@ -3,15 +3,12 @@ const Graph = @import("scene_graph.zig").Graph;
 
 const core = @import("core");
 const log = core.log;
-const scn = core.scene;
-const Scene = scn.Scene;
-const Prop = scn.Prop;
-const Material = scn.Material;
-const Shape = scn.Shape;
-const Instancer = scn.Instancer;
-const resource = core.resource;
-const Resources = resource.Manager;
-const Take = core.tk.Take;
+const Scene = core.scene.Scene;
+const Prop = core.scene.Prop;
+const Material = core.scene.Material;
+const Shape = core.scene.Shape;
+const Instancer = core.scene.Instancer;
+const Resources = core.resource.Manager;
 
 const base = @import("base");
 const json = base.json;
@@ -92,7 +89,7 @@ pub const Loader = struct {
 
     instances: std.HashMapUnmanaged(Key, u32, KeyContext, 80) = .{},
 
-    const Null = resource.Null;
+    const Null = Resources.Null;
 
     const LocalMaterials = struct {
         materials: std.StringHashMap(*std.json.Value),
@@ -188,19 +185,16 @@ pub const Loader = struct {
             try readMaterials(materials_node, &local_materials);
         }
 
-        var iter = root.object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "entities", entry.key_ptr.*)) {
-                try self.loadEntities(
-                    alloc,
-                    entry.value_ptr.*,
-                    parent_id,
-                    parent_trafo,
-                    animated,
-                    local_materials,
-                    graph,
-                );
-            }
+        if (root.object.get("entities")) |entities_node| {
+            try self.loadEntities(
+                alloc,
+                entities_node,
+                parent_id,
+                parent_trafo,
+                animated,
+                local_materials,
+                graph,
+            );
         }
     }
 
@@ -441,43 +435,34 @@ pub const Loader = struct {
         var prototypes: List(u32) = .empty;
         defer prototypes.deinit(alloc);
 
-        var instances_ptr: ?*std.json.Value = null;
+        if (value.object.get("prototypes")) |prototypes_node| {
+            const proto_array = prototypes_node.array;
+            prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
 
-        {
-            var iter = value.object.iterator();
-            while (iter.next()) |entry| {
-                if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {
-                    const proto_array = entry.value_ptr.array;
-                    prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
+            for (proto_array.items) |proto_value| {
+                const proto = self.loadLeafEntity(
+                    alloc,
+                    proto_value,
+                    parent_id,
+                    parent_trafo,
+                    false,
+                    local_materials,
+                    graph,
+                    true,
+                ) catch
+                    continue;
 
-                    for (proto_array.items) |proto_value| {
-                        const proto = self.loadLeafEntity(
-                            alloc,
-                            proto_value,
-                            parent_id,
-                            parent_trafo,
-                            false,
-                            local_materials,
-                            graph,
-                            true,
-                        ) catch
-                            continue;
-
-                        prototypes.appendAssumeCapacity(proto.entity_id);
-                    }
-                } else if (std.mem.eql(u8, "instances", entry.key_ptr.*)) {
-                    instances_ptr = entry.value_ptr;
-                }
+                prototypes.appendAssumeCapacity(proto.entity_id);
             }
         }
 
-        if (instances_ptr) |instances_value| {
-            const proto_indices_value = instances_value.object.get("prototypes") orelse {
+        if (value.object.get("instances")) |instances_node| {
+            const proto_indices_value = instances_node.object.get("prototypes") orelse {
                 log.err("Scatterer: No protype indices", .{});
                 return Scene.Null;
             };
 
-            const trafos_value = instances_value.object.get("transformations") orelse {
+            const trafos_value = instances_node.object.get("transformations") orelse {
                 log.err("Scatterer: No protype transformations", .{});
                 return Scene.Null;
             };
@@ -613,45 +598,36 @@ pub const Loader = struct {
         var prototypes: List(u32) = .empty;
         defer prototypes.deinit(alloc);
 
-        var instances_ptr: ?*std.json.Value = null;
+        if (value.object.get("prototypes")) |prototypes_node| {
+            const proto_array = prototypes_node.array;
+            prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
 
-        {
-            var iter = value.object.iterator();
-            while (iter.next()) |entry| {
-                if (std.mem.eql(u8, "prototypes", entry.key_ptr.*)) {
-                    const proto_array = entry.value_ptr.array;
-                    prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
+            for (proto_array.items) |proto_value| {
+                const proto = self.loadLeafEntity(
+                    alloc,
+                    proto_value,
+                    parent_id,
+                    parent_trafo,
+                    animated,
+                    local_materials,
+                    graph,
+                    true,
+                ) catch
+                    continue;
 
-                    for (proto_array.items) |proto_value| {
-                        const proto = self.loadLeafEntity(
-                            alloc,
-                            proto_value,
-                            parent_id,
-                            parent_trafo,
-                            animated,
-                            local_materials,
-                            graph,
-                            true,
-                        ) catch
-                            continue;
-
-                        prototypes.appendAssumeCapacity(proto.entity_id);
-                    }
-                } else if (std.mem.eql(u8, "instances", entry.key_ptr.*)) {
-                    instances_ptr = entry.value_ptr;
-                }
+                prototypes.appendAssumeCapacity(proto.entity_id);
             }
         }
 
-        if (instances_ptr) |instances_value| {
+        if (value.object.get("instances")) |instances_node| {
             const scene = &graph.scene;
 
-            const proto_indices_value = instances_value.object.get("prototypes") orelse {
+            const proto_indices_value = instances_node.object.get("prototypes") orelse {
                 log.err("Scatterer: No protype indices", .{});
                 return;
             };
 
-            const trafos_value = instances_value.object.get("transformations") orelse {
+            const trafos_value = instances_node.object.get("transformations") orelse {
                 log.err("Scatterer: No protype transformations", .{});
                 return;
             };
@@ -684,20 +660,9 @@ pub const Loader = struct {
     }
 
     fn setVisibility(prop: u32, value: std.json.Value, scene: *Scene) void {
-        var in_camera = true;
-        var in_reflection = true;
-        var shadow_catcher_light = false;
-
-        var iter = value.object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "in_camera", entry.key_ptr.*)) {
-                in_camera = json.readBool(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "in_reflection", entry.key_ptr.*)) {
-                in_reflection = json.readBool(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "shadow_catcher_light", entry.key_ptr.*)) {
-                shadow_catcher_light = json.readBool(entry.value_ptr.*);
-            }
-        }
+        const in_camera = json.readBoolMember(value, "in_camera", true);
+        const in_reflection = json.readBoolMember(value, "in_reflection", true);
+        const shadow_catcher_light = json.readBoolMember(value, "shadow_catcher_light", false);
 
         scene.propSetVisibility(prop, in_camera, in_reflection, shadow_catcher_light);
     }

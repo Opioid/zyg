@@ -4,8 +4,7 @@ const core = @import("core");
 const cam = core.camera;
 const scn = core.scene;
 const Shape = scn.Shape;
-const resource = core.resource;
-const Resources = resource.Manager;
+const Resources = core.resource.Manager;
 const ReadStream = core.file.ReadStream;
 
 const base = @import("base");
@@ -82,7 +81,7 @@ pub const Loader = struct {
 
     material_map: std.AutoHashMapUnmanaged(u32, u32) = .empty,
 
-    const Null = resource.Null;
+    const Null = Resources.Null;
 
     const Self = @This();
 
@@ -422,7 +421,7 @@ pub const Loader = struct {
             }
         }
 
-        const desc = resource.ShapeProvider.Descriptor{
+        const desc = Resources.ShapeProvider.Descriptor{
             .num_parts = @intCast(parts.items.len),
             .num_primitives = num_triangles,
             .num_vertices = num_vertices,

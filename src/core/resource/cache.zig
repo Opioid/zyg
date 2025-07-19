@@ -6,8 +6,6 @@ const Variants = @import("base").memory.VariantMap;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub const Null = 0xFFFFFFFF;
-
 const Key = struct {
     name: []const u8,
     options: Variants,
