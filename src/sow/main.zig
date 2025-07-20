@@ -77,10 +77,10 @@ pub fn main() !void {
         }
     }
 
-    if (try merger.merge(alloc, &resources)) {
-        log.info("We end the merger", .{});
-        return;
-    }
+    // if (try merger.merge(alloc, &resources)) {
+    //     log.info("We end the merger", .{});
+    //     return;
+    // }
 
     var stream = resources.fs.readStream(alloc, options.project) catch |err| {
         log.err("Open stream \"{s}\": {}", .{ options.project, err });
@@ -101,7 +101,8 @@ pub fn main() !void {
         var particles: prt.Particles = undefined;
         defer particles.deinit(alloc);
 
-        try ParticleGenerator.generateSparks(alloc, project, &particles);
+        //    try ParticleGenerator.generateSparks(alloc, project, &particles);
+        try ParticleGenerator.generateCornellRain(alloc, project, &particles);
 
         try ParticleExporter.write(alloc, options.output, &particles);
     } else {
