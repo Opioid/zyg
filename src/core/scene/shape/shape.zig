@@ -393,6 +393,7 @@ pub const Shape = union(enum) {
     pub fn sampleFrom(
         self: *const Shape,
         trafo: Trafo,
+        time: u64,
         uv: Vec2f,
         importance_uv: Vec2f,
         part: u32,
@@ -408,6 +409,7 @@ pub const Shape = union(enum) {
             .Disk => Disk.sampleFrom(trafo, uv, importance_uv, cos_a, two_sided, sampler, from_image),
             .DistantSphere => DistantSphere.sampleFrom(trafo, uv, importance_uv, bounds),
             .InfiniteSphere => InfiniteSphere.sampleFrom(trafo, uv, importance_uv, bounds, from_image),
+            .PointMotionCloud => |c| c.sampleFrom(trafo, time, uv, importance_uv, sampler),
             .Rectangle => Rectangle.sampleFrom(trafo, uv, importance_uv, two_sided, sampler),
             .Sphere => Sphere.sampleFrom(trafo, uv, importance_uv),
             .TriangleMesh => |m| m.sampleFrom(

@@ -108,8 +108,8 @@ pub const Light = struct {
         const trafo = scene.propTransformationAt(self.prop, time);
 
         return switch (self.class) {
-            .Prop => self.propSampleFrom(trafo, sampler, bounds, scene),
-            .PropImage => self.propImageSampleFrom(trafo, sampler, bounds, scene),
+            .Prop => self.propSampleFrom(trafo, time, sampler, bounds, scene),
+            .PropImage => self.propImageSampleFrom(trafo, time, sampler, bounds, scene),
             .VolumeImage => self.volumeImageSampleFrom(trafo, sampler, scene),
             else => null,
         };
@@ -215,7 +215,7 @@ pub const Light = struct {
         );
     }
 
-    fn propSampleFrom(self: Light, trafo: Trafo, sampler: *Sampler, bounds: AABB, scene: *const Scene) ?SampleFrom {
+    fn propSampleFrom(self: Light, trafo: Trafo, time: u64, sampler: *Sampler, bounds: AABB, scene: *const Scene) ?SampleFrom {
         const s4 = sampler.sample4D();
 
         const uv = Vec2f{ s4[0], s4[1] };
@@ -226,6 +226,7 @@ pub const Light = struct {
         const shape = scene.propShape(self.prop);
         return shape.sampleFrom(
             trafo,
+            time,
             uv,
             importance_uv,
             self.part,
@@ -238,7 +239,7 @@ pub const Light = struct {
         );
     }
 
-    fn propImageSampleFrom(self: Light, trafo: Trafo, sampler: *Sampler, bounds: AABB, scene: *const Scene) ?SampleFrom {
+    fn propImageSampleFrom(self: Light, trafo: Trafo, time: u64, sampler: *Sampler, bounds: AABB, scene: *const Scene) ?SampleFrom {
         const s4 = sampler.sample4D();
 
         const material = scene.propMaterial(self.prop, self.part);
@@ -256,6 +257,7 @@ pub const Light = struct {
         // this pdf includes the uv weight which adjusts for texture distortion by the shape
         var result = shape.sampleFrom(
             trafo,
+            time,
             .{ rs.uvw[0], rs.uvw[1] },
             importance_uv,
             self.part,

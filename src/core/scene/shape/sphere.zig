@@ -453,15 +453,16 @@ pub const Sphere = struct {
 
     pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f) ?SampleFrom {
         const ls = math.smpl.sphereUniform(uv);
-        const ws = trafo.objectToWorldPoint(ls);
-        const wn = math.normalize3(ws - trafo.position);
+
+        const radius = 0.5 * trafo.scaleX();
+        const wn = trafo.objectToWorldNormal(ls);
+        const ws = trafo.position + @as(Vec4f, @splat(radius)) * wn;
 
         const dir_l = math.smpl.hemisphereCosine(importance_uv);
         const frame = Frame.init(wn);
         const dir = frame.frameToWorld(dir_l);
 
-        const r = 0.5 * trafo.scaleX();
-        const area = (4.0 * std.math.pi) * (r * r);
+        const area = (4.0 * std.math.pi) * (radius * radius);
 
         return SampleFrom.init(
             ro.offsetRay(ws, wn),

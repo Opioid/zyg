@@ -1,6 +1,7 @@
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const Context = @import("../../context.zig").Context;
 const Scene = @import("../../scene.zig").Scene;
+const ro = @import("../../ray_offset.zig");
 const Vertex = @import("../../vertex.zig").Vertex;
 const Tree = @import("point_motion_tree.zig").Tree;
 const int = @import("../intersection.zig");
@@ -10,12 +11,14 @@ const Probe = @import("../probe.zig").Probe;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
+const SampleFrom = smpl.From;
 const Material = @import("../../material/material.zig").Material;
 
 const base = @import("base");
 const math = base.math;
 const AABB = math.AABB;
 const Frame = math.Frame;
+const Vec2f = math.Vec2f;
 const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
 const Ray = math.Ray;
@@ -157,6 +160,39 @@ pub const MotionCloud = struct {
         );
 
         return buffer[0..1];
+    }
+
+    pub fn sampleFrom(self: *const Self, trafo: Trafo, time: u64, uv: Vec2f, importance_uv: Vec2f, sampler: *Sampler) ?SampleFrom {
+        const num_points = self.tree.data.num_vertices;
+        const points_back: f32 = @floatFromInt(num_points - 1);
+        const point_index: u32 = @intFromFloat(sampler.sample1D() * points_back);
+
+        const sample_frame = self.tree.data.frameAt(time);
+        const point_pos_os = self.tree.data.positionAndRadiusAt(point_index, sample_frame);
+        const point_pos_ws = trafo.objectToWorldPoint(point_pos_os);
+        const r = point_pos_os[3] * trafo.scaleX();
+
+        const ls = math.smpl.sphereUniform(uv);
+        const wn = trafo.objectToWorldNormal(ls);
+        const ws = point_pos_ws + @as(Vec4f, @splat(r)) * wn;
+
+        const dir_l = math.smpl.hemisphereCosine(importance_uv);
+        const frame = Frame.init(wn);
+        const dir = frame.frameToWorld(dir_l);
+
+        const p_area = (4.0 * std.math.pi) * (r * r);
+
+        const sample_pdf = 1.0 / @as(f32, @floatFromInt(num_points));
+
+        return SampleFrom.init(
+            ro.offsetRay(ws, wn),
+            wn,
+            dir,
+            .{ uv[0], uv[1], 0.0, 0.0 },
+            importance_uv,
+            trafo,
+            sample_pdf / (std.math.pi * p_area),
+        );
     }
 
     pub fn pdf(self: *const Self, dir: Vec4f, p: Vec4f, frag: *const Fragment, time: u64, splt_threshold: f32) f32 {
