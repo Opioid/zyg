@@ -137,17 +137,6 @@ pub const Generator = struct {
         const TickDuration = 1.0 / @as(f32, @floatFromInt(fps));
 
         for (0..num_particles) |i| {
-            // const sphere_uv = Vec2f{ rng.randomFloat(), rng.randomFloat() };
-            // const sphere = smpl.sphereUniform(sphere_uv);
-
-            // const cone_uv = Vec2f{ rng.randomFloat(), rng.randomFloat() };
-            // const cone = smpl.coneUniform(cone_uv, 0.9);
-
-            // position_samples[0][i] = math.vec4fTo3f(sphere * radius);
-            // radius_samples[0][i] = 0.0;
-
-            // state.velocities[i] = math.vec4fTo3f((cone * velocity));
-
             position_samples[0][i] = Pack3f.init1(0.0);
             radius_samples[0][i] = 0.0;
 
@@ -214,16 +203,103 @@ pub const Generator = struct {
 
                 out_pos[i] = math.vec4fTo3f(pos);
 
-                // const max_age: f32 = @floatFromInt(state.max_ages[i] - 1);
-                // const age: f32 = @floatFromInt(state.ages[i]);
+                if (state.ages[i] >= (state.max_ages[i] - 1)) {
+                    out_radius[i] = 0.0;
+                } else {
+                    out_radius[i] = point_radius;
+                }
 
-                // const decay_age = 0.8 * max_age;
+                state.velocities[i] = math.vec4fTo3f(vel);
+            }
 
-                // if (age > decay_age) {
-                //     out_radius[i] = ((age - max_age) / (decay_age - max_age)) * point_radius;
-                // } else {
-                //     out_radius[i] = point_radius;
-                // }
+            state.ages[i] += 1;
+        }
+    }
+
+    pub fn generateCornellRain(alloc: Allocator, project: Project, particles: *Particles) !void {
+        const num_particles = project.particles.num_particles;
+
+        const position_samples = try alloc.alloc([]Pack3f, project.particles.num_frames);
+        for (position_samples) |*ps| {
+            ps.* = try alloc.alloc(Pack3f, num_particles);
+        }
+
+        const radius_samples = try alloc.alloc([]f32, project.particles.num_frames);
+        for (radius_samples) |*rs| {
+            rs.* = try alloc.alloc(f32, num_particles);
+        }
+
+        var state = try State.init(alloc, num_particles);
+        defer state.deinit(alloc);
+
+        var rng = RNG.init(0, 0);
+
+        const point_radius = project.particles.radius;
+
+        const fps = 120;
+        const TickDuration = 1.0 / @as(f32, @floatFromInt(fps));
+        const MaxAge = 0.36;
+
+        for (0..num_particles) |i| {
+            position_samples[0][i] = Pack3f.init1(0.0);
+            radius_samples[0][i] = 0.0;
+
+            state.velocities[i] = Pack3f.init1(0.0);
+
+            state.ages[i] = @intFromFloat((-rng.randomFloat() * MaxAge) / TickDuration);
+            state.max_ages[i] = 0; // @intFromFloat(max_age / TickDuration);
+        }
+
+        for (1..project.particles.num_frames) |f| {
+            simulateCornellRain(TickDuration, MaxAge, &rng, position_samples[f], radius_samples[f], position_samples[f - 1], &state, point_radius);
+        }
+
+        particles.frames_per_second = fps;
+        particles.radius = project.particles.radius;
+        particles.position_samples = position_samples;
+        particles.radius_samples = radius_samples;
+    }
+
+    fn simulateCornellRain(
+        step: f32,
+        max_age: f32,
+        rng: *RNG,
+        out_pos: []Pack3f,
+        out_radius: []f32,
+        in_pos: []const Pack3f,
+        state: *State,
+        point_radius: f32,
+    ) void {
+        const gravity = Vec4f{ 0.0, -9.8, 0.0, 0.0 };
+
+        const extent: Vec2f = @splat(0.27);
+
+        const stepv: Vec4f = @splat(step);
+
+        for (0..out_pos.len) |i| {
+            if (state.ages[i] >= state.max_ages[i]) {
+                const rect_uv = Vec2f{ rng.randomFloat(), rng.randomFloat() };
+
+                const rect = extent * (@as(Vec2f, @splat(2.0)) * (rect_uv - @as(Vec2f, @splat(0.5))));
+
+                out_pos[i] = Pack3f.init3(rect[0], 0.0, rect[1]);
+
+                out_radius[i] = 0.0;
+
+                state.velocities[i] = Pack3f.init1(0.0);
+                state.ages[i] = -2;
+                state.max_ages[i] = @intFromFloat(max_age / step);
+            } else if (state.ages[i] < 0) {
+                out_pos[i] = in_pos[i];
+                out_radius[i] = 0.0;
+            } else {
+                var pos = math.vec3fTo4f(in_pos[i]);
+                var vel = math.vec3fTo4f(state.velocities[i]);
+
+                pos += stepv * vel;
+                vel += stepv * gravity;
+
+                out_pos[i] = math.vec4fTo3f(pos);
 
                 if (state.ages[i] >= (state.max_ages[i] - 1)) {
                     out_radius[i] = 0.0;
