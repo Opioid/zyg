@@ -423,10 +423,6 @@ pub const Tree = struct {
         const frame = self.data.frameAt(vertex.probe.time);
         const nodes = self.nodes;
 
-        const shading_p = vertex.origin;
-        const wo = -vertex.probe.ray.direction;
-        const in_camera = 0 == vertex.depth.total();
-
         var stack = NodeStack{};
         var n: u32 = 0;
 
@@ -459,7 +455,7 @@ pub const Tree = struct {
                         const uv = self.data.interpolateUv(itri, hit.u, hit.v);
                         frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                        if (frag.evaluateRadiance(shading_p, wo, in_camera, sampler, context)) |local_energy| {
+                        if (vertex.evaluateRadiance(frag, sampler, context)) |local_energy| {
                             const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
                             energy += weight * local_energy;
                         }

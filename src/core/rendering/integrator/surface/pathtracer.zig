@@ -118,14 +118,10 @@ pub const Pathtracer = struct {
             return @splat(0.0);
         }
 
-        const p = vertex.origin;
-        const wo = -vertex.probe.ray.direction;
-        const in_camera = 0 == vertex.depth.total();
-
         var energy: Vec4f = @splat(0.0);
 
         if (frag.hit()) {
-            energy += frag.evaluateRadiance(p, wo, in_camera, sampler, context) orelse @splat(0.0);
+            energy += vertex.evaluateRadiance(frag, sampler, context) orelse @splat(0.0);
         }
 
         // Do this to avoid MIS calculation, which this integrator doesn't need
@@ -147,7 +143,7 @@ pub const Pathtracer = struct {
 
             context.propInterpolateFragment(prop, vertex.probe, &inf_frag);
 
-            energy += inf_frag.evaluateRadiance(p, wo, in_camera, sampler, context) orelse continue;
+            energy += vertex.evaluateRadiance(&inf_frag, sampler, context) orelse continue;
         }
 
         vertex.state.treat_as_singular = treat_as_singular;

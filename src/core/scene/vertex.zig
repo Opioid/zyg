@@ -159,6 +159,33 @@ pub const Vertex = struct {
 
         return m.sample(wo, rs, sampler, context);
     }
+
+    pub fn evaluateRadiance(self: *const Self, frag: *const Fragment, sampler: *Sampler, context: Context) ?Vec4f {
+        const volume = frag.event;
+        if (.Absorb == volume) {
+            return frag.vol_li;
+        }
+
+        const wo = -self.probe.ray.direction;
+
+        const m = frag.material(context.scene);
+        if (!m.emissive() or (!m.twoSided() and !frag.sameHemisphere(wo)) or .Pass != volume) {
+            return null;
+        }
+
+        var rs: Renderstate = undefined;
+        rs.trafo = frag.isec.trafo;
+        rs.origin = self.origin;
+        rs.geo_n = frag.geo_n;
+        rs.uvw = frag.uvw;
+        rs.stochastic_r = sampler.sample1D();
+        rs.prop = frag.prop;
+        rs.part = frag.part;
+
+        const in_camera = 0 == self.depth.total();
+
+        return m.evaluateRadiance(wo, rs, in_camera, sampler, context);
+    }
 };
 
 pub const Pool = struct {
