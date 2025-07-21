@@ -307,8 +307,10 @@ pub const PathtracerMIS = struct {
 
         const previous_shadow_catcher = vertex.state.from_shadow_catcher;
 
+        const in_camera = 0 == vertex.depth.total();
+
         if (frag.hit()) {
-            if (frag.evaluateRadiance(p, wo, sampler, context)) |local_energy| {
+            if (frag.evaluateRadiance(p, wo, in_camera, sampler, context)) |local_energy| {
                 const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
 
                 result.emission = weight * local_energy;
@@ -334,7 +336,7 @@ pub const PathtracerMIS = struct {
 
                 context.propInterpolateFragment(prop, vertex.probe, &light_frag);
 
-                var local_energy = light_frag.evaluateRadiance(p, wo, sampler, context) orelse continue;
+                var local_energy = light_frag.evaluateRadiance(p, wo, in_camera, sampler, context) orelse continue;
 
                 const weight: Vec4f = @splat(context.scene.lightPdf(vertex, &light_frag, split_threshold));
 

@@ -411,6 +411,8 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
         emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
     }
 
+    emittance.camera_weight = json.readFloatMember(jvalue, "camera_weight", 1.0);
+
     if (jvalue.object.get("emission_map")) |em| {
         emittance.emission_map = readValue(alloc, em, .Emission, tex, resources);
     } else if (jvalue.object.get("temperature_map")) |tm| {

@@ -183,12 +183,13 @@ pub const PathtracerDL = struct {
 
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
+        const in_camera = 0 == vertex.depth.total();
 
         var energy: Vec4f = @splat(0.0);
 
         if (frag.hit()) {
             if (vertex.state.treat_as_singular or !Light.isLight(frag.lightId(context.scene))) {
-                energy += frag.evaluateRadiance(p, wo, sampler, context) orelse @splat(0.0);
+                energy += frag.evaluateRadiance(p, wo, in_camera, sampler, context) orelse @splat(0.0);
             }
         }
 
@@ -207,7 +208,7 @@ pub const PathtracerDL = struct {
             if (vertex.state.treat_as_singular or !Light.isLight(light_frag.lightId(context.scene))) {
                 context.propInterpolateFragment(prop, vertex.probe, &light_frag);
 
-                energy += light_frag.evaluateRadiance(p, wo, sampler, context) orelse @splat(0.0);
+                energy += light_frag.evaluateRadiance(p, wo, in_camera, sampler, context) orelse @splat(0.0);
             }
         }
 

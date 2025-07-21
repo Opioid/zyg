@@ -126,7 +126,14 @@ pub const Fragment = struct {
         return Ray.init(self.offsetP(dir), dir, 0.0, max_t);
     }
 
-    pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, context: Context) ?Vec4f {
+    pub fn evaluateRadiance(
+        self: Self,
+        shading_p: Vec4f,
+        wo: Vec4f,
+        in_camera: bool,
+        sampler: *Sampler,
+        context: Context,
+    ) ?Vec4f {
         const volume = self.event;
         if (.Absorb == volume) {
             return self.vol_li;
@@ -146,7 +153,7 @@ pub const Fragment = struct {
         rs.prop = self.prop;
         rs.part = self.part;
 
-        return m.evaluateRadiance(wo, rs, sampler, context);
+        return m.evaluateRadiance(wo, rs, in_camera, sampler, context);
     }
 };
 

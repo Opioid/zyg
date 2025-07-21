@@ -199,11 +199,18 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn evaluateRadiance(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
+    pub fn evaluateRadiance(
+        self: *const Material,
+        wi: Vec4f,
+        rs: Renderstate,
+        in_camera: bool,
+        sampler: *Sampler,
+        context: Context,
+    ) Vec4f {
         return switch (self.*) {
-            .Light => |*m| m.evaluateRadiance(wi, rs, sampler, context),
+            .Light => |*m| m.evaluateRadiance(wi, rs, in_camera, sampler, context),
             .Sky => |*m| m.evaluateRadiance(wi, rs, sampler, context),
-            .Substitute => |*m| m.evaluateRadiance(wi, rs, sampler, context),
+            .Substitute => |*m| m.evaluateRadiance(wi, rs, in_camera, sampler, context),
             .Volumetric => |*m| m.evaluateRadiance(rs, context),
             else => @splat(0.0),
         };

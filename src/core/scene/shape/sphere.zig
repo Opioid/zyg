@@ -277,8 +277,9 @@ pub const Sphere = struct {
 
         const p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
+        const in_camera = 0 == vertex.depth.total();
 
-        const energy = frag.evaluateRadiance(p, wo, sampler, context) orelse return @splat(0.0);
+        const energy = frag.evaluateRadiance(p, wo, in_camera, sampler, context) orelse return @splat(0.0);
 
         const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
 

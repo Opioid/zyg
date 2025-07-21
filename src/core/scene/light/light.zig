@@ -127,7 +127,7 @@ pub const Light = struct {
         rs.prop = self.prop;
         rs.part = self.part;
 
-        return material.evaluateRadiance(sample.wi, rs, sampler, context);
+        return material.evaluateRadiance(sample.wi, rs, false, sampler, context);
     }
 
     pub fn evaluateFrom(self: Light, p: Vec4f, sample: SampleFrom, sampler: *Sampler, context: Context) Vec4f {
@@ -142,7 +142,7 @@ pub const Light = struct {
         rs.prop = self.prop;
         rs.part = self.part;
 
-        return material.evaluateRadiance(-sample.dir, rs, sampler, context);
+        return material.evaluateRadiance(-sample.dir, rs, false, sampler, context);
     }
 
     pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {

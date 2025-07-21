@@ -27,6 +27,7 @@ pub const Emittance = struct {
 
     value: Vec4f = @splat(0.0),
 
+    camera_weight: f32 = 1.0,
     cos_a: f32 = -1.0,
     quantity: Quantity = .Radiance,
     num_samples: u32 = 1,
@@ -76,30 +77,32 @@ pub const Emittance = struct {
         self: Emittance,
         wi: Vec4f,
         rs: Renderstate,
+        in_camera: bool,
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
-        var pf: f32 = 1.0;
+        if (-math.dot3(wi, rs.trafo.rotation.r[2]) < self.cos_a) {
+            return @splat(0.0);
+        }
+
+        var factor: f32 = if (in_camera) self.camera_weight else 1.0;
+
         if (self.profile.isImage()) {
             const lwi = -math.normalize3(rs.trafo.worldToObjectPoint(rs.origin));
             const o = math.smpl.octEncode(lwi);
             const ouv = (o + @as(Vec2f, @splat(1.0))) * @as(Vec2f, @splat(0.5));
 
-            pf = ts.sampleImage2D_1(self.profile, ouv, rs.stochastic_r, context.scene);
-        }
-
-        if (-math.dot3(wi, rs.trafo.rotation.r[2]) < self.cos_a) {
-            return @splat(0.0);
+            factor *= ts.sampleImage2D_1(self.profile, ouv, rs.stochastic_r, context.scene);
         }
 
         const intensity = self.value * ts.sample2D_3(self.emission_map, rs, sampler, context);
 
         if (self.quantity == .Intensity) {
             const area = context.scene.propShape(rs.prop).area(rs.part, rs.trafo.scale());
-            return @as(Vec4f, @splat(pf / area)) * intensity;
+            return @as(Vec4f, @splat(factor / area)) * intensity;
         }
 
-        return @as(Vec4f, @splat(pf)) * intensity;
+        return @as(Vec4f, @splat(factor)) * intensity;
     }
 
     pub fn averageRadiance(self: Emittance, area: f32) Vec4f {

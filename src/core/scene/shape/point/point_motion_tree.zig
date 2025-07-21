@@ -196,6 +196,7 @@ pub const Tree = struct {
 
         const shading_p = vertex.origin;
         const wo = -vertex.probe.ray.direction;
+        const in_camera = 0 == vertex.depth.total();
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -223,7 +224,7 @@ pub const Tree = struct {
                         frag.geo_n = math.normalize3(p - origin_w);
                         frag.uvw = @splat(0.0);
 
-                        if (frag.evaluateRadiance(shading_p, wo, sampler, context)) |local_energy| {
+                        if (frag.evaluateRadiance(shading_p, wo, in_camera, sampler, context)) |local_energy| {
                             const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
                             energy += weight * local_energy;
                         }
