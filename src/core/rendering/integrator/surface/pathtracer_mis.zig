@@ -196,7 +196,7 @@ pub const PathtracerMIS = struct {
         sampler: *Sampler,
         context: Context,
     ) LightResult {
-        var result = LightResult.empty();
+        var result: LightResult = .empty;
 
         if (!mat_sample.canEvaluate()) {
             return result;
@@ -294,7 +294,7 @@ pub const PathtracerMIS = struct {
         sampler: *Sampler,
         context: Context,
     ) LightResult {
-        var result = LightResult.empty();
+        var result: LightResult = .empty;
 
         if (!self.settings.caustics_path and vertex.state.treat_as_singular and !vertex.state.primary_ray) {
             return result;
