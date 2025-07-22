@@ -53,6 +53,10 @@ pub const Tree = struct {
     }
 
     pub fn aabb(self: Self) AABB {
+        if (0 == self.num_nodes) {
+            return .empty;
+        }
+
         return self.nodes[0].aabb();
     }
 
@@ -64,7 +68,7 @@ pub const Tree = struct {
         var local_ray = trafo.worldToObjectRay(probe.ray);
 
         var stack = NodeStack{};
-        var n: u32 = 0;
+        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         var hit_t: f32 = undefined;
         var primitive = Intersection.Null;
@@ -131,7 +135,7 @@ pub const Tree = struct {
         const local_ray = trafo.worldToObjectRay(probe.ray);
 
         var stack = NodeStack{};
-        var n: u32 = 0;
+        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         while (NodeStack.End != n) {
             const node = nodes[n];
@@ -190,7 +194,7 @@ pub const Tree = struct {
         const frame = self.data.frameAt(vertex.probe.time);
 
         var stack = NodeStack{};
-        var n: u32 = 0;
+        var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
 
         var energy: Vec4f = @splat(0.0);
 
