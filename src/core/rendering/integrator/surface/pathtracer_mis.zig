@@ -196,7 +196,7 @@ pub const PathtracerMIS = struct {
         sampler: *Sampler,
         context: Context,
     ) LightResult {
-        var result = LightResult.empty();
+        var result: LightResult = .empty;
 
         if (!mat_sample.canEvaluate()) {
             return result;
@@ -294,21 +294,18 @@ pub const PathtracerMIS = struct {
         sampler: *Sampler,
         context: Context,
     ) LightResult {
-        var result = LightResult.empty();
+        var result: LightResult = .empty;
 
         if (!self.settings.caustics_path and vertex.state.treat_as_singular and !vertex.state.primary_ray) {
             return result;
         }
-
-        const p = vertex.origin;
-        const wo = -vertex.probe.ray.direction;
 
         const split_threshold = self.settings.light_sampling.splitThreshold(vertex.depth);
 
         const previous_shadow_catcher = vertex.state.from_shadow_catcher;
 
         if (frag.hit()) {
-            if (frag.evaluateRadiance(p, wo, sampler, context)) |local_energy| {
+            if (vertex.evaluateRadiance(frag, sampler, context)) |local_energy| {
                 const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
 
                 result.emission = weight * local_energy;
@@ -334,7 +331,7 @@ pub const PathtracerMIS = struct {
 
                 context.propInterpolateFragment(prop, vertex.probe, &light_frag);
 
-                var local_energy = light_frag.evaluateRadiance(p, wo, sampler, context) orelse continue;
+                var local_energy = vertex.evaluateRadiance(&light_frag, sampler, context) orelse continue;
 
                 const weight: Vec4f = @splat(context.scene.lightPdf(vertex, &light_frag, split_threshold));
 

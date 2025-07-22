@@ -121,10 +121,11 @@ pub const Material = struct {
         self: *const Material,
         wi: Vec4f,
         rs: Renderstate,
+        in_camera: bool,
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
-        return self.emittance.radiance(wi, rs, sampler, context);
+        return self.emittance.radiance(wi, rs, in_camera, sampler, context);
     }
 
     pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {

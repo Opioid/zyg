@@ -263,8 +263,15 @@ pub const Material = struct {
         return (@as(u64, @as(u32, @bitCast(a))) << 32) | @as(u64, @as(u32, @bitCast(b)));
     }
 
-    pub fn evaluateRadiance(self: *const Material, wi: Vec4f, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
-        const rad = self.emittance.radiance(wi, rs, sampler, context);
+    pub fn evaluateRadiance(
+        self: *const Material,
+        wi: Vec4f,
+        rs: Renderstate,
+        in_camera: bool,
+        sampler: *Sampler,
+        context: Context,
+    ) Vec4f {
+        const rad = self.emittance.radiance(wi, rs, in_camera, sampler, context);
 
         const coating_scale = ts.sample2D_1(self.coating_scale, rs, sampler, context);
         const coating_thickness = coating_scale * self.coating_thickness;

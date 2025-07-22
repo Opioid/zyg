@@ -1,12 +1,8 @@
 const Shape = @import("shape.zig").Shape;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const ro = @import("../ray_offset.zig");
-const Context = @import("../context.zig").Context;
 const Scene = @import("../scene.zig").Scene;
-const Renderstate = @import("../renderstate.zig").Renderstate;
-const mat = @import("../material/material.zig");
-const RadianceResult = @import("../material/material_base.zig").Base.RadianceResult;
-const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const Material = @import("../material/material.zig").Material;
 
 const math = @import("base").math;
 const Ray = math.Ray;
@@ -92,7 +88,7 @@ pub const Fragment = struct {
         return Scene.Null != self.prop;
     }
 
-    pub fn material(self: Self, scene: *const Scene) *const mat.Material {
+    pub fn material(self: Self, scene: *const Scene) *const Material {
         return scene.propMaterial(self.prop, self.part);
     }
 
@@ -124,29 +120,6 @@ pub const Fragment = struct {
 
     pub fn offsetRay(self: Self, dir: Vec4f, max_t: f32) Ray {
         return Ray.init(self.offsetP(dir), dir, 0.0, max_t);
-    }
-
-    pub fn evaluateRadiance(self: Self, shading_p: Vec4f, wo: Vec4f, sampler: *Sampler, context: Context) ?Vec4f {
-        const volume = self.event;
-        if (.Absorb == volume) {
-            return self.vol_li;
-        }
-
-        const m = self.material(context.scene);
-        if (!m.emissive() or (!m.twoSided() and !self.sameHemisphere(wo)) or .Pass != volume) {
-            return null;
-        }
-
-        var rs: Renderstate = undefined;
-        rs.trafo = self.isec.trafo;
-        rs.origin = shading_p;
-        rs.geo_n = self.geo_n;
-        rs.uvw = self.uvw;
-        rs.stochastic_r = sampler.sample1D();
-        rs.prop = self.prop;
-        rs.part = self.part;
-
-        return m.evaluateRadiance(wo, rs, sampler, context);
     }
 };
 

@@ -41,9 +41,11 @@ pub const LightResult = struct {
     occluded: Vec4f,
     unoccluded: Vec4f,
 
-    pub fn empty() LightResult {
-        return .{ .emission = @splat(0.0), .occluded = @splat(0.0), .unoccluded = @splat(0.0) };
-    }
+    pub const empty = LightResult{
+        .emission = @splat(0.0),
+        .occluded = @splat(0.0),
+        .unoccluded = @splat(0.0),
+    };
 
     pub fn addAssign(self: *LightResult, other: LightResult) void {
         self.emission += other.emission;

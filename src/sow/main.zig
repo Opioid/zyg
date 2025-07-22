@@ -101,7 +101,7 @@ pub fn main() !void {
         var particles: prt.Particles = undefined;
         defer particles.deinit(alloc);
 
-        //    try ParticleGenerator.generateSparks(alloc, project, &particles);
+        // try ParticleGenerator.generateSparks(alloc, project, &particles);
         try ParticleGenerator.generateCornellRain(alloc, project, &particles);
 
         try ParticleExporter.write(alloc, options.output, &particles);
