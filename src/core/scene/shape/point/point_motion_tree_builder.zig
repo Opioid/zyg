@@ -69,14 +69,16 @@ pub const Builder = struct {
             bounds.mergeAssign(box);
         }
 
-        try self.super.split(alloc, try references.toOwnedSlice(alloc), bounds, threads);
+        if (references.items.len > 0) {
+            try self.super.split(alloc, try references.toOwnedSlice(alloc), bounds, threads);
 
-        try tree.allocateIndices(alloc, self.super.numReferenceIds());
-        try tree.allocateNodes(alloc, self.super.numBuildNodes());
+            try tree.allocateIndices(alloc, self.super.numReferenceIds());
+            try tree.allocateNodes(alloc, self.super.numBuildNodes());
 
-        var current_prop: u32 = 0;
-        self.super.newNode();
-        self.serialize(0, 0, tree, &current_prop);
+            var current_prop: u32 = 0;
+            self.super.newNode();
+            self.serialize(0, 0, tree, &current_prop);
+        }
 
         try tree.data.allocatePoints(alloc, radius, positions, radii);
     }

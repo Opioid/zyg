@@ -55,8 +55,8 @@ pub const Node = struct {
         self.max.v[2] = box.bounds[1][2];
     }
 
-    pub fn setSplitNode(self: *Node, ch: u32) void {
-        self.min.data = ch;
+    pub fn setSplitNode(self: *Node, child: u32) void {
+        self.min.data = child;
         self.max.data = 0;
     }
 
