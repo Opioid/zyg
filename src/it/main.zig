@@ -139,7 +139,7 @@ fn write(
 
         const num_pixels = img.Description.numPixels(dim);
 
-        var buffered = std.io.bufferedWriter(file.writer());
+        var buffered = std.io.bufferedWriter(file.deprecatedWriter());
         var txt_writer = buffered.writer();
 
         var buffer: [256]u8 = undefined;
@@ -204,7 +204,7 @@ fn write(
 
             const d = target.dimensions;
 
-            var buffered = std.io.bufferedWriter(file.writer());
+            var buffered = std.io.bufferedWriter(file.deprecatedWriter());
             try writer.write(alloc, buffered.writer(), target, .{ 0, 0, d[0], d[1] }, encoding, threads);
             try buffered.flush();
         }

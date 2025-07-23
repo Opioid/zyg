@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub const FileReadStream = struct {
-    const Reader = std.io.BufferedReader(4096, std.fs.File.Reader);
+    const Reader = std.io.BufferedReader(4096, std.fs.File.DeprecatedReader);
     const Seeker = std.fs.File.SeekableStream;
 
     reader: Reader,
@@ -12,7 +12,7 @@ pub const FileReadStream = struct {
     pub fn setFile(self: *Self, file: std.fs.File) void {
         self.reader.start = 0;
         self.reader.end = 0;
-        self.reader.unbuffered_reader = file.reader();
+        self.reader.unbuffered_reader = file.deprecatedReader();
         self.seeker = file.seekableStream();
     }
 

@@ -238,7 +238,7 @@ pub const Generator = struct {
 
         const fps = 120;
         const TickDuration = 1.0 / @as(f32, @floatFromInt(fps));
-        const MaxAge = 0.36;
+        const MaxAge = 0.4;
 
         for (0..num_particles) |i| {
             position_samples[0][i] = Pack3f.init1(0.0);
@@ -246,8 +246,8 @@ pub const Generator = struct {
 
             state.velocities[i] = Pack3f.init1(0.0);
 
-            state.ages[i] = @intFromFloat((-rng.randomFloat() * MaxAge) / TickDuration);
-            state.max_ages[i] = 0; // @intFromFloat(max_age / TickDuration);
+            state.ages[i] = -@as(i32, @intFromFloat((rng.randomFloat() * MaxAge) / TickDuration)) - 2;
+            state.max_ages[i] = 0;
         }
 
         for (1..project.particles.num_frames) |f| {
@@ -270,7 +270,8 @@ pub const Generator = struct {
         state: *State,
         point_radius: f32,
     ) void {
-        const gravity = Vec4f{ 0.0, -9.8, 0.0, 0.0 };
+        //  const gravity = Vec4f{ 0.0, -9.8, 0.0, 0.0 };
+        const gravity = Vec4f{ 0.0, -7.0, 0.0, 0.0 };
 
         const extent: Vec2f = @splat(0.27);
 

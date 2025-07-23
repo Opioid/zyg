@@ -78,6 +78,6 @@ pub const FFMPEG = struct {
 
         _ = try self.srgb.toSrgb(alloc, image, .{ 0, 0, d[0], d[1] }, .Color, threads);
 
-        try self.streams[camera].stdin.?.writer().writeAll(self.srgb.buffer);
+        try self.streams[camera].stdin.?.deprecatedWriter().writeAll(self.srgb.buffer);
     }
 };

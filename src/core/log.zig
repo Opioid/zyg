@@ -28,12 +28,12 @@ pub const StdOut = struct {
 
         std.debug.lockStdErr();
         defer std.debug.unlockStdErr();
-        nosuspend std.io.getStdOut().writer().print(prefix ++ format ++ "\n", args) catch return;
+        nosuspend std.fs.File.stdout().deprecatedWriter().print(prefix ++ format ++ "\n", args) catch return;
     }
 };
 
 pub const CFunc = struct {
-    pub const Func = *const fn (level: c_uint, text: [*:0]const u8) callconv(.C) void;
+    pub const Func = *const fn (level: c_uint, text: [*:0]const u8) callconv(.c) void;
 
     func: Func,
 

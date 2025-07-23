@@ -62,7 +62,7 @@ pub const Model = struct {
         };
     }
 
-    fn readStream(buffer: ?*anyopaque, size: usize, count: usize, stream: ?*c.FILE) callconv(.C) usize {
+    fn readStream(buffer: ?*anyopaque, size: usize, count: usize, stream: ?*c.FILE) callconv(.c) usize {
         if (null == buffer or null == stream) {
             return 0;
         }

@@ -14,30 +14,39 @@ pub fn build(b: *std.Build) void {
 
     const cli = b.addExecutable(.{
         .name = "zyg",
-        .root_source_file = b.path("src/cli/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/cli/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
-    const capi = b.addSharedLibrary(.{
+    const capi = b.addLibrary(.{
         .name = "zyg",
-        .root_source_file = b.path("src/capi/capi.zig"),
-        .target = target,
-        .optimize = optimize,
+        .linkage = .static,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/capi/capi.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const it = b.addExecutable(.{
         .name = "it",
-        .root_source_file = b.path("src/it/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/it/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const sow = b.addExecutable(.{
         .name = "sow",
-        .root_source_file = b.path("src/sow/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/sow/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     cli.addIncludePath(b.path("thirdparty/include"));

@@ -159,7 +159,7 @@ pub const Options = struct {
             \\      --iter                      Prompt to render again, retaining loaded assets.
         ;
 
-        const stdout = std.io.getStdOut().writer();
+        const stdout = std.fs.File.stdout().deprecatedWriter();
         stdout.print(text, .{}) catch return;
     }
 };

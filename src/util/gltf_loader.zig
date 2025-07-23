@@ -582,11 +582,8 @@ pub const Loader = struct {
 
         if (value.object.get("pbrMetallicRoughness")) |pbr_node| {
             var buffer: [1024]u8 = undefined;
-
-            var fixed_buffer_stream = std.io.fixedBufferStream(&buffer);
-            const stream = fixed_buffer_stream.writer();
-            var jw = std.json.writeStream(stream, .{});
-            defer jw.deinit();
+            var fixed_writer: std.Io.Writer = .fixed(&buffer);
+            var jw: std.json.Stringify = .{ .writer = &fixed_writer };
 
             try jw.beginObject();
             try jw.objectField("rendering");
@@ -723,8 +720,8 @@ pub const Loader = struct {
             try jw.endObject();
             try jw.endObject();
 
-            fixed_buffer_stream = std.io.fixedBufferStream(fixed_buffer_stream.getWritten());
-            var json_reader = std.json.reader(alloc, fixed_buffer_stream.reader());
+            var fbs: std.Io.Reader = .fixed(fixed_writer.buffered());
+            var json_reader: std.json.Scanner.Reader = .init(alloc, &fbs);
             defer json_reader.deinit();
 
             var parsed = try std.json.parseFromTokenSource(std.json.Value, alloc, &json_reader, .{});

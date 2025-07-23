@@ -168,7 +168,7 @@ pub const Writer = struct {
         var file = try std.fs.cwd().createFile(name, .{});
         defer file.close();
 
-        try file.writer().writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
+        try file.deprecatedWriter().writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
 
         mz.mz_free(png);
     }
