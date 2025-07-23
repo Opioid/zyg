@@ -700,7 +700,13 @@ fn readTexture(
     var desc = TextureDescriptor.init(alloc, value, usage, tex, resources) catch return Texture.initUniform3(@splat(0.0));
     defer desc.deinit(alloc);
 
-    return createTexture(alloc, desc, usage, tex, resources) catch return Texture.initUniform3(@splat(0.0));
+    return createTexture(alloc, desc, usage, tex, resources) catch {
+        return switch (usage) {
+            .Color => Texture.initUniform3(@splat(0.5)),
+            .Weight => Texture.initUniform1(0.5),
+            else => Texture.initUniform3(@splat(0.0)),
+        };
+    };
 }
 
 const TextureError = error{NoTexture};
@@ -770,7 +776,7 @@ fn readTypedValue(
                 defer desc.deinit(alloc);
 
                 const result_texture = createTexture(alloc, desc, usage, tex, resources) catch
-                    return Texture.initUniform3(@splat(0.0));
+                    return Texture.initUniform3(@splat(0.5));
 
                 if (!result_texture.isUniform()) {
                     return result_texture;
