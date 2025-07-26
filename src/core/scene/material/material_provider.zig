@@ -184,6 +184,8 @@ pub const Provider = struct {
                 material.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
                 material.roughness = readValue(alloc, entry.value_ptr.*, .Weight, self.tex, resources);
+            } else if (std.mem.eql(u8, "specular", entry.key_ptr.*)) {
+                material.specular = readValue(alloc, entry.value_ptr.*, .Weight, self.tex, resources);
             } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
                 material.super.priority = @intCast(json.readInt(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
