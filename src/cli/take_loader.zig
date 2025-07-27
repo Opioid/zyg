@@ -201,33 +201,25 @@ fn loadShutter(value: std.json.Value, camera: *cam.Base) void {
 }
 
 fn loadSensor(value: std.json.Value) Sensor {
-    var alpha_transparency = false;
-    var clamp_max: f32 = std.math.floatMax(f32);
-
-    var filter_value_ptr: ?*std.json.Value = null;
-
-    {
-        var iter = value.object.iterator();
-        while (iter.next()) |entry| {
-            if (std.mem.eql(u8, "alpha_transparency", entry.key_ptr.*)) {
-                alpha_transparency = json.readBool(entry.value_ptr.*);
-            } else if (std.mem.eql(u8, "clamp", entry.key_ptr.*)) {
-                switch (entry.value_ptr.*) {
-                    .array => |a| clamp_max = json.readFloat(f32, a.items[0]),
-                    else => clamp_max = json.readFloat(f32, entry.value_ptr.*),
-                }
-            } else if (std.mem.eql(u8, "filter", entry.key_ptr.*)) {
-                filter_value_ptr = entry.value_ptr;
-            }
-        }
-    }
+    const alpha_transparency = json.readBoolMember(value, "alpha_transparency", false);
 
     const class: Sensor.Buffer.Class = if (alpha_transparency) .Transparent else .Opaque;
 
-    if (filter_value_ptr) |filter_value| {
+    var clamp_max: Sensor.Clamp = .infinite;
+    if (value.object.get("clamp")) |clamp_node| {
+        switch (clamp_node) {
+            .object => {
+                clamp_max.direct = json.readFloatMember(clamp_node, "direct", clamp_max.direct);
+                clamp_max.indirect = json.readFloatMember(clamp_node, "indirect", clamp_max.indirect);
+            },
+            else => {},
+        }
+    }
+
+    if (value.object.get("filter")) |filter_node| {
         const radius: f32 = 2.0;
 
-        var iter = filter_value.object.iterator();
+        var iter = filter_node.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "Blackman", entry.key_ptr.*)) {
                 const filter = Sensor.Blackman{ .r = radius };

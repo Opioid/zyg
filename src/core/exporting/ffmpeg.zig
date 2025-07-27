@@ -27,7 +27,7 @@ pub const FFMPEG = struct {
         for (dimensions, framerates, 0..) |dim, framerate, i| {
             const framerate_str = try std.fmt.bufPrint(&framerate_buf, "{d}", .{framerate});
             const res_str = try std.fmt.bufPrint(&res_buf, "{d}x{d}", .{ dim[0], dim[1] });
-            const name_str = try std.fmt.bufPrint(&name_buf, "output_{d:0>2}.webm", .{i});
+            const name_str = try std.fmt.bufPrint(&name_buf, "output_{d:0>2}.mp4", .{i});
 
             var stream = std.process.Child.init(
                 &[_][]const u8{
@@ -44,11 +44,11 @@ pub const FFMPEG = struct {
                     "-",
                     "-y",
                     "-c:v",
-                    "libvpx-vp9",
+                    "libx264",
                     "-crf",
                     "20",
-                    "-b:v",
-                    "0",
+                    // "-b:v",
+                    // "0",
                     name_str,
                 },
                 alloc,
@@ -65,6 +65,7 @@ pub const FFMPEG = struct {
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
         for (self.streams) |*s| {
+            s.stdin.?.close();
             _ = s.kill() catch unreachable;
         }
 
@@ -78,6 +79,6 @@ pub const FFMPEG = struct {
 
         _ = try self.srgb.toSrgb(alloc, image, .{ 0, 0, d[0], d[1] }, .Color, threads);
 
-        try self.streams[camera].stdin.?.writer().writeAll(self.srgb.buffer);
+        try self.streams[camera].stdin.?.deprecatedWriter().writeAll(self.srgb.buffer);
     }
 };

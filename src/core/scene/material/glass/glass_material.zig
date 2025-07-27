@@ -20,6 +20,7 @@ pub const Material = struct {
 
     normal_map: Texture = Texture.initUniform1(0.0),
     roughness: Texture = Texture.initUniform1(0.0),
+    specular: Texture = Texture.initUniform1(1.0),
 
     absorption: Vec4f = undefined,
     attenuation_distance: f32 = 1.0,
@@ -48,6 +49,8 @@ pub const Material = struct {
         else
             0.0;
 
+        const specular = ts.sample2D_1(self.specular, rs, sampler, context);
+
         var result = Sample.init(
             rs,
             wo,
@@ -55,6 +58,7 @@ pub const Material = struct {
             self.ior,
             rs.ior,
             r * r,
+            specular,
             self.thickness,
             self.abbe,
             rs.wavelength,

@@ -233,7 +233,7 @@ pub const Sky = struct {
 
             try ew.write(
                 alloc,
-                file.writer(),
+                file.deprecatedWriter(),
                 .{ .Float3 = image.* },
                 .{ 0, 0, Bake_dimensions[0], Bake_dimensions[1] },
                 .Color,
@@ -247,7 +247,7 @@ pub const Sky = struct {
 
             try ew.write(
                 alloc,
-                file.writer(),
+                file.deprecatedWriter(),
                 .{ .Float3 = sun_image },
                 .{ 0, 0, Bake_dimensions_sun, 1 },
                 .Color,

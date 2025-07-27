@@ -5,6 +5,7 @@ const Lighttracer = @import("../rendering/integrator/particle/lighttracer.zig").
 const hlp = @import("../rendering/integrator/helper.zig");
 const Depth = hlp.Depth;
 const LightSampling = hlp.LightSampling;
+const Scene = @import("../scene/scene.zig").Scene;
 const CausticsResolve = @import("../scene/renderstate.zig").CausticsResolve;
 const LightTree = @import("../scene/light/light_tree.zig");
 const SamplerFactory = @import("../sampler/sampler.zig").Factory;
@@ -57,7 +58,7 @@ pub const View = struct {
 
     sensor: Sensor = Sensor.init(
         .Opaque,
-        std.math.floatMax(f32),
+        .infinite,
         2.0,
         Sensor.Mitchell{ .b = 1.0 / 3.0, .c = 1.0 / 3.0 },
     ),
@@ -354,7 +355,7 @@ pub const Take = struct {
                         .alpha = alpha,
                     } });
                 }
-            } else if (std.mem.eql(u8, "Movie", entry.key_ptr.*)) {
+            } else if (std.mem.eql(u8, "Video", entry.key_ptr.*)) {
                 var dimensions = try alloc.alloc(Vec2i, self.view.cameras.items.len);
                 defer alloc.free(dimensions);
 
@@ -369,7 +370,7 @@ pub const Take = struct {
                 for (self.view.cameras.items, 0..) |*c, i| {
                     dimensions[i] = c.super().resolution;
                     framerates[i] = if (0 == framerate)
-                        @intFromFloat(@round(1.0 / @as(f64, @floatFromInt(camera.super().frame_step))))
+                        @intCast(Scene.UnitsPerSecond / camera.super().frame_step)
                     else
                         framerate;
                 }

@@ -184,6 +184,8 @@ pub const Provider = struct {
                 material.attenuation_distance = json.readFloat(f32, entry.value_ptr.*);
             } else if (std.mem.eql(u8, "roughness", entry.key_ptr.*)) {
                 material.roughness = readValue(alloc, entry.value_ptr.*, .Weight, self.tex, resources);
+            } else if (std.mem.eql(u8, "specular", entry.key_ptr.*)) {
+                material.specular = readValue(alloc, entry.value_ptr.*, .Weight, self.tex, resources);
             } else if (std.mem.eql(u8, "priority", entry.key_ptr.*)) {
                 material.super.priority = @intCast(json.readInt(entry.value_ptr.*));
             } else if (std.mem.eql(u8, "ior", entry.key_ptr.*)) {
@@ -700,7 +702,13 @@ fn readTexture(
     var desc = TextureDescriptor.init(alloc, value, usage, tex, resources) catch return Texture.initUniform3(@splat(0.0));
     defer desc.deinit(alloc);
 
-    return createTexture(alloc, desc, usage, tex, resources) catch return Texture.initUniform3(@splat(0.0));
+    return createTexture(alloc, desc, usage, tex, resources) catch {
+        return switch (usage) {
+            .Color => Texture.initUniform3(@splat(0.5)),
+            .Weight => Texture.initUniform1(0.5),
+            else => Texture.initUniform3(@splat(0.0)),
+        };
+    };
 }
 
 const TextureError = error{NoTexture};
@@ -770,7 +778,7 @@ fn readTypedValue(
                 defer desc.deinit(alloc);
 
                 const result_texture = createTexture(alloc, desc, usage, tex, resources) catch
-                    return Texture.initUniform3(@splat(0.0));
+                    return Texture.initUniform3(@splat(0.5));
 
                 if (!result_texture.isUniform()) {
                     return result_texture;

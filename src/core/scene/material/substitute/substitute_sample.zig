@@ -434,7 +434,6 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const alpha = self.super.alpha;
         const frame = self.super.frame;
-        const s = self.specular;
 
         if (!self.super.sameHemisphere(wo)) {
             const ior = quo_ior.swapped(false);
@@ -471,9 +470,13 @@ pub const Sample = struct {
             const split_pdf = if (split) 1.0 else gg.f[0];
 
             return bxdf.Result.init(
-                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp * s)) * attenuation * gg.r.reflection,
+                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp)) * attenuation * gg.r.reflection,
                 split_pdf * gg.r.pdf,
             );
+        }
+
+        if (self.super.avoidCaustics() and alpha[1] <= ggx.MinAlpha) {
+            return bxdf.Result.empty();
         }
 
         const h = math.normalize3(wo + wi);
@@ -481,15 +484,12 @@ pub const Sample = struct {
         const n_dot_wi = frame.clampNdot(wi);
         const n_dot_wo = frame.clampAbsNdot(wo);
 
-        if (self.super.avoidCaustics() and alpha[1] <= ggx.MinAlpha) {
-            return bxdf.Result.empty();
-        }
-
         const schlick = fresnel.Schlick.init(self.f0);
 
         const gg = ggx.Aniso.reflectionF(wi, wo, h, n_dot_wi, n_dot_wo, wo_dot_h, alpha, schlick, frame);
 
         const coated = self.coating.thickness > 0.0;
+        const s = self.specular;
 
         const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
         const base_reflection = @as(Vec4f, @splat(n_dot_wi * s)) * (gg.r.reflection + mms);

@@ -9,11 +9,12 @@ pub const Exporter = struct {
         name: []const u8,
         particles: *const Particles,
     ) !void {
-        var out: std.ArrayListUnmanaged(u8) = .{};
-        defer out.deinit(alloc);
-
-        var stream = std.json.writeStream(out.writer(alloc), .{ .whitespace = .indent_4 });
-        defer stream.deinit();
+        var out: std.io.Writer.Allocating = .init(alloc);
+        var stream: std.json.Stringify = .{
+            .writer = &out.writer,
+            .options = .{ .whitespace = .indent_4 },
+        };
+        defer out.deinit();
 
         try stream.beginObject();
 
@@ -99,10 +100,10 @@ pub const Exporter = struct {
         var file = try std.fs.cwd().createFile(name, .{});
         defer file.close();
 
-        var buffered = std.io.bufferedWriter(file.writer());
+        var buffered = std.io.bufferedWriter(file.deprecatedWriter());
         var txt_writer = buffered.writer();
 
-        _ = try txt_writer.write(out.items);
+        _ = try txt_writer.write(out.getWritten());
 
         try buffered.flush();
     }

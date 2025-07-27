@@ -50,7 +50,7 @@ pub const ImageSequence = struct {
             encoding = if (self.alpha) .ColorAlpha else .Color;
         }
 
-        var buffered = std.io.bufferedWriter(file.writer());
+        var buffered = std.io.bufferedWriter(file.deprecatedWriter());
         try self.writer.write(alloc, buffered.writer(), image, crop, encoding, threads);
         try buffered.flush();
     }

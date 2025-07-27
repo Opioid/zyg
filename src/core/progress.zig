@@ -48,15 +48,15 @@ pub const StdOut = struct {
         if (p >= self.threshold) {
             self.threshold += Step;
 
-            const stdout = std.io.getStdOut().writer();
+            const stdout = std.fs.File.stdout().deprecatedWriter();
             stdout.print("{}%\r", .{@as(u32, @intFromFloat(p))}) catch return;
         }
     }
 };
 
 pub const CFunc = struct {
-    pub const Start = *const fn (resolution: u32) callconv(.C) void;
-    pub const Tick = *const fn () callconv(.C) void;
+    pub const Start = *const fn (resolution: u32) callconv(.c) void;
+    pub const Tick = *const fn () callconv(.c) void;
 
     start_func: Start,
     tick_func: Tick,

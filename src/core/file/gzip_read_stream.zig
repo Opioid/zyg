@@ -38,7 +38,7 @@ pub const GzipReadStream = struct {
 
     const Self = @This();
 
-    const Reader = std.io.Reader(*Self, Error, read);
+    const Reader = std.io.GenericReader(*Self, Error, read);
 
     pub fn reader(self: *Self) Reader {
         return .{ .context = self };
