@@ -57,6 +57,16 @@ pub const Sensor = struct {
         }
     };
 
+    pub const Clamp = struct {
+        direct: f32,
+        indirect: f32,
+
+        pub const infinite = Clamp{
+            .direct = std.math.floatMax(f32),
+            .indirect = std.math.floatMax(f32),
+        };
+    };
+
     const Func = math.ifunc.InterpolatedFunction1DN(30);
 
     const Layer = struct {
@@ -80,7 +90,7 @@ pub const Sensor = struct {
 
     dimensions: Vec2i,
 
-    clamp_max: f32,
+    clamp_max: Clamp,
 
     filter_radius_int: i32,
 
@@ -90,7 +100,7 @@ pub const Sensor = struct {
 
     const Self = @This();
 
-    pub fn init(class: Buffer.Class, clamp_max: f32, radius: f32, f: anytype) Self {
+    pub fn init(class: Buffer.Class, clamp_max: Clamp, radius: f32, f: anytype) Self {
         var result = Self{
             .class = class,
             .layers = &.{},
@@ -162,8 +172,9 @@ pub const Sensor = struct {
         bounds: Vec4i,
         isolated: Vec4i,
     ) void {
-        const indirect = self.clamp(value.indirect);
-        const summed = indirect + value.direct;
+        const direct = clamp(value.direct, self.clamp_max.direct);
+        const indirect = clamp(value.indirect, self.clamp_max.indirect);
+        const summed = indirect + direct;
         const composed = Vec4f{ summed[0], summed[1], summed[2], value.direct[3] };
 
         const pixel = sample.pixel;
@@ -187,7 +198,7 @@ pub const Sensor = struct {
                     const class: AovValue.Class = @enumFromInt(i);
                     if (aov.activeClass(class)) {
                         const avalue = switch (class) {
-                            .Direct => value.direct,
+                            .Direct => direct,
                             .Indirect => indirect,
                             else => aov.values[i],
                         };
@@ -233,7 +244,7 @@ pub const Sensor = struct {
                     const class: AovValue.Class = @enumFromInt(i);
                     if (aov.activeClass(class)) {
                         const avalue = switch (class) {
-                            .Direct => value.direct,
+                            .Direct => direct,
                             .Indirect => indirect,
                             else => aov.values[i],
                         };
@@ -316,7 +327,7 @@ pub const Sensor = struct {
                     const class: AovValue.Class = @enumFromInt(i);
                     if (aov.activeClass(class)) {
                         const avalue = switch (class) {
-                            .Direct => value.direct,
+                            .Direct => direct,
                             .Indirect => indirect,
                             else => aov.values[i],
                         };
@@ -368,7 +379,7 @@ pub const Sensor = struct {
     }
 
     pub fn splatSample(self: *Self, layer: u32, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {
-        const clamped = self.clamp(color);
+        const clamped = clamp(color, self.clamp_max.indirect);
 
         const pixel = sample.pixel;
         const x = pixel[0];
@@ -595,9 +606,8 @@ pub const Sensor = struct {
         }
     }
 
-    inline fn clamp(self: *const Self, color: Vec4f) Vec4f {
+    inline fn clamp(color: Vec4f, max: f32) Vec4f {
         const mc = math.hmax3(color);
-        const max = self.clamp_max;
 
         if (mc > max) {
             const r = max / mc;
