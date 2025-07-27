@@ -23,7 +23,7 @@ pub fn build(b: *std.Build) void {
 
     const capi = b.addLibrary(.{
         .name = "zyg",
-        .linkage = .static,
+        .linkage = .dynamic,
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/capi/capi.zig"),
             .target = target,
