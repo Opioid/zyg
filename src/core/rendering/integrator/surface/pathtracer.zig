@@ -48,7 +48,7 @@ pub const Pathtracer = struct {
             const weighted_energy = vertex.throughput * energy;
 
             const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
-            result.add(weighted_energy, indirect_light_depth, 1, vertex.state.treat_as_singular);
+            result.add(weighted_energy, indirect_light_depth, 1, 0 == total_depth, vertex.state.treat_as_singular);
 
             if (!frag.hit() or
                 vertex.probe.depth.surface >= max_depth.surface or

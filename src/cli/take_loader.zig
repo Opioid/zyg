@@ -209,6 +209,7 @@ fn loadSensor(value: std.json.Value) Sensor {
     if (value.object.get("clamp")) |clamp_node| {
         switch (clamp_node) {
             .object => {
+                clamp_max.emission = json.readFloatMember(clamp_node, "emission", clamp_max.emission);
                 clamp_max.direct = json.readFloatMember(clamp_node, "direct", clamp_max.direct);
                 clamp_max.indirect = json.readFloatMember(clamp_node, "indirect", clamp_max.indirect);
             },
