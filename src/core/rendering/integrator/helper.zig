@@ -4,11 +4,14 @@ const math = @import("base").math;
 const Vec4f = math.Vec4f;
 
 pub const IValue = struct {
+    emission: Vec4f = @splat(0.0),
     direct: Vec4f = @splat(0.0),
     indirect: Vec4f = @splat(0.0),
 
-    pub inline fn add(self: *IValue, value: Vec4f, depth: u32, direct_cutoff: comptime_int, singular: bool) void {
-        if (singular or depth < direct_cutoff) {
+    pub inline fn add(self: *IValue, value: Vec4f, depth: u32, direct_cutoff: comptime_int, emission: bool, singular: bool) void {
+        if (emission) {
+            self.emission += value;
+        } else if (singular or depth < direct_cutoff) {
             self.direct += value;
         } else {
             self.indirect += value;

@@ -64,6 +64,7 @@ pub const ImageSequence = struct {
                 .GeometricNormal => "_ng",
                 .ShadingNormal => "_n",
                 .Roughness => "_r",
+                .Emission => "_emission",
                 .Direct => "_direct",
                 .Indirect => "_indirect",
             };

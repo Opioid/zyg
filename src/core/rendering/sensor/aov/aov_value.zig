@@ -14,6 +14,7 @@ pub const Value = struct {
         GeometricNormal,
         ShadingNormal,
         Roughness,
+        Emission,
         Direct,
         Indirect,
 
@@ -31,7 +32,7 @@ pub const Value = struct {
 
         pub fn encoding(class: Class) Encoding {
             return switch (class) {
-                .Albedo, .Direct, .Indirect => .Color,
+                .Albedo, .Emission, .Direct, .Indirect => .Color,
                 .Depth => .Depth,
                 .MaterialId => .Id,
                 .GeometricNormal, .ShadingNormal => .Normal,
@@ -42,9 +43,12 @@ pub const Value = struct {
 
     pub const NumClasses = @typeInfo(Class).@"enum".fields.len;
 
+    // We don't need space for Emission, Direct, Indirect
+    const NumValues = NumClasses - 3;
+
     slots: u32,
 
-    values: [NumClasses]Vec4f = undefined,
+    values: [NumValues]Vec4f = undefined,
 
     pub fn active(self: Value) bool {
         return 0 != self.slots;
@@ -59,8 +63,7 @@ pub const Value = struct {
             return;
         }
 
-        var i: u4 = 0;
-        while (i < NumClasses) : (i += 1) {
+        for (0..NumValues) |i| {
             const class: Class = @enumFromInt(i);
             if (self.activeClass(class)) {
                 self.values[i] = class.default();

@@ -73,7 +73,7 @@ pub const PathtracerMIS = struct {
                 }
 
                 const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
-                result.add(split_throughput * this_light.emission, indirect_light_depth, 2, vertex.state.treat_as_singular);
+                result.add(split_throughput * this_light.emission, indirect_light_depth, 2, 0 == total_depth, vertex.state.treat_as_singular);
 
                 if (!frag.hit() or
                     vertex.probe.depth.surface >= max_depth.surface or
@@ -122,7 +122,7 @@ pub const PathtracerMIS = struct {
                 }
 
                 const direct_light_depth = total_depth - @as(u32, if (.ExitSSS == frag.event) 1 else 0);
-                result.add(split_throughput * next_light.emission, direct_light_depth, 1, false);
+                result.add(split_throughput * next_light.emission, direct_light_depth, 1, false, false);
 
                 vertex.state.exit_sss = .ExitSSS == frag.event;
 

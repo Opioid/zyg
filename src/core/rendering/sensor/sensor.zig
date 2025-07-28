@@ -59,10 +59,12 @@ pub const Sensor = struct {
     };
 
     pub const Clamp = struct {
+        emission: f32,
         direct: f32,
         indirect: f32,
 
         pub const infinite = Clamp{
+            .emission = std.math.floatMax(f32),
             .direct = std.math.floatMax(f32),
             .indirect = std.math.floatMax(f32),
         };
@@ -201,6 +203,7 @@ pub const Sensor = struct {
         const d = self.dimensions;
         const id: u32 = @intCast(d[0] * pixel[1] + pixel[0]);
 
+        const emission = clamp(value.emission, self.clamp_max.emission);
         const direct = clamp(value.direct, self.clamp_max.direct);
         const indirect = clamp(value.indirect, self.clamp_max.indirect);
 
@@ -213,6 +216,7 @@ pub const Sensor = struct {
                 const class: AovValue.Class = @enumFromInt(i);
                 if (aov.activeClass(class)) {
                     const avalue = switch (class) {
+                        .Emission => emission,
                         .Direct => direct,
                         .Indirect => indirect,
                         else => aov.values[i],
@@ -232,7 +236,7 @@ pub const Sensor = struct {
             }
         }
 
-        const summed = indirect + direct;
+        const summed = emission + direct + indirect;
         const composed = Vec4f{ summed[0], summed[1], summed[2], value.direct[3] };
 
         return layer.buffer.addPixel(id, composed, weight);
