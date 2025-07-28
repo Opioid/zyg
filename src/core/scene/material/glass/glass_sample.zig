@@ -34,19 +34,17 @@ pub const Sample = struct {
         wo: Vec4f,
         absorption_coef: Vec4f,
         ior: f32,
-        ior_outside: f32,
         alpha: f32,
         specular: f32,
         thickness: f32,
         abbe: f32,
-        wavelength: f32,
         priority: i8,
     ) Sample {
         const reg_alpha = rs.regularizeAlpha(@splat(alpha));
+        const rough = reg_alpha[0] > 0.0;
+        const ior_outside = rs.ior;
 
         var super = Base.init(rs, wo, @splat(1.0), reg_alpha, priority);
-
-        const rough = reg_alpha[0] > 0.0;
 
         super.properties.can_evaluate = rough and ior != ior_outside;
         super.properties.translucent = thickness > 0.0;
@@ -59,7 +57,7 @@ pub const Sample = struct {
             .f0 = if (rough) fresnel.Schlick.IorToF0(ior, ior_outside) else 0.0,
             .specular = specular,
             .abbe = abbe,
-            .wavelength = wavelength,
+            .wavelength = rs.wavelength,
             .thickness = thickness,
         };
     }

@@ -41,7 +41,6 @@ pub const Sample = struct {
         alpha: Vec2f,
         ior: f32,
         ior_outer: f32,
-        ior_medium: f32,
         metallic: f32,
         specular: f32,
         attenuation_distance: f32,
@@ -53,6 +52,7 @@ pub const Sample = struct {
         const reg_alpha = rs.regularizeAlpha(alpha);
         const translucent = translucency > 0.0;
         const volumetric = attenuation_distance > 0.0 and !translucent;
+        const ior_medium = rs.ior;
 
         var super = Base.init(rs, wo, color, reg_alpha, priority);
         super.properties.can_evaluate = ior != ior_medium;

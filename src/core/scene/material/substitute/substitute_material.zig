@@ -136,7 +136,6 @@ pub const Material = struct {
             alpha,
             ior,
             ior_outer,
-            rs.ior,
             metallic,
             specular,
             attenuation_distance,
