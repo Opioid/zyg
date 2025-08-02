@@ -48,7 +48,7 @@ pub const Material = struct {
         return Material{
             .super = .{},
             .emission_map = Texture.initUniform1(0.0),
-            .sun_radiance = try math.ifunc.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, Sky.Bake_dimensions_sun),
+            .sun_radiance = try math.ifunc.InterpolatedFunction1D(Vec4f).init(alloc, 0.0, 1.0, Sky.BakeDimensionsSun),
         };
     }
 

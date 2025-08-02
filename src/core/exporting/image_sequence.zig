@@ -50,9 +50,10 @@ pub const ImageSequence = struct {
             encoding = if (self.alpha) .ColorAlpha else .Color;
         }
 
-        var buffered = std.io.bufferedWriter(file.deprecatedWriter());
-        try self.writer.write(alloc, buffered.writer(), image, crop, encoding, threads);
-        try buffered.flush();
+        var file_buffer: [4096]u8 = undefined;
+        var writer = file.writer(&file_buffer);
+        try self.writer.write(alloc, &writer.interface, image, crop, encoding, threads);
+        try writer.end();
     }
 
     fn aovExtension(aov: ?AovClass) []const u8 {

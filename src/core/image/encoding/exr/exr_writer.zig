@@ -27,14 +27,14 @@ pub const Writer = struct {
     pub fn write(
         self: Self,
         alloc: Allocator,
-        writer_: anytype,
+        writer_: *std.Io.Writer,
         image: Image,
         crop: Vec4i,
         encoding: Encoding,
         threads: *Threads,
     ) !void {
-        var stream = std.io.countingWriter(writer_);
-        var writer = stream.writer();
+        var header: std.io.Writer.Allocating = .init(alloc);
+        var writer = &header.writer;
 
         try writer.writeAll(&exr.Signature);
 
@@ -149,19 +149,25 @@ pub const Writer = struct {
 
         try writer.writeByte(0x00);
 
+        const header_buf = header.getWritten();
+        const header_size = header_buf.len;
+        try writer_.writeAll(header_buf);
+        header.deinit();
+
         if (.No == compression) {
             switch (image) {
-                inline .Float3, .Float4 => |im| try noCompression(@TypeOf(im), writer, im, crop, num_channels, format),
+                inline .Float3, .Float4 => |im| try noCompression(@TypeOf(im), writer_, header_size, im, crop, num_channels, format),
                 else => {},
             }
         } else if (.ZIP == compression) {
-            try zipCompression(alloc, writer, image, crop, num_channels, format, compression, threads);
+            try zipCompression(alloc, writer_, header_size, image, crop, num_channels, format, compression, threads);
         }
     }
 
     fn noCompression(
         comptime T: type,
-        writer: anytype,
+        writer: *std.Io.Writer,
+        bytes_written: usize,
         image: T,
         crop: Vec4i,
         num_channels: u32,
@@ -171,7 +177,7 @@ pub const Writer = struct {
         const zw = Vec2i{ crop[2], crop[3] };
         const dim = zw - xy;
 
-        const scanline_offset = writer.context.bytes_written + @as(u64, @intCast(dim[1])) * 8;
+        const scanline_offset = bytes_written + @as(u64, @intCast(dim[1])) * 8;
 
         const scalar_size = format.byteSize();
         const bytes_per_row = @as(u32, @intCast(dim[0])) * num_channels * scalar_size;
@@ -202,7 +208,7 @@ pub const Writer = struct {
 
     fn writeScanline(
         comptime T: type,
-        writer: anytype,
+        writer: *std.Io.Writer,
         image: T,
         crop: Vec4i,
         y: i32,
@@ -236,7 +242,8 @@ pub const Writer = struct {
 
     fn zipCompression(
         alloc: Allocator,
-        writer: anytype,
+        writer: *std.Io.Writer,
+        bytes_written: usize,
         image: Image,
         crop: Vec4i,
         num_channels: u32,
@@ -280,7 +287,7 @@ pub const Writer = struct {
 
         _ = threads.runRange(&context, Context.compress, 0, row_blocks, 0);
 
-        var scanline_offset = writer.context.bytes_written + row_blocks * 8;
+        var scanline_offset = bytes_written + row_blocks * 8;
 
         var y: u32 = 0;
         while (y < row_blocks) : (y += 1) {
@@ -546,16 +553,16 @@ pub const Writer = struct {
         }
     };
 
-    fn writeScalar(comptime T: type, writer: anytype, i: T) !void {
+    fn writeScalar(comptime T: type, writer: *std.Io.Writer, i: T) !void {
         try writer.writeAll(std.mem.asBytes(&i));
     }
 
-    fn writeString(writer: anytype, text: []const u8) !void {
+    fn writeString(writer: *std.Io.Writer, text: []const u8) !void {
         try writer.writeAll(text);
         try writer.writeByte(0x00);
     }
 
-    fn writeChannel(writer: anytype, channel: exr.Channel) !void {
+    fn writeChannel(writer: *std.Io.Writer, channel: exr.Channel) !void {
         try writeString(writer, channel.name);
 
         try writer.writeAll(std.mem.asBytes(&channel.format));

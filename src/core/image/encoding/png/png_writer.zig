@@ -35,7 +35,7 @@ pub const Writer = struct {
     pub fn write(
         self: *Writer,
         alloc: Allocator,
-        writer: anytype,
+        writer: *std.io.Writer,
         image: Float4,
         crop: Vec4i,
         encoding: Encoding,

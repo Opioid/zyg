@@ -77,6 +77,7 @@ pub fn main() !void {
         }
     }
 
+    // (Throwawy?) code for merging the wiggle animatin frames
     // if (try merger.merge(alloc, &resources)) {
     //     log.info("We end the merger", .{});
     //     return;
