@@ -159,7 +159,8 @@ pub const Options = struct {
             \\      --iter                      Prompt to render again, retaining loaded assets.
         ;
 
-        const stdout = std.fs.File.stdout().deprecatedWriter();
-        stdout.print(text, .{}) catch return;
+        var file_buffer: [4096]u8 = undefined;
+        var stdout = std.fs.File.stdout().writer(&file_buffer);
+        stdout.interface.print(text, .{}) catch return;
     }
 };

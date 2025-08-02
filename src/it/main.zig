@@ -123,7 +123,7 @@ fn write(
     name: []const u8,
     operator: Operator.Class,
     target: core.image.Float4,
-    writer: *core.ImageWriter,
+    image_writer: *core.ImageWriter,
     encoding: core.ImageWriter.Encoding,
     format: Options.Format,
     threads: *Threads,
@@ -135,40 +135,37 @@ fn write(
         var file = try std.fs.cwd().createFile(output_name, .{});
         defer file.close();
 
-        const dim = target.dimensions;
-
-        const num_pixels = img.Description.numPixels(dim);
-
-        var buffered = std.io.bufferedWriter(file.deprecatedWriter());
-        var txt_writer = buffered.writer();
+        var file_buffer: [4096]u8 = undefined;
+        var txt_writer = file.writer(&file_buffer);
 
         var buffer: [256]u8 = undefined;
 
+        const dim = target.dimensions;
+        const num_pixels = img.Description.numPixels(dim);
+
         var line = try std.fmt.bufPrint(&buffer, "[{} * {}] = {{\n    ", .{ dim[0], dim[1] });
-        _ = try txt_writer.write(line);
+        _ = try txt_writer.interface.writeAll(line);
 
         for (target.pixels, 0..) |p, i| {
             line = try std.fmt.bufPrint(&buffer, "{d:.8},", .{p.v[0]});
-            _ = try txt_writer.write(line);
+            _ = try txt_writer.interface.writeAll(line);
 
             if (i < num_pixels - 1) {
                 if (0 == ((i + 1) % 8)) {
-                    _ = try txt_writer.write("\n    ");
+                    _ = try txt_writer.interface.writeAll("\n    ");
                 } else {
-                    _ = try txt_writer.write(" ");
+                    _ = try txt_writer.interface.writeAll(" ");
                 }
             } else {
-                _ = try txt_writer.write("\n");
+                _ = try txt_writer.interface.writeAll("\n");
             }
         }
 
-        //   line = try std.fmt.bufPrint(&buffer, "};\n", .{});
-        //    _ = try txt_writer.write(line);
-        _ = try txt_writer.write("};\n");
+        _ = try txt_writer.interface.writeAll("};\n");
 
-        try buffered.flush();
+        try txt_writer.end();
     } else {
-        const output_name = try std.fmt.allocPrint(alloc, "{s}.it.{s}", .{ name, writer.fileExtension() });
+        const output_name = try std.fmt.allocPrint(alloc, "{s}.it.{s}", .{ name, image_writer.fileExtension() });
         defer alloc.free(output_name);
 
         if (.Diff == operator) {
@@ -204,9 +201,10 @@ fn write(
 
             const d = target.dimensions;
 
-            var buffered = std.io.bufferedWriter(file.deprecatedWriter());
-            try writer.write(alloc, buffered.writer(), target, .{ 0, 0, d[0], d[1] }, encoding, threads);
-            try buffered.flush();
+            var file_buffer: [4096]u8 = undefined;
+            var writer = file.writer(&file_buffer);
+            try image_writer.write(alloc, &writer.interface, target, .{ 0, 0, d[0], d[1] }, encoding, threads);
+            try writer.end();
         }
     }
 }

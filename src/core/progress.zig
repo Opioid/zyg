@@ -48,8 +48,10 @@ pub const StdOut = struct {
         if (p >= self.threshold) {
             self.threshold += Step;
 
-            const stdout = std.fs.File.stdout().deprecatedWriter();
-            stdout.print("{}%\r", .{@as(u32, @intFromFloat(p))}) catch return;
+            var buffer: [256]u8 = undefined;
+            var writer = std.fs.File.stdout().writer(&buffer);
+            writer.interface.print("{}%\r", .{@as(u32, @intFromFloat(p))}) catch return;
+            writer.end() catch return;
         }
     }
 };
