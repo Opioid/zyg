@@ -238,7 +238,7 @@ pub const Sample = struct {
             .pdf = er.pdf,
             .split_weight = 1.0,
             .wavelength = 0.0,
-            .class = .{ .glossy = true, .reflection = true },
+            .path = .{ .scattering = .Glossy, .event = .Reflection },
         };
     }
 

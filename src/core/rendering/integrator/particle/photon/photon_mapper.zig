@@ -152,21 +152,20 @@ pub const Mapper = struct {
 
                 const sample_result = sample_results[0];
 
-                const class = sample_result.class;
-
                 vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
                 if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
                     break;
                 }
 
-                if (class.specular) {
+                const path = sample_result.path;
+                if (.Specular == path.scattering) {
                     vertex.state.treat_as_singular = true;
 
                     if (vertex.state.primary_ray) {
                         vertex.state.started_specular = true;
                     }
-                } else if (!class.straight) {
+                } else if (.Straight != path.event) {
                     vertex.state.treat_as_singular = false;
                     vertex.state.primary_ray = false;
                 }
@@ -174,7 +173,7 @@ pub const Mapper = struct {
                 vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
                 vertex.probe.depth.increment(&frag);
 
-                if (!sample_result.class.straight) {
+                if (.Straight != path.event) {
                     vertex.origin = frag.p;
                 }
 
@@ -182,7 +181,7 @@ pub const Mapper = struct {
                     vertex.probe.wavelength = sample_result.wavelength;
                 }
 
-                if (class.transmission) {
+                if (.Transmission == path.event) {
                     const ior = vertex.interfaceChangeIor(sample_result.wi, &frag, &mat_sample, context.scene);
                     const eta = ior.eta_i / ior.eta_t;
                     vertex.throughput *= @as(Vec4f, @splat(eta * eta));

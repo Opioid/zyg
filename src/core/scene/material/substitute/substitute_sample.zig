@@ -156,7 +156,7 @@ pub const Sample = struct {
                 .pdf = pdf,
                 .split_weight = 1.0,
                 .wavelength = 0.0,
-                .class = .{ .diffuse = true, .reflection = true },
+                .path = .{ .scattering = .Diffuse, .event = .Reflection },
             };
 
             return buffer[0..1];
@@ -369,7 +369,7 @@ pub const Sample = struct {
             result.reflection = @as(Vec4f, @splat(n_dot_wi * f * s)) * self.f0;
             result.wi = wi;
             result.pdf = f;
-            result.class = .{ .glossy = true, .reflection = true };
+            result.path = .{ .scattering = .Glossy, .event = .Reflection };
 
             return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = wi_dot_h };
         } else {
@@ -520,7 +520,7 @@ pub const Sample = struct {
                 .pdf = 1.0,
                 .split_weight = 1.0,
                 .wavelength = 0.0,
-                .class = .{ .specular = true, .transmission = true },
+                .path = .{ .scattering = .Specular, .event = .Transmission },
             };
             return buffer[0..1];
         }
@@ -627,7 +627,7 @@ pub const Sample = struct {
             result.reflection = @splat(1.0);
             result.wi = -wo;
             result.pdf = 1.0;
-            result.class = .{ .specular = true, .transmission = true };
+            result.path = .{ .scattering = .Specular, .event = .Transmission };
             return;
         }
 

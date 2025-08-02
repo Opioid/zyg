@@ -118,7 +118,7 @@ pub const Iso = struct {
         result.reflection = @as(Vec4f, @splat(d * g[0])) * f;
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.path = .{ .scattering = if (alpha <= MinAlpha) .Specular else .Glossy, .event = .Reflection };
 
         return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = wo_dot_h };
     }
@@ -178,7 +178,7 @@ pub const Iso = struct {
         result.reflection = @splat(d * g[0]);
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.path = .{ .scattering = if (alpha <= MinAlpha) .Specular else .Glossy, .event = .Reflection };
 
         return n_dot_wi;
     }
@@ -218,7 +218,7 @@ pub const Iso = struct {
         result.reflection = @splat((factor * sqr_eta_t / denom) * refr);
         result.wi = wi;
         result.pdf = pdf * (abs_wi_dot_h * sqr_eta_t / denom);
-        result.class = if (alpha <= MinAlpha) .{ .specular = true, .transmission = true } else .{ .glossy = true, .transmission = true };
+        result.path = .{ .scattering = if (alpha <= MinAlpha) .Specular else .Glossy, .event = .Transmission };
 
         return n_dot_wi;
     }
@@ -338,7 +338,7 @@ pub const Aniso = struct {
         result.reflection = @as(Vec4f, @splat(d * g[0])) * f;
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha[1] <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.path = .{ .scattering = if (alpha[1] <= MinAlpha) .Specular else .Glossy, .event = .Reflection };
 
         return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = wo_dot_h };
     }
@@ -376,7 +376,7 @@ pub const Aniso = struct {
         result.reflection = @splat(d * g[0]);
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha[1] <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.path = .{ .scattering = if (alpha[1] <= MinAlpha) .Specular else .Glossy, .event = .Reflection };
 
         return n_dot_wi;
     }

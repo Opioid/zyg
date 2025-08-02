@@ -25,12 +25,30 @@ pub const Sample = struct {
         straight: bool = false,
     };
 
+    pub const Scattering = enum(u8) {
+        Diffuse,
+        Glossy,
+        Specular,
+        None,
+    };
+
+    pub const Event = enum(u8) {
+        Reflection,
+        Transmission,
+        Straight,
+    };
+
+    pub const Path = packed struct {
+        scattering: Scattering,
+        event: Event,
+    };
+
     reflection: Vec4f,
     wi: Vec4f,
     pdf: f32,
     split_weight: f32,
     wavelength: f32,
-    class: Class,
+    path: Path,
 };
 
 pub const Samples = [4]Sample;

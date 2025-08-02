@@ -40,7 +40,7 @@ pub const Sample = struct {
             .pdf = pdf,
             .split_weight = 1.0,
             .wavelength = 0.0,
-            .class = .{ .diffuse = true, .reflection = true },
+            .path = .{ .scattering = .Diffuse, .event = .Reflection },
         };
     }
 };

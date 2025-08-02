@@ -89,14 +89,15 @@ pub const PathtracerDL = struct {
 
             const sample_result = sample_results[0];
 
-            if (sample_result.class.specular) {
+            const path = sample_result.path;
+            if (.Specular == path.scattering) {
                 vertex.state.treat_as_singular = true;
-            } else if (!sample_result.class.straight) {
+            } else if (.Straight != path.event) {
                 vertex.state.treat_as_singular = false;
                 vertex.state.primary_ray = false;
             }
 
-            if (!sample_result.class.straight) {
+            if (.Straight != path.event) {
                 vertex.origin = frag.p;
             }
 
@@ -109,11 +110,11 @@ pub const PathtracerDL = struct {
                 vertex.probe.wavelength = sample_result.wavelength;
             }
 
-            if (sample_result.class.transmission) {
+            if (.Transmission == path.event) {
                 vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.context.scene);
             }
 
-            vertex.state.transparent = vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);
+            vertex.state.transparent = vertex.state.transparent and (.Transmission == path.event or .Straight == path.event);
 
             sampler.incrementPadding();
         }

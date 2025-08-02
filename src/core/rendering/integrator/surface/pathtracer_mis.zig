@@ -141,19 +141,19 @@ pub const PathtracerMIS = struct {
                     next_vertex.path_count = vertex.path_count * path_count;
                     next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
 
-                    const class = sample_result.class;
-                    if (class.specular) {
+                    const path = sample_result.path;
+                    if (.Specular == path.scattering) {
                         next_vertex.state.treat_as_singular = true;
 
                         if (vertex.state.primary_ray) {
                             next_vertex.state.started_specular = true;
                         }
-                    } else if (!class.straight) {
+                    } else if (.Straight != path.event) {
                         next_vertex.state.treat_as_singular = false;
                         next_vertex.state.primary_ray = false;
                     }
 
-                    if (!class.straight) {
+                    if (.Straight != path.event) {
                         next_vertex.state.is_translucent = mat_sample.isTranslucent();
                         next_vertex.depth = next_vertex.probe.depth;
                         next_vertex.bxdf_pdf = sample_result.pdf;
@@ -170,11 +170,11 @@ pub const PathtracerMIS = struct {
                         next_vertex.probe.wavelength = sample_result.wavelength;
                     }
 
-                    if (class.transmission) {
+                    if (.Transmission == path.event) {
                         next_vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.context.scene);
                     }
 
-                    next_vertex.state.transparent = next_vertex.state.transparent and (class.transmission or class.straight);
+                    next_vertex.state.transparent = next_vertex.state.transparent and (.Transmission == path.event or .Straight == path.event);
                 }
 
                 sampler.incrementPadding();

@@ -103,11 +103,7 @@ pub const Exporter = struct {
         var file_buffer: [4096]u8 = undefined;
         var txt_writer = file.writer(&file_buffer);
 
-        // var buffered = std.io.bufferedWriter(file.deprecatedWriter());
-        // var txt_writer = buffered.writer();
-
         _ = try txt_writer.interface.writeAll(out.getWritten());
-
         try txt_writer.end();
     }
 };

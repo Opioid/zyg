@@ -106,9 +106,9 @@ pub const Lighttracer = struct {
                 const path_count: u32 = @intCast(sample_results.len);
 
                 for (sample_results) |sample_result| {
-                    const class = sample_result.class;
+                    const path = sample_result.path;
 
-                    if (!self.settings.full_light_path and !vertex.state.started_specular and !class.specular) {
+                    if (!self.settings.full_light_path and !vertex.state.started_specular and .Specular != path.scattering) {
                         continue;
                     }
 
@@ -118,13 +118,13 @@ pub const Lighttracer = struct {
                     next_vertex.path_count = vertex.path_count * path_count;
                     next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
 
-                    if (class.specular) {
+                    if (.Specular == path.scattering) {
                         next_vertex.state.treat_as_singular = true;
 
                         if (next_vertex.state.primary_ray) {
                             next_vertex.state.started_specular = true;
                         }
-                    } else if (!class.straight) {
+                    } else if (.Straight != path.event) {
                         next_vertex.state.treat_as_singular = false;
                         next_vertex.state.primary_ray = false;
                     }
@@ -134,7 +134,7 @@ pub const Lighttracer = struct {
                     next_vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
                     next_vertex.probe.depth.increment(&frag);
 
-                    if (!class.straight) {
+                    if (.Straight != path.event) {
                         next_vertex.origin = frag.p;
                     }
 
@@ -142,7 +142,7 @@ pub const Lighttracer = struct {
                         next_vertex.probe.wavelength = sample_result.wavelength;
                     }
 
-                    if (class.transmission) {
+                    if (.Transmission == path.event) {
                         const ior = next_vertex.interfaceChangeIor(sample_result.wi, &frag, &mat_sample, worker.context.scene);
                         const eta = ior.eta_i / ior.eta_t;
                         next_vertex.throughput *= @as(Vec4f, @splat(eta * eta));

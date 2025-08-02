@@ -30,9 +30,11 @@ pub const StdOut = struct {
         defer std.debug.unlockStdErr();
 
         var buffer: [256]u8 = undefined;
-        var writer = std.fs.File.stdout().writer(&buffer);
-        nosuspend writer.interface.print(prefix ++ format ++ "\n", args) catch return;
-        writer.end() catch return;
+        var stdout_writer = std.fs.File.stdout().writer(&buffer);
+        const stdout = &stdout_writer.interface;
+
+        stdout.print(prefix ++ format ++ "\n", args) catch return;
+        stdout.flush() catch return;
     }
 };
 
