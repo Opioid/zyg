@@ -241,17 +241,17 @@ const Data = struct {
 const Tokenizer = struct {
     it: std.mem.TokenIterator(u8, .any) = .{ .index = 0, .buffer = &.{}, .delimiter = &.{} },
     stream: *ReadStream,
-    buf: std.io.FixedBufferStream([]u8),
+    buf: []u8,
 
     pub fn next(self: *Tokenizer) ![]const u8 {
         if (self.it.next()) |token| {
             return token;
         }
 
-        self.buf.reset();
-        try self.stream.streamUntilDelimiter(self.buf.writer(), '\n', self.buf.buffer.len);
+        var writer: std.Io.Writer = .fixed(self.buf);
+        _ = try self.stream.streamDelimiter(&writer, '\n', .limited(self.buf.len));
 
-        self.it = std.mem.tokenizeAny(u8, self.buf.getWritten(), " \r");
+        self.it = std.mem.tokenizeAny(u8, writer.buffered(), " \r");
         return self.it.next().?;
     }
 
@@ -268,25 +268,24 @@ pub const Reader = struct {
 
     pub fn read(alloc: Allocator, stream: *ReadStream) !Image {
         var buf: [256]u8 = undefined;
-        var fbs = std.io.fixedBufferStream(&buf);
 
         {
-            fbs.reset();
-            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
-            if (!std.mem.startsWith(u8, fbs.getWritten(), "IES")) {
+            var writer: std.Io.Writer = .fixed(&buf);
+            _ = try stream.streamDelimiter(&writer, '\n', .limited(buf.len));
+            if (!std.mem.startsWith(u8, writer.buffered(), "IES")) {
                 return Error.BadInitialToken;
             }
         }
 
         while (true) {
-            fbs.reset();
-            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
-            if (std.mem.startsWith(u8, fbs.getWritten(), "TILT=NONE")) {
+            var writer: std.Io.Writer = .fixed(&buf);
+            _ = try stream.streamDelimiter(&writer, '\n', .limited(buf.len));
+            if (std.mem.startsWith(u8, writer.buffered(), "TILT=NONE")) {
                 break;
             }
         }
 
-        var tokenizer = Tokenizer{ .stream = stream, .buf = fbs };
+        var tokenizer = Tokenizer{ .stream = stream, .buf = &buf };
 
         // num lamps
         try tokenizer.skip();

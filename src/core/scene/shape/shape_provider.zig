@@ -176,7 +176,7 @@ pub const Provider = struct {
                 return .{ .data = mesh };
             }
 
-            const buffer = try stream.readAll(alloc);
+            const buffer = try stream.readAlloc(alloc);
             defer alloc.free(buffer);
 
             var parsed = std.json.parseFromSlice(std.json.Value, alloc, buffer, .{}) catch |e| {
@@ -676,7 +676,7 @@ pub const Provider = struct {
             const positions = try alloc.alloc([]Pack3f, end_frame - start_frame);
 
             if (start_frame > 0) {
-                try stream.seekBy(@sizeOf(Pack3f) * num_vertices * start_frame);
+                try stream.discard(@sizeOf(Pack3f) * num_vertices * start_frame);
             }
 
             for (0..positions.len) |f| {
@@ -685,7 +685,7 @@ pub const Provider = struct {
             }
 
             if (num_position_frames - end_frame > 0) {
-                try stream.seekBy(@sizeOf(Pack3f) * num_vertices * (num_position_frames - end_frame));
+                try stream.discard(@sizeOf(Pack3f) * num_vertices * (num_position_frames - end_frame));
             }
 
             self.start_frame = @intCast(start_frame);
@@ -706,18 +706,18 @@ pub const Provider = struct {
                 const start_normal_frame = @min(resources.frame_start / frame_duration, num_normal_frames - 1);
 
                 if (start_normal_frame > 0) {
-                    try stream.seekBy(@sizeOf(Pack3f) * num_vertices * start_normal_frame);
+                    try stream.discard(@sizeOf(Pack3f) * num_vertices * start_normal_frame);
                 }
 
                 const normals = try alloc.alloc(Pack3f, num_vertices);
                 _ = try stream.read(std.mem.sliceAsBytes(normals));
 
                 if ((num_normal_frames - start_normal_frame) > 1) {
-                    try stream.seekBy(@sizeOf(Pack3f) * num_vertices * (num_normal_frames - start_normal_frame - 1));
+                    try stream.discard(@sizeOf(Pack3f) * num_vertices * (num_normal_frames - start_normal_frame - 1));
                 }
 
                 if (has_uvs_and_tangents) {
-                    try stream.seekBy(@sizeOf(Pack3f) * num_vertices);
+                    try stream.discard(@sizeOf(Pack3f) * num_vertices);
 
                     const uvs = try alloc.alloc(Vec2f, num_vertices);
                     _ = try stream.read(std.mem.sliceAsBytes(uvs));

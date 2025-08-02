@@ -31,50 +31,54 @@ pub const ReadStream = union(enum) {
 
     pub fn read(self: Self, dest: []u8) !usize {
         return switch (self) {
-            .File => |s| try s.reader.reader().readAll(dest),
+            .File => |s| try s.reader.interface.readSliceShort(dest),
             .Gzip => |s| try s.read(dest),
         };
     }
 
-    pub fn readAll(self: Self, alloc: Allocator) ![]u8 {
+    pub fn readAlloc(self: Self, alloc: Allocator) ![]u8 {
         return switch (self) {
-            .File => |s| try s.reader.reader().readAllAlloc(alloc, std.math.maxInt(u64)),
+            .File => |s| try s.reader.interface.allocRemaining(alloc, .unlimited),
             .Gzip => |s| try s.reader().readAllAlloc(alloc, std.math.maxInt(u64)),
         };
     }
 
-    pub fn streamUntilDelimiter(self: Self, writer: anytype, delimiter: u8, max_size: ?usize) !void {
+    pub fn streamDelimiter(self: Self, writer: *std.io.Writer, delimiter: u8, limit: std.Io.Limit) !usize {
         return switch (self) {
-            .File => |s| try s.reader.reader().streamUntilDelimiter(writer, delimiter, max_size),
-            .Gzip => |s| try s.reader().streamUntilDelimiter(writer, delimiter, max_size),
-        };
-    }
-
-    pub fn skipUntilDelimiter(self: Self, delimiter: u8) !void {
-        return switch (self) {
-            .File => |s| try s.reader.reader().skipUntilDelimiterOrEof(delimiter),
+            .File => |s| {
+                const count = try s.reader.interface.streamDelimiterLimit(writer, delimiter, limit);
+                s.reader.interface.toss(1);
+                return count + 1;
+            },
             .Gzip => Error.NotImplemented,
         };
     }
 
-    pub fn getPos(self: Self) !u64 {
+    pub fn discardDelimiter(self: Self, delimiter: u8) !usize {
         return switch (self) {
-            .File => |s| try s.seeker.getPos(),
+            .File => |s| try s.reader.interface.discardDelimiterInclusive(delimiter),
             .Gzip => Error.NotImplemented,
+        };
+    }
+
+    pub fn getPos(self: Self) u64 {
+        return switch (self) {
+            .File => |s| s.reader.logicalPos(),
+            .Gzip => 0,
         };
     }
 
     pub fn seekTo(self: Self, pos: u64) !void {
         return switch (self) {
-            .File => |s| try s.seekTo(pos),
+            .File => |s| try s.reader.seekTo(pos),
             .Gzip => |s| try s.seekTo(pos),
         };
     }
 
-    pub fn seekBy(self: Self, count: u64) !void {
+    pub fn discard(self: Self, count: usize) !void {
         return switch (self) {
-            .File => |s| try s.seekBy(count),
-            .Gzip => |s| try s.seekBy(count),
+            .File => |s| try s.reader.interface.discardAll(count),
+            .Gzip => |s| try s.discard(count),
         };
     }
 };

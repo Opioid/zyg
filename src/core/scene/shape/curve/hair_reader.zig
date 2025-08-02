@@ -72,7 +72,7 @@ pub const Reader = struct {
         // some file info
         // var info: [88]u8 = undefined;
         // _ = try stream.read(&info);
-        try stream.seekBy(88);
+        try stream.discard(88);
 
         var segments: []u16 = &.{};
         defer alloc.free(segments);

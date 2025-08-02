@@ -42,21 +42,22 @@ pub const Reader = struct {
 
     fn readHeader(stream: ReadStream) !Header {
         var buf: [128]u8 = undefined;
-        var fbs = std.io.fixedBufferStream(&buf);
 
         {
-            fbs.reset();
-            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
-            if (!std.mem.startsWith(u8, fbs.getWritten(), "#?")) {
+            var writer: std.Io.Writer = .fixed(&buf);
+            _ = try stream.streamDelimiter(&writer, '\n', .limited(buf.len));
+
+            if (!std.mem.startsWith(u8, writer.buffered(), "#?")) {
                 return Error.BadInitialToken;
             }
         }
 
         var format_specifier: bool = false;
         while (true) {
-            fbs.reset();
-            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
-            const line = fbs.getWritten();
+            var writer: std.Io.Writer = .fixed(&buf);
+            _ = try stream.streamDelimiter(&writer, '\n', .limited(buf.len));
+            const line = writer.buffered();
+
             if (0 == line.len or 0 == line[0]) {
                 // blank lines signifies end of meta data header
                 break;
@@ -71,9 +72,10 @@ pub const Reader = struct {
             return Error.MissingFormatSpecifier;
         }
 
-        fbs.reset();
-        try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
-        var line = fbs.getWritten();
+        var writer: std.Io.Writer = .fixed(&buf);
+        _ = try stream.streamDelimiter(&writer, '\n', .limited(buf.len));
+        var line = writer.buffered();
+
         var i = (std.mem.indexOfScalar(u8, line, ' ') orelse return Error.MissingImageSizeSpecifier) + 1;
         if (!std.mem.eql(u8, line[0..i], "-Y ")) {
             return Error.MissingImageSizeSpecifier;
@@ -123,9 +125,9 @@ pub const Reader = struct {
 
                 const color = rgbeTofloat3(rgbe);
                 image.pixels[offset] = Pack3h.init3(
-                    @as(f16, @floatCast(color.v[0])),
-                    @as(f16, @floatCast(color.v[1])),
-                    @as(f16, @floatCast(color.v[2])),
+                    @floatCast(color.v[0]),
+                    @floatCast(color.v[1]),
+                    @floatCast(color.v[2]),
                 );
 
                 return try readPixels(stream, scanline_width * num_scanlines - 1, image, 1);

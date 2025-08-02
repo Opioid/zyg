@@ -25,7 +25,7 @@ const Error = error{
 };
 
 pub fn load(alloc: Allocator, stream: ReadStream, graph: *Graph, resources: *Resources) !void {
-    const buffer = try stream.readAll(alloc);
+    const buffer = try stream.readAlloc(alloc);
     defer alloc.free(buffer);
 
     var parsed = try std.json.parseFromSlice(

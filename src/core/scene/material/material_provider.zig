@@ -70,7 +70,7 @@ pub const Provider = struct {
 
         var stream = try fs.readStream(alloc, name);
 
-        const buffer = try stream.readAll(alloc);
+        const buffer = try stream.readAlloc(alloc);
         defer alloc.free(buffer);
 
         stream.deinit();
