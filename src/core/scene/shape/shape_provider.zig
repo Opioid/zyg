@@ -152,7 +152,9 @@ pub const Provider = struct {
             var stream = try resources.fs.readStream(alloc, name);
             defer stream.deinit();
 
-            if (file.Type.HAIR == file.queryType(stream)) {
+            const file_type = try file.queryType(stream);
+
+            if (file.Type.HAIR == file_type) {
                 var curves = try HairReader.read(alloc, stream);
                 defer {
                     alloc.free(curves.curves);
@@ -167,7 +169,7 @@ pub const Provider = struct {
                 try builder.build(alloc, &mesh.tree, curves.curves, curves.vertices, resources.threads);
 
                 return .{ .data = .{ .CurveMesh = mesh } };
-            } else if (file.Type.SUB == file.queryType(stream)) {
+            } else if (file.Type.SUB == file_type) {
                 const mesh = self.loadBinary(alloc, stream, resources) catch |e| {
                     log.err("Loading mesh \"{s}\": {}", .{ name, e });
                     return e;
@@ -523,7 +525,7 @@ pub const Provider = struct {
     }
 
     fn loadBinary(self: *Provider, alloc: Allocator, stream: ReadStream, resources: *Resources) !Shape {
-        try stream.seekTo(4);
+        try stream.discard(4);
 
         var frame_duration: u64 = 0;
 

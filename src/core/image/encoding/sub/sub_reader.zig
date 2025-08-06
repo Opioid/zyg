@@ -24,7 +24,7 @@ pub const Reader = struct {
     };
 
     pub fn read(alloc: Allocator, stream: ReadStream) !Result(Image) {
-        try stream.seekTo(4);
+        try stream.discard(4);
 
         var json_size: u64 = 0;
         _ = try stream.read(std.mem.asBytes(&json_size));
