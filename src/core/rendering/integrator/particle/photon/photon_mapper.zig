@@ -160,13 +160,13 @@ pub const Mapper = struct {
 
                 const path = sample_result.path;
                 if (.Specular == path.scattering) {
-                    vertex.state.treat_as_singular = true;
+                    vertex.state.singular = path.singular;
 
                     if (vertex.state.primary_ray) {
                         vertex.state.started_specular = true;
                     }
                 } else if (.Straight != path.event) {
-                    vertex.state.treat_as_singular = false;
+                    vertex.state.singular = false;
                     vertex.state.primary_ray = false;
                 }
 

@@ -633,13 +633,13 @@ pub const Scene = struct {
         // const pdf = self.light_distribution.pdfI(id);
         // return .{ .offset = id, .pdf = pdf };
 
-        return self.light_tree.pdf(vertex.origin, vertex.geo_n, vertex.state.is_translucent, split_threshold, id, self);
+        return self.light_tree.pdf(vertex.origin, vertex.geo_n, vertex.state.translucent, split_threshold, id, self);
     }
 
     pub fn lightPdf(self: *const Scene, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32) f32 {
         const light_id = frag.lightId(self);
 
-        if (vertex.state.treat_as_singular or !Light.isLight(light_id)) {
+        if (vertex.state.singular or !Light.isLight(light_id)) {
             return 1.0;
         }
 

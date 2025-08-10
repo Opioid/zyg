@@ -73,7 +73,7 @@ pub const PathtracerMIS = struct {
                 }
 
                 const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
-                result.add(split_throughput * this_light.emission, indirect_light_depth, 2, 0 == total_depth, vertex.state.treat_as_singular);
+                result.add(split_throughput * this_light.emission, indirect_light_depth, 2, 0 == total_depth, vertex.state.singular);
 
                 if (!frag.hit() or
                     vertex.probe.depth.surface >= max_depth.surface or
@@ -143,18 +143,20 @@ pub const PathtracerMIS = struct {
 
                     const path = sample_result.path;
                     if (.Specular == path.scattering) {
-                        next_vertex.state.treat_as_singular = true;
+                        next_vertex.state.specular = true;
+                        next_vertex.state.singular = path.singular;
 
                         if (vertex.state.primary_ray) {
                             next_vertex.state.started_specular = true;
                         }
                     } else if (.Straight != path.event) {
-                        next_vertex.state.treat_as_singular = false;
+                        next_vertex.state.specular = false;
+                        next_vertex.state.singular = false;
                         next_vertex.state.primary_ray = false;
                     }
 
                     if (.Straight != path.event) {
-                        next_vertex.state.is_translucent = mat_sample.isTranslucent();
+                        next_vertex.state.translucent = mat_sample.isTranslucent();
                         next_vertex.depth = next_vertex.probe.depth;
                         next_vertex.bxdf_pdf = sample_result.pdf;
                         next_vertex.origin = frag.p;
@@ -296,7 +298,7 @@ pub const PathtracerMIS = struct {
     ) LightResult {
         var result: LightResult = .empty;
 
-        if (!self.settings.caustics_path and vertex.state.treat_as_singular and !vertex.state.primary_ray) {
+        if (!self.settings.caustics_path and vertex.state.specular and !vertex.state.primary_ray) {
             return result;
         }
 

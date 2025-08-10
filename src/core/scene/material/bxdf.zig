@@ -41,6 +41,28 @@ pub const Sample = struct {
     pub const Path = packed struct {
         scattering: Scattering,
         event: Event,
+        singular: bool,
+
+        pub const straight: Path = .{ .scattering = .None, .event = .Straight, .singular = false };
+        pub const singularReflection: Path = .{ .scattering = .Specular, .event = .Reflection, .singular = true };
+        pub const singularTransmission: Path = .{ .scattering = .Specular, .event = .Transmission, .singular = true };
+        pub const glossyReflection: Path = .{ .scattering = .Glossy, .event = .Reflection, .singular = false };
+
+        pub fn reflection(specular: bool) Path {
+            return .{
+                .scattering = if (specular) .Specular else .Glossy,
+                .event = .Reflection,
+                .singular = false,
+            };
+        }
+
+        pub fn transmission(specular: bool) Path {
+            return .{
+                .scattering = if (specular) .Specular else .Glossy,
+                .event = .Transmission,
+                .singular = false,
+            };
+        }
     };
 
     reflection: Vec4f,

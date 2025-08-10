@@ -119,13 +119,15 @@ pub const Lighttracer = struct {
                     next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
 
                     if (.Specular == path.scattering) {
-                        next_vertex.state.treat_as_singular = true;
+                        next_vertex.state.specular = true;
+                        next_vertex.state.singular = path.singular;
 
-                        if (next_vertex.state.primary_ray) {
+                        if (vertex.state.primary_ray) {
                             next_vertex.state.started_specular = true;
                         }
                     } else if (.Straight != path.event) {
-                        next_vertex.state.treat_as_singular = false;
+                        next_vertex.state.specular = false;
+                        next_vertex.state.singular = false;
                         next_vertex.state.primary_ray = false;
                     }
 

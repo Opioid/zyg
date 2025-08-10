@@ -52,7 +52,7 @@ pub const PathtracerDL = struct {
             const weighted_energy = vertex.throughput * energy;
 
             const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
-            result.add(weighted_energy, indirect_light_depth, 1, 0 == total_depth, vertex.state.treat_as_singular);
+            result.add(weighted_energy, indirect_light_depth, 1, 0 == total_depth, vertex.state.singular);
 
             if (!frag.hit() or
                 vertex.probe.depth.surface >= max_depth.surface or
@@ -91,9 +91,15 @@ pub const PathtracerDL = struct {
 
             const path = sample_result.path;
             if (.Specular == path.scattering) {
-                vertex.state.treat_as_singular = true;
+                vertex.state.specular = true;
+                vertex.state.singular = path.singular;
+
+                if (vertex.state.primary_ray) {
+                    vertex.state.started_specular = true;
+                }
             } else if (.Straight != path.event) {
-                vertex.state.treat_as_singular = false;
+                vertex.state.specular = false;
+                vertex.state.singular = false;
                 vertex.state.primary_ray = false;
             }
 
@@ -178,14 +184,14 @@ pub const PathtracerDL = struct {
     }
 
     fn connectLight(self: Self, vertex: *Vertex, frag: *const Fragment, sampler: *Sampler, context: Context) Vec4f {
-        if (!self.settings.caustics_path and vertex.state.treat_as_singular and !vertex.state.primary_ray) {
+        if (!self.settings.caustics_path and vertex.state.specular and !vertex.state.primary_ray) {
             return @splat(0.0);
         }
 
         var energy: Vec4f = @splat(0.0);
 
         if (frag.hit()) {
-            if (vertex.state.treat_as_singular or !Light.isLight(frag.lightId(context.scene))) {
+            if (vertex.state.singular or !Light.isLight(frag.lightId(context.scene))) {
                 energy += vertex.evaluateRadiance(frag, sampler, context) orelse @splat(0.0);
             }
         }
@@ -193,7 +199,7 @@ pub const PathtracerDL = struct {
         var light_frag: Fragment = undefined;
         light_frag.event = .Pass;
 
-        if (vertex.state.treat_as_singular) {
+        if (vertex.state.singular) {
             energy += context.emission(vertex, &light_frag, 0.0, sampler);
         }
 
@@ -202,7 +208,7 @@ pub const PathtracerDL = struct {
                 continue;
             }
 
-            if (vertex.state.treat_as_singular or !Light.isLight(light_frag.lightId(context.scene))) {
+            if (vertex.state.singular or !Light.isLight(light_frag.lightId(context.scene))) {
                 context.propInterpolateFragment(prop, vertex.probe, &light_frag);
 
                 energy += vertex.evaluateRadiance(&light_frag, sampler, context) orelse @splat(0.0);

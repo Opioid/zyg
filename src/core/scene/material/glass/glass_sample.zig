@@ -218,7 +218,7 @@ pub const Sample = struct {
                 .pdf = 1.0,
                 .split_weight = 1.0,
                 .wavelength = wavelength,
-                .path = .{ .scattering = .Specular, .event = .Transmission },
+                .path = .singularTransmission,
             };
 
             return buffer[0..1];
@@ -301,7 +301,7 @@ pub const Sample = struct {
                 .pdf = 1.0,
                 .split_weight = 1.0,
                 .wavelength = wavelength,
-                .path = .{ .scattering = .Specular, .event = .Transmission },
+                .path = .singularTransmission,
             };
             return buffer[0..1];
         }
@@ -430,7 +430,7 @@ pub const Sample = struct {
             .pdf = 1.0,
             .split_weight = split_weight,
             .wavelength = wavelength,
-            .path = .{ .scattering = .Specular, .event = .Reflection },
+            .path = .singularReflection,
         };
     }
 
@@ -477,7 +477,7 @@ pub const Sample = struct {
             const attenuation = ccoef.attenuation3(self.absorption_coef, approx_dist);
 
             result.reflection *= attenuation;
-            result.path = .{ .scattering = .None, .event = .Straight };
+            result.path = .straight;
 
             return n_dot_wi;
         } else {
@@ -507,7 +507,7 @@ pub const Sample = struct {
             .pdf = 1.0,
             .split_weight = split_weight,
             .wavelength = 0.0,
-            .path = .{ .scattering = .None, .event = .Straight },
+            .path = .straight,
         };
     }
 
@@ -527,7 +527,7 @@ pub const Sample = struct {
             .pdf = 1.0,
             .split_weight = split_weight,
             .wavelength = wavelength,
-            .path = .{ .scattering = .Specular, .event = .Transmission },
+            .path = .singularTransmission,
         };
     }
 };
