@@ -43,8 +43,8 @@ pub const Material = struct {
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, context: Context) Sample {
-        const use_roughness = !self.super.properties.caustic;
-        const r = if (use_roughness) ggx.clampRoughness(ts.sample2D_1(self.roughness, rs, sampler, context)) else 0.0;
+        const raw_r = ts.sample2D_1(self.roughness, rs, sampler, context);
+        const r = if (0.0 == raw_r) 0.0 else ggx.clampRoughness(raw_r);
 
         const specular = ts.sample2D_1(self.specular, rs, sampler, context);
 
