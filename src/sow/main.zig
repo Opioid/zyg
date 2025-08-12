@@ -335,7 +335,7 @@ fn scatter(
                 continue;
             }
 
-            const mat_sample = vertex.sample(&frag, &sampler, .Off, context);
+            const mat_sample = vertex.sample(&frag, &sampler, false, context);
 
             const probability = mat_sample.aovAlbedo()[0];
 

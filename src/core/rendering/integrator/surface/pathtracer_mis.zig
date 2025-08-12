@@ -27,7 +27,6 @@ pub const PathtracerMIS = struct {
         light_sampling: hlp.LightSampling,
         regularize_roughness: bool,
         caustics_path: bool,
-        caustics_resolve: CausticsResolve,
         photons_not_only_through_specular: bool,
     };
 
@@ -359,15 +358,11 @@ pub const PathtracerMIS = struct {
         return result;
     }
 
-    fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {
+    fn causticsResolve(self: Self, state: Vertex.State) bool {
         if (!state.primary_ray) {
-            if (!self.settings.caustics_path) {
-                return .Off;
-            }
-
-            return self.settings.caustics_resolve;
+            return self.settings.caustics_path;
         }
 
-        return .Full;
+        return true;
     }
 };

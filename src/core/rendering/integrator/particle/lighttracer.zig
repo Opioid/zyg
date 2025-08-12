@@ -89,7 +89,7 @@ pub const Lighttracer = struct {
                     vertex.throughput *= energy;
                 }
 
-                const mat_sample = vertex.sample(&frag, sampler, .Full, worker.context);
+                const mat_sample = vertex.sample(&frag, sampler, true, worker.context);
 
                 const max_splits = VertexPool.maxSplits(vertex, total_depth);
 

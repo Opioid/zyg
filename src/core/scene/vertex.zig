@@ -3,7 +3,6 @@ const Probe = @import("shape/probe.zig").Probe;
 const Context = @import("context.zig").Context;
 const rst = @import("renderstate.zig");
 const Renderstate = rst.Renderstate;
-const CausticsResolve = rst.CausticsResolve;
 const Scene = @import("scene.zig").Scene;
 const MaterialSample = @import("material/material_sample.zig").Sample;
 const MediumStack = @import("prop/medium.zig").Stack;
@@ -121,7 +120,7 @@ pub const Vertex = struct {
         self: *const Self,
         frag: *const Fragment,
         sampler: *Sampler,
-        caustics: CausticsResolve,
+        caustics: bool,
         context: Context,
     ) mat.Sample {
         const wo = -self.probe.ray.direction;

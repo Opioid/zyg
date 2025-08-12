@@ -76,7 +76,7 @@ pub const AOV = struct {
         var result: f32 = 0.0;
         var sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
+        const mat_sample = vertex.sample(frag, sampler, false, worker.context);
 
         if (worker.aov.active()) {
             worker.commonAOV(&vertex, frag, &mat_sample);
@@ -112,7 +112,7 @@ pub const AOV = struct {
 
         const sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
+        const mat_sample = vertex.sample(frag, sampler, false, worker.context);
 
         if (worker.aov.active()) {
             worker.commonAOV(&vertex, frag, &mat_sample);
@@ -142,7 +142,7 @@ pub const AOV = struct {
     fn lightSampleCount(self: Self, vertex: Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
         var sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
+        const mat_sample = vertex.sample(frag, sampler, false, worker.context);
 
         const n = mat_sample.super().geometricNormal();
         const p = frag.p;
@@ -179,7 +179,7 @@ pub const AOV = struct {
 
         const sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
+        const mat_sample = vertex.sample(frag, sampler, false, worker.context);
 
         const super = mat_sample.super();
         const n = math.cross3(super.shadingTangent(), super.shadingBitangent());
@@ -197,7 +197,7 @@ pub const AOV = struct {
 
             var sampler = worker.pickSampler(total_depth);
 
-            const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
+            const mat_sample = vertex.sample(frag, sampler, false, worker.context);
 
             const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
             if (mat_sample.canEvaluate() and gather_photons) {

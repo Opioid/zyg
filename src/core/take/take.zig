@@ -6,7 +6,6 @@ const hlp = @import("../rendering/integrator/helper.zig");
 const Depth = hlp.Depth;
 const LightSampling = hlp.LightSampling;
 const Scene = @import("../scene/scene.zig").Scene;
-const CausticsResolve = @import("../scene/renderstate.zig").CausticsResolve;
 const LightTree = @import("../scene/light/light_tree.zig");
 const SamplerFactory = @import("../sampler/sampler.zig").Factory;
 const Camera = @import("../camera/camera.zig").Camera;
@@ -149,8 +148,6 @@ pub const View = struct {
     }
 
     fn loadSurfaceIntegrator(self: *View, value: std.json.Value, lighttracer: bool) void {
-        const Default_caustics_resolve = CausticsResolve.Full;
-
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "AOV", entry.key_ptr.*)) {
@@ -188,18 +185,17 @@ pub const View = struct {
                     },
                 } };
             } else if (std.mem.eql(u8, "PT", entry.key_ptr.*)) {
-                const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
+                const caustics_resolve = json.readBoolMember(entry.value_ptr.*, "caustics", true);
                 const depth = loadDepth(entry.value_ptr.*, Default_depth);
 
                 self.surface_integrator = .{ .PT = .{
                     .settings = .{
                         .max_depth = depth,
-                        .caustics_path = .Off != caustics_resolve,
-                        .caustics_resolve = caustics_resolve,
+                        .caustics_path = caustics_resolve,
                     },
                 } };
             } else if (std.mem.eql(u8, "PTDL", entry.key_ptr.*)) {
-                const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
+                const caustics_resolve = json.readBoolMember(entry.value_ptr.*, "caustics", true);
                 const depth = loadDepth(entry.value_ptr.*, Default_depth);
                 const light_sampling = loadLightSampling(entry.value_ptr.*);
 
@@ -207,28 +203,21 @@ pub const View = struct {
                     .settings = .{
                         .max_depth = depth,
                         .light_sampling = light_sampling,
-                        .caustics_path = .Off != caustics_resolve,
-                        .caustics_resolve = caustics_resolve,
+                        .caustics_path = caustics_resolve,
                     },
                 } };
             } else if (std.mem.eql(u8, "PTMIS", entry.key_ptr.*)) {
                 const regularize_roughness = json.readBoolMember(entry.value_ptr.*, "regularize_roughness", false);
-                const caustics_resolve = readCausticsResolve(entry.value_ptr.*, Default_caustics_resolve);
+                const caustics_resolve = json.readBoolMember(entry.value_ptr.*, "caustics", true);
                 const depth = loadDepth(entry.value_ptr.*, Default_depth);
                 const light_sampling = loadLightSampling(entry.value_ptr.*);
-
-                var caustics_path = false;
-                if (.Off != caustics_resolve) {
-                    caustics_path = if (lighttracer) false else true;
-                }
 
                 self.surface_integrator = .{ .PTMIS = .{
                     .settings = .{
                         .max_depth = depth,
                         .light_sampling = light_sampling,
                         .regularize_roughness = regularize_roughness,
-                        .caustics_path = caustics_path,
-                        .caustics_resolve = caustics_resolve,
+                        .caustics_path = caustics_resolve and !lighttracer,
                         .photons_not_only_through_specular = !lighttracer,
                     },
                 } };
@@ -276,26 +265,6 @@ pub const View = struct {
 
         const st2 = st * st;
         return .{ .split_threshold = st2 * st2 };
-    }
-
-    fn readCausticsResolve(value: std.json.Value, default: CausticsResolve) CausticsResolve {
-        const member = value.object.get("caustics") orelse return default;
-
-        switch (member) {
-            .bool => |b| return if (b) .Full else .Off,
-            .string => |str| {
-                if (std.mem.eql(u8, "Off", str)) {
-                    return .Off;
-                } else if (std.mem.eql(u8, "Rough", str)) {
-                    return .Rough;
-                } else if (std.mem.eql(u8, "Full", str)) {
-                    return .Full;
-                }
-            },
-            else => return default,
-        }
-
-        return default;
     }
 };
 

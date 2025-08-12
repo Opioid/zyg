@@ -115,7 +115,7 @@ pub const Mapper = struct {
                     vertex.throughput *= energy;
                 }
 
-                const mat_sample = vertex.sample(&frag, &self.sampler, .Full, context);
+                const mat_sample = vertex.sample(&frag, &self.sampler, true, context);
 
                 if (mat_sample.canEvaluate() and (vertex.state.started_specular or self.settings.full_light_path)) {
                     if (finite_world or bounds.pointInside(frag.p)) {

@@ -7,12 +7,6 @@ const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
-pub const CausticsResolve = enum(u8) {
-    Off,
-    Rough,
-    Full,
-};
-
 pub const Renderstate = struct {
     trafo: Trafo,
 
@@ -39,7 +33,7 @@ pub const Renderstate = struct {
     primary: bool,
     highest_priority: i8,
     event: Event,
-    caustics: CausticsResolve,
+    caustics: bool,
 
     pub fn uv(self: Renderstate) Vec2f {
         const uvw = self.uvw;
@@ -63,19 +57,11 @@ pub const Renderstate = struct {
     }
 
     pub fn regularizeAlpha(self: Renderstate, alpha: Vec2f, specular_threshold: f32) Vec2f {
-        const mod_alpha = math.max2(alpha, @splat(self.min_alpha));
-
-        if (alpha[0] <= specular_threshold) {
-            if (.Rough == self.caustics) {
-                const l = math.length3(self.p - self.origin);
-                const m = math.min(0.1 * (1.0 + l), 1.0);
-                return math.max2(mod_alpha, @splat(m));
-            } else {
-                return alpha;
-            }
+        if (alpha[0] <= specular_threshold and !self.caustics) {
+            return alpha;
         }
 
-        return mod_alpha;
+        return math.max2(alpha, @splat(self.min_alpha));
     }
 
     pub fn volumeScatter(self: Renderstate) bool {

@@ -1,7 +1,6 @@
 const Context = @import("../../../scene/context.zig").Context;
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
-const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const bxdf = @import("../../../scene/material/bxdf.zig");
 const hlp = @import("../helper.zig");
 const IValue = hlp.IValue;
@@ -19,7 +18,6 @@ pub const Pathtracer = struct {
     pub const Settings = struct {
         max_depth: hlp.Depth,
         caustics_path: bool,
-        caustics_resolve: CausticsResolve,
     };
 
     settings: Settings,
@@ -158,15 +156,11 @@ pub const Pathtracer = struct {
         return energy;
     }
 
-    fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {
+    fn causticsResolve(self: Self, state: Vertex.State) bool {
         if (!state.primary_ray) {
-            if (!self.settings.caustics_path) {
-                return .Off;
-            }
-
-            return self.settings.caustics_resolve;
+            return self.settings.caustics_path;
         }
 
-        return .Full;
+        return true;
     }
 };

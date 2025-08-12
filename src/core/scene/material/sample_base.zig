@@ -42,7 +42,7 @@ pub const Base = struct {
             .alpha = alpha,
             .properties = .{
                 .can_evaluate = true,
-                .avoid_caustics = .Full != rs.caustics,
+                .avoid_caustics = !rs.caustics,
                 .lower_priority = priority < rs.highest_priority,
             },
         };
@@ -58,7 +58,7 @@ pub const Base = struct {
             .alpha = alpha,
             .properties = .{
                 .can_evaluate = can_evaluate,
-                .avoid_caustics = .Full != rs.caustics,
+                .avoid_caustics = !rs.caustics,
                 .lower_priority = priority < rs.highest_priority,
             },
         };
