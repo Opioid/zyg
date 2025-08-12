@@ -413,8 +413,6 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
         emittance.profile = readTexture(alloc, p, .Emission, tex, resources);
     }
 
-    emittance.camera_weight = json.readFloatMember(jvalue, "camera_weight", 1.0);
-
     if (jvalue.object.get("emission_map")) |em| {
         emittance.emission_map = readValue(alloc, em, .Emission, tex, resources);
     } else if (jvalue.object.get("temperature_map")) |tm| {
@@ -428,25 +426,12 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
         color = json.readColor(s);
     }
 
-    const cos_a = @cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", profile_angle)));
-
     const value = json.readFloatMember(jvalue, "value", 1.0);
 
-    const quantity = json.readStringMember(jvalue, "quantity", "");
-
-    if (std.mem.eql(u8, "Flux", quantity)) {
-        emittance.setLuminousFlux(color, value, cos_a);
-    } else if (std.mem.eql(u8, "Luminous_intensity", quantity)) {
-        emittance.setLuminousIntensity(color, value, cos_a);
-    } else if (std.mem.eql(u8, "Luminance", quantity)) {
-        emittance.setLuminance(color, value, cos_a);
-    } else if (std.mem.eql(u8, "Radiant_intensity", quantity)) {
-        emittance.setRadiantIntensity(@as(Vec4f, @splat(value)) * color, cos_a);
-    } else // if (std.mem.eql(u8, "Radiance", quantity))
-    {
-        emittance.setRadiance(@as(Vec4f, @splat(value)) * color, cos_a);
-    }
-
+    emittance.normalize = json.readBoolMember(jvalue, "normalize", false);
+    emittance.value = @as(Vec4f, @splat(value)) * color;
+    emittance.cos_a = @cos(math.degreesToRadians(json.readFloatMember(jvalue, "angle", profile_angle)));
+    emittance.camera_weight = json.readFloatMember(jvalue, "camera_weight", 1.0);
     emittance.num_samples = @min(json.readUIntMember(jvalue, "num_samples", 1), Shape.MaxSamples);
 }
 
