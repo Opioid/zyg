@@ -1,6 +1,7 @@
 const Base = @import("../material_base.zig").Base;
 const Sample = @import("glass_sample.zig").Sample;
 const Context = @import("../../context.zig").Context;
+const Scene = @import("../../scene.zig").Scene;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const ts = @import("../../../texture/texture_sampler.zig");
 const Texture = @import("../../../texture/texture.zig").Texture;
@@ -28,13 +29,13 @@ pub const Material = struct {
     thickness: f32 = 0.0,
     abbe: f32 = 0.0,
 
-    pub fn commit(self: *Material) void {
+    pub fn commit(self: *Material, scene: *const Scene) void {
         const properties = &self.super.properties;
 
         const thin = self.thickness > 0.0;
         properties.two_sided = thin;
         properties.evaluate_visibility = thin or self.super.mask.isImage();
-        properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= ggx.MinRoughness;
+        properties.caustic = self.roughness.isUniform() and math.pow2(self.roughness.uniform1()) <= scene.specular_threshold;
     }
 
     pub fn setVolumetric(self: *Material, attenuation_color: Vec4f, distance: f32) void {
@@ -55,6 +56,7 @@ pub const Material = struct {
             self.ior,
             r * r,
             specular,
+            context.scene.specular_threshold,
             self.thickness,
             self.abbe,
             self.super.priority,

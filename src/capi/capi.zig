@@ -220,7 +220,7 @@ export fn su_integrators_create(string: [*:0]const u8) i32 {
         var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
         defer parsed.deinit();
 
-        e.take.view.loadIntegrators(parsed.value);
+        e.take.view.loadIntegrators(parsed.value, &e.scene);
 
         return 0;
     }

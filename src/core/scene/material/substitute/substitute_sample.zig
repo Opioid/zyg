@@ -31,6 +31,7 @@ pub const Sample = struct {
 
     metallic: f32,
     specular: f32,
+    specular_threshold: f32,
     opacity: f32,
 
     pub fn init(
@@ -43,13 +44,14 @@ pub const Sample = struct {
         ior_outer: f32,
         metallic: f32,
         specular: f32,
+        specular_threshold: f32,
         attenuation_distance: f32,
         volumetric_anisotropy: f32,
         translucency: f32,
         priority: i8,
     ) Sample {
         const color = @as(Vec4f, @splat(1.0 - metallic)) * albedo;
-        const reg_alpha = rs.regularizeAlpha(alpha);
+        const reg_alpha = rs.regularizeAlpha(alpha, specular_threshold);
         const translucent = translucency > 0.0;
         const volumetric = attenuation_distance > 0.0 and !translucent;
         const ior_medium = rs.ior;
@@ -68,6 +70,7 @@ pub const Sample = struct {
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
             .metallic = metallic,
             .specular = specular,
+            .specular_threshold = specular_threshold,
             .opacity = 1.0 - (0.5 * translucency),
         };
     }
@@ -123,7 +126,7 @@ pub const Sample = struct {
         }
 
         if (self.coating.thickness > 0.0) {
-            const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.super.avoidCaustics());
+            const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.specular_threshold, self.super.avoidCaustics());
             const pdf = coating.f * coating.pdf + (1.0 - coating.f) * base_result.pdf;
             return bxdf.Result.init(coating.reflection + coating.attenuation * base_result.reflection, pdf);
         }
@@ -239,7 +242,7 @@ pub const Sample = struct {
             dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, am);
         }
 
-        if (self.super.avoidCaustics() and alpha[1] <= ggx.MinAlpha) {
+        if (self.super.avoidCaustics() and alpha[1] <= self.specular_threshold) {
             return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * d.reflection, dw * d.pdf);
         }
 
@@ -377,7 +380,7 @@ pub const Sample = struct {
 
             const schlick = fresnel.Schlick.init(self.f0);
 
-            const micro = ggx.Aniso.reflect(wo, n_dot_wo, alpha, xi, schlick, frame, result);
+            const micro = ggx.Aniso.reflect(wo, n_dot_wo, alpha, self.specular_threshold, xi, schlick, frame, result);
 
             const mms = ggx.dspbrMicroEc(self.f0, micro.n_dot_wi, frame.clampNdot(wo), alpha[1]);
 
@@ -400,7 +403,7 @@ pub const Sample = struct {
         const wo = self.super.wo;
         const n_dot_wo = math.safe.clampAbsDot(self.coating.n, wo);
 
-        const coating_attenuation = self.coating.reflect(wo, h, n_dot_wo, n_dot_h, h_dot_wi, result);
+        const coating_attenuation = self.coating.reflect(wo, h, n_dot_wo, n_dot_h, h_dot_wi, self.specular_threshold, result);
 
         const base_result = self.baseEvaluate(result.wi, wo, h, h_dot_wi);
 
@@ -413,7 +416,7 @@ pub const Sample = struct {
     fn coatingBaseSample(self: *const Sample, sampleFunc: SampleFunc, xi: Vec2f, f: f32, diffuse_weight: f32, result: *bxdf.Sample) void {
         const micro = sampleFunc(self, diffuse_weight, xi, result);
 
-        const coating = self.coating.evaluate(result.wi, self.super.wo, micro.h, micro.h_dot_wi, self.super.avoidCaustics());
+        const coating = self.coating.evaluate(result.wi, self.super.wo, micro.h, micro.h_dot_wi, self.specular_threshold, self.super.avoidCaustics());
 
         result.reflection = coating.attenuation * result.reflection + coating.reflection;
         result.pdf = (1.0 - f) * result.pdf + f * coating.pdf;
@@ -475,7 +478,7 @@ pub const Sample = struct {
             );
         }
 
-        if (self.super.avoidCaustics() and alpha[1] <= ggx.MinAlpha) {
+        if (self.super.avoidCaustics() and alpha[1] <= self.specular_threshold) {
             return bxdf.Result.empty();
         }
 
@@ -497,7 +500,7 @@ pub const Sample = struct {
         const base_pdf = split_pdf * gg.r.pdf;
 
         if (coated) {
-            const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.super.avoidCaustics());
+            const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.specular_threshold, self.super.avoidCaustics());
             const pdf = coating.f * coating.pdf + (1.0 - coating.f) * base_pdf;
             return bxdf.Result.init(coating.reflection + coating.attenuation * base_reflection, pdf);
         }
@@ -555,7 +558,7 @@ pub const Sample = struct {
 
         if (max_splits > 1 and same_side) {
             {
-                const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, frame, &buffer[0]);
+                const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, self.specular_threshold, frame, &buffer[0]);
 
                 const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
                 const reflection = @as(Vec4f, @splat(n_dot_wi * s)) * (buffer[0].reflection + mms);
@@ -567,7 +570,7 @@ pub const Sample = struct {
 
             {
                 const r_wo_dot_h = -wo_dot_h;
-                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, &buffer[1]);
+                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], self.specular_threshold, ior, frame, &buffer[1]);
 
                 const omf = 1.0 - f;
                 buffer[1].reflection *= @splat(n_dot_wi);
@@ -597,7 +600,7 @@ pub const Sample = struct {
             const ep = if (same_side) 1.0 else ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]);
 
             if (p <= f) {
-                const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, frame, result);
+                const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, self.specular_threshold, frame, result);
 
                 const mms = if (same_side) ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]) else @as(Vec4f, @splat(0.0));
                 const reflection = @as(Vec4f, @splat(n_dot_wi * ep * s)) * (@as(Vec4f, @splat(f)) * result.reflection + mms);
@@ -606,7 +609,7 @@ pub const Sample = struct {
                 result.pdf *= f;
             } else {
                 const r_wo_dot_h = if (same_side) -wo_dot_h else wo_dot_h;
-                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], ior, frame, result);
+                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[0], self.specular_threshold, ior, frame, result);
 
                 const omf = 1.0 - f;
                 result.reflection *= @splat(omf * n_dot_wi * ep);
@@ -672,18 +675,18 @@ pub const Sample = struct {
                 }
 
                 if (p <= f) {
-                    const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, frame, result);
+                    const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, self.specular_threshold, frame, result);
 
                     const mms = ggx.dspbrMicroEc(self.f0, n_dot_wi, n_dot_wo, alpha[1]);
                     const reflection = @as(Vec4f, @splat(n_dot_wi * s)) * (@as(Vec4f, @splat(f)) * result.reflection + mms);
 
-                    const coating = self.coating.evaluate(result.wi, self.super.wo, h, wo_dot_h, self.super.avoidCaustics());
+                    const coating = self.coating.evaluate(result.wi, self.super.wo, h, wo_dot_h, self.specular_threshold, self.super.avoidCaustics());
 
                     result.reflection = coating.attenuation * reflection + coating.reflection;
                     result.pdf = (1.0 - cf) * (f * result.pdf) + cf * coating.pdf;
                 } else {
                     const r_wo_dot_h = -wo_dot_h;
-                    const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[1], ior, frame, result);
+                    const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[1], self.specular_threshold, ior, frame, result);
 
                     const coat_n_dot_wo = math.safe.clampAbsDot(self.coating.n, wo);
                     const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);
@@ -716,13 +719,13 @@ pub const Sample = struct {
             const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[1], self.f0[0]);
 
             if (p <= f) {
-                const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, frame, result);
+                const n_dot_wi = ggx.Aniso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha, self.specular_threshold, frame, result);
 
                 result.reflection *= @splat(f * s * n_dot_wi * ep);
                 result.pdf *= f;
             } else {
                 const r_wo_dot_h = wo_dot_h;
-                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[1], ior, frame, result);
+                const n_dot_wi = ggx.Iso.refractNoFresnel(wo, h, n_dot_wo, n_dot_h, -wi_dot_h, r_wo_dot_h, alpha[1], self.specular_threshold, ior, frame, result);
 
                 const coat_n_dot_wo = math.safe.clampAbsDot(self.coating.n, wo);
                 const attenuation = self.coating.singleAttenuation(coat_n_dot_wo);

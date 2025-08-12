@@ -128,7 +128,11 @@ pub const View = struct {
         }
     }
 
-    pub fn loadIntegrators(self: *View, value: std.json.Value) void {
+    pub fn loadIntegrators(self: *View, value: std.json.Value, scene: *Scene) void {
+        if (value.object.get("specular_threshold")) |specular_threshold_node| {
+            scene.specular_threshold = math.pow2(json.readFloat(f32, specular_threshold_node));
+        }
+
         if (value.object.get("particle")) |particle_node| {
             self.loadParticleIntegrator(particle_node, self.num_samples_per_pixel > 0);
         }

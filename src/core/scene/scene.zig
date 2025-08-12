@@ -26,6 +26,7 @@ const Sampler = @import("../sampler/sampler.zig").Sampler;
 const Sky = @import("../sky/sky.zig").Sky;
 const Filesystem = @import("../file/system.zig").System;
 const hlp = @import("../rendering/integrator/helper.zig");
+const ggx = @import("material/ggx.zig");
 
 const base = @import("base");
 const math = base.math;
@@ -76,6 +77,7 @@ pub const Scene = struct {
     shapes: List(Shape),
     instancers: List(Instancer),
 
+    specular_threshold: f32 = ggx.MinAlpha,
     num_interpolation_frames: u32 = 0,
 
     frame_start: u64 = undefined,

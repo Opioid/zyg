@@ -57,6 +57,7 @@ pub const Material = union(enum) {
         switch (self.*) {
             .Debug => {},
             .Volumetric => |*m| try m.commit(alloc, scene, threads),
+            inline .Glass, .Substitute => |*m| m.commit(scene),
             inline else => |*m| m.commit(),
         }
     }

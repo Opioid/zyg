@@ -25,6 +25,7 @@ pub const Sample = struct {
     ior_outside: f32,
     f0: f32,
     specular: f32,
+    specular_threshold: f32,
     abbe: f32,
     wavelength: f32,
     thickness: f32,
@@ -36,11 +37,12 @@ pub const Sample = struct {
         ior: f32,
         alpha: f32,
         specular: f32,
+        specular_threshold: f32,
         thickness: f32,
         abbe: f32,
         priority: i8,
     ) Sample {
-        const reg_alpha = rs.regularizeAlpha(@splat(alpha));
+        const reg_alpha = rs.regularizeAlpha(@splat(alpha), specular_threshold);
         const rough = reg_alpha[0] > 0.0;
         const ior_outside = rs.ior;
 
@@ -56,6 +58,7 @@ pub const Sample = struct {
             .ior_outside = ior_outside,
             .f0 = if (rough) fresnel.Schlick.IorToF0(ior, ior_outside) else 0.0,
             .specular = specular,
+            .specular_threshold = specular_threshold,
             .abbe = abbe,
             .wavelength = rs.wavelength,
             .thickness = thickness,
@@ -67,7 +70,7 @@ pub const Sample = struct {
         const rough = alpha > 0.0;
 
         if (self.ior == self.ior_outside or !rough or self.super.properties.lower_priority or
-            (self.super.avoidCaustics() and alpha <= ggx.MinAlpha))
+            (self.super.avoidCaustics() and alpha <= self.specular_threshold))
         {
             return bxdf.Result.empty();
         }
@@ -342,7 +345,7 @@ pub const Sample = struct {
             const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0);
 
             {
-                const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], frame, &buffer[0]);
+                const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], self.specular_threshold, frame, &buffer[0]);
 
                 buffer[0].reflection *= @as(Vec4f, @splat(n_dot_wi * ep * s)) * weight;
                 buffer[0].split_weight = f;
@@ -386,7 +389,7 @@ pub const Sample = struct {
 
             const p = s3[0];
             if (p <= f) {
-                const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], frame, result);
+                const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], self.specular_threshold, frame, result);
 
                 result.reflection *= @as(Vec4f, @splat(f * n_dot_wi * ep * s)) * weight;
                 result.pdf *= f;
@@ -465,6 +468,7 @@ pub const Sample = struct {
                 thin_n_dot_h,
                 thin_wo_dot_h,
                 alpha,
+                self.specular_threshold,
                 thin_frame,
                 result,
             );
@@ -490,6 +494,7 @@ pub const Sample = struct {
                 -wi_dot_h,
                 r_wo_dot_h,
                 alpha,
+                self.specular_threshold,
                 ior,
                 frame,
                 result,

@@ -31,7 +31,7 @@ pub const Coating = struct {
         pdf: f32,
     };
 
-    pub fn evaluate(self: *const Self, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32, avoid_caustics: bool) Result {
+    pub fn evaluate(self: *const Self, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32, specular_threshold: f32, avoid_caustics: bool) Result {
         const n = self.n;
 
         const n_dot_wi = math.safe.clampDot(n, wi);
@@ -39,7 +39,7 @@ pub const Coating = struct {
 
         const att = self.attenuation(n_dot_wi, n_dot_wo);
 
-        if (avoid_caustics and self.alpha <= ggx.MinAlpha) {
+        if (avoid_caustics and self.alpha <= specular_threshold) {
             return .{ .reflection = @splat(0.0), .attenuation = att, .f = 0.0, .pdf = 0.0 };
         }
 
@@ -63,6 +63,7 @@ pub const Coating = struct {
         n_dot_wo: f32,
         n_dot_h: f32,
         wo_dot_h: f32,
+        specular_threshold: f32,
         result: *bxdf.Sample,
     ) Vec4f {
         const n_dot_wi = ggx.Iso.reflectNoFresnel(
@@ -72,6 +73,7 @@ pub const Coating = struct {
             n_dot_h,
             wo_dot_h,
             self.alpha,
+            specular_threshold,
             Frame.init(self.n),
             result,
         );

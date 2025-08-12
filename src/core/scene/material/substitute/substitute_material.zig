@@ -58,14 +58,14 @@ pub const Material = struct {
     flakes_alpha: f32 = 0.01,
     flakes_res: f32 = 0.0,
 
-    pub fn commit(self: *Material) void {
+    pub fn commit(self: *Material, scene: *const Scene) void {
         var properties = &self.super.properties;
 
         properties.evaluate_visibility = self.super.mask.isImage();
         properties.emissive = math.anyGreaterZero3(self.emittance.value);
         properties.color_map = !self.color.isUniform();
         properties.emission_image_map = self.emittance.emission_map.isImage();
-        properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= ggx.MinRoughness;
+        properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= scene.specular_threshold;
 
         const attenuation_distance = self.attenuation_distance;
 
@@ -138,6 +138,7 @@ pub const Material = struct {
             ior_outer,
             metallic,
             specular,
+            context.scene.specular_threshold,
             attenuation_distance,
             self.volumetric_anisotropy,
             translucency,

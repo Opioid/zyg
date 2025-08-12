@@ -75,7 +75,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, graph: *Graph, resources: *Res
     }
 
     if (integrator_value_ptr) |integrator_value| {
-        graph.take.view.loadIntegrators(integrator_value.*);
+        graph.take.view.loadIntegrators(integrator_value.*, &graph.scene);
     }
 
     if (post_value_ptr) |post_value| {

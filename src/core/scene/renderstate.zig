@@ -24,12 +24,12 @@ pub const Renderstate = struct {
     origin: Vec4f,
     uvw: Vec4f,
 
+    time: u64,
+
     stochastic_r: f32,
     ior: f32,
     wavelength: f32,
     min_alpha: f32,
-
-    time: u64,
 
     prop: u32,
     part: u32,
@@ -62,10 +62,10 @@ pub const Renderstate = struct {
         };
     }
 
-    pub fn regularizeAlpha(self: Renderstate, alpha: Vec2f) Vec2f {
+    pub fn regularizeAlpha(self: Renderstate, alpha: Vec2f, specular_threshold: f32) Vec2f {
         const mod_alpha = math.max2(alpha, @splat(self.min_alpha));
 
-        if (alpha[0] <= ggx.MinAlpha) {
+        if (alpha[0] <= specular_threshold) {
             if (.Rough == self.caustics) {
                 const l = math.length3(self.p - self.origin);
                 const m = math.min(0.1 * (1.0 + l), 1.0);
