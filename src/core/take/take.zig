@@ -142,7 +142,7 @@ pub const View = struct {
             self.loadSurfaceIntegrator(surface_node, lighttracer);
         }
 
-        if (value.object.get("photons")) |photons_node| {
+        if (value.object.get("photon")) |photons_node| {
             self.photon_settings = loadPhotonSettings(photons_node, lighttracer);
         }
     }
@@ -157,16 +157,16 @@ pub const View = struct {
                 if (std.mem.eql(u8, "Tangent", value_name)) {
                     value_type = .Tangent;
                     value_type = .Bitangent;
-                } else if (std.mem.eql(u8, "Geometric_normal", value_name)) {
+                } else if (std.mem.eql(u8, "GeometricNormal", value_name)) {
                     value_type = .GeometricNormal;
-                } else if (std.mem.eql(u8, "Shading_normal", value_name)) {
+                } else if (std.mem.eql(u8, "ShadingNormal", value_name)) {
                     value_type = .ShadingNormal;
-                } else if (std.mem.eql(u8, "Light_sample_count", value_name)) {
+                } else if (std.mem.eql(u8, "LightSampleCount", value_name)) {
                     value_type = .LightSampleCount;
                 } else if (std.mem.eql(u8, "Side", value_name)) {
                     value_type = .Side;
-                } else if (std.mem.eql(u8, "Photons", value_name)) {
-                    value_type = .Photons;
+                } else if (std.mem.eql(u8, "Photon", value_name)) {
+                    value_type = .Photon;
                 }
 
                 const num_samples = json.readUIntMember(entry.value_ptr.*, "num_samples", 1);

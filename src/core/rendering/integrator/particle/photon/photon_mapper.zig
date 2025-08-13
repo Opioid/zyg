@@ -81,13 +81,13 @@ pub const Mapper = struct {
 
     fn tracePhoton(self: *Self, bounds: AABB, frame: u32, max_photons: u32, finite_world: bool, context: Context) Result {
         // How often should we try to create a valid photon path?
-        const Max_iterations = 1024 * 10;
+        const MaxIterations = 1024 * 10;
 
         var iteration: u32 = 0;
         var num_photons: u32 = 0;
 
         var i: u32 = 0;
-        while (i < Max_iterations) : (i += 1) {
+        while (i < MaxIterations) : (i += 1) {
             var light_id: u32 = undefined;
             var light_sample: SampleFrom = undefined;
             var vertex = self.generateLightVertex(

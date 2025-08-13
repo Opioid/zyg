@@ -88,6 +88,7 @@ pub const Map = struct {
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
+        //return self.grid.li(frag, sample, sampler, context);
         return self.grid.li2(frag, sample, sampler, context);
     }
 

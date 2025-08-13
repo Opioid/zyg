@@ -531,7 +531,9 @@ pub const Grid = struct {
         self.num_paths = @floatFromInt(num_paths);
     }
 
-    pub fn li(self: *const Self, frag: *const Fragment, sample: *const MaterialSample, scene: *const Scene) Vec4f {
+    pub fn li(self: *const Self, frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler, context: Context) Vec4f {
+        _ = sampler;
+
         var result: Vec4f = @splat(0.0);
 
         const position = frag.p;
@@ -548,7 +550,7 @@ pub const Grid = struct {
         if (frag.subsurface()) {} else {
             const inv_radius2 = 1.0 / radius2;
 
-            const two_sided = frag.material(scene).twoSided();
+            const two_sided = frag.material(context.scene).twoSided();
 
             for (adjacency.cells[0..adjacency.num_cells]) |cell| {
                 var i = cell[0];
@@ -567,17 +569,17 @@ pub const Grid = struct {
 
                             const n_dot_wi = math.safe.clampAbsDot(sample.super().shadingNormal(), p.wi);
 
-                            const bxdf = sample.evaluate(p.wi, false);
+                            const bxdf = sample.evaluate(p.wi, 1);
 
-                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                         } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
                             const k = coneFilter(distance2, inv_radius2);
 
                             const n_dot_wi = math.safe.clampDot(sample.super().shadingNormal(), p.wi);
 
-                            const bxdf = sample.evaluate(p.wi, false);
+                            const bxdf = sample.evaluate(p.wi, 1);
 
-                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                         }
                     }
                 }
@@ -602,7 +604,6 @@ pub const Grid = struct {
         const radius2 = radius * radius;
 
         var buffer = Buffer{};
-        buffer.clear();
 
         const subsurface = frag.subsurface();
 
@@ -619,14 +620,14 @@ pub const Grid = struct {
             }
         }
 
-        if (buffer.num_entries > 0) {
-            const used_entries = buffer.num_entries;
-            const max_radius2 = buffer.entries[used_entries - 1].d2;
+        const num_entries = buffer.num_entries;
+        if (num_entries > 0) {
+            const max_radius2 = if (buffer.entries.len == num_entries) buffer.entries[num_entries - 1].d2 else radius2;
 
             if (subsurface) {
                 const max_radius3 = max_radius2 * @sqrt(max_radius2);
 
-                for (buffer.entries[0..used_entries]) |entry| {
+                for (buffer.entries[0..num_entries]) |entry| {
                     const p = self.photons[entry.id];
 
                     const bxdf = sample.evaluate(p.wi, 1);
@@ -642,7 +643,7 @@ pub const Grid = struct {
                 const two_sided = frag.material(context.scene).twoSided();
                 const inv_max_radius2 = 1.0 / max_radius2;
 
-                for (buffer.entries[0..used_entries]) |entry| {
+                for (buffer.entries[0..num_entries]) |entry| {
                     const p = self.photons[entry.id];
 
                     if (two_sided) {
@@ -702,14 +703,10 @@ const Buffer = struct {
         d2: f32,
     };
 
-    num_entries: u32 = undefined,
-    entries: [1024]Entry = undefined,
+    num_entries: u32 = 0,
+    entries: [128]Entry = undefined,
 
     const Self = @This();
-
-    pub fn clear(self: *Self) void {
-        self.num_entries = 0;
-    }
 
     pub fn consider(self: *Self, c: Entry) void {
         const num = self.num_entries;
@@ -721,10 +718,8 @@ const Buffer = struct {
         const lb = std.sort.lowerBound(Entry, self.entries[0..num], c, compareEntry);
 
         if (lb < num) {
-            const begin = lb + 1;
             const end = @min(num + 1, self.entries.len);
-            const range = end - begin;
-            std.mem.copyBackwards(Entry, self.entries[begin..end], self.entries[lb .. lb + range]);
+            @memmove(self.entries[lb + 1 .. end], self.entries[lb .. end - 1]);
 
             self.entries[lb] = c;
             self.num_entries = end;
