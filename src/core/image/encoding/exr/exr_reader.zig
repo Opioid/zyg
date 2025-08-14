@@ -354,10 +354,10 @@ fn interleaveScalar(source: []const u8, out: [*]u8) void {
 }
 
 const Channels = struct {
-    channels: std.ArrayListUnmanaged(exr.Channel),
+    channels: std.ArrayList(exr.Channel),
 
     pub fn init(alloc: Allocator) !Channels {
-        return Channels{ .channels = try std.ArrayListUnmanaged(exr.Channel).initCapacity(alloc, 4) };
+        return Channels{ .channels = try std.ArrayList(exr.Channel).initCapacity(alloc, 4) };
     }
 
     pub fn deinit(self: *Channels, alloc: Allocator) void {

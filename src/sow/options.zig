@@ -6,7 +6,7 @@ pub const Options = struct {
 
     output: []u8 = &.{},
 
-    mounts: std.ArrayListUnmanaged([]u8) = .empty,
+    mounts: std.ArrayList([]u8) = .empty,
 
     threads: i32 = 0,
 

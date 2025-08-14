@@ -39,7 +39,7 @@ const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 
 pub const Scene = struct {
     pub const Lights = LightTree.Lights;

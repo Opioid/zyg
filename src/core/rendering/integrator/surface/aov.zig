@@ -66,7 +66,7 @@ pub const AOV = struct {
             .Photon => self.photons(&vertex, &frag, worker),
         };
 
-        return .{ .direct = vertex.throughput * result };
+        return .{ .direct = result };
     }
 
     fn ao(self: Self, vertex: Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
@@ -200,7 +200,7 @@ pub const AOV = struct {
             const mat_sample = vertex.sample(frag, sampler, false, worker.context);
 
             const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
-            if (mat_sample.canEvaluate() and vertex.state.primary_ray and gather_photons) {
+            if (mat_sample.canEvaluate() and gather_photons) {
                 result += vertex.throughput * worker.photonLi(frag, &mat_sample, sampler);
             }
 

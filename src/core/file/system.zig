@@ -7,7 +7,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const System = struct {
-    mounts: std.ArrayListUnmanaged([]u8) = .empty,
+    mounts: std.ArrayList([]u8) = .empty,
 
     name_buffer: []u8,
 

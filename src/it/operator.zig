@@ -33,8 +33,8 @@ pub const Operator = struct {
 
     class: Class,
 
-    textures: std.ArrayListUnmanaged(core.tx.Texture) = .empty,
-    input_ids: std.ArrayListUnmanaged(u32) = .empty,
+    textures: std.ArrayList(core.tx.Texture) = .empty,
+    input_ids: std.ArrayList(u32) = .empty,
     target: img.Float4 = img.Float4.initEmpty(),
     tonemapper: Tonemapper,
     scene: *const scn.Scene,

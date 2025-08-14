@@ -93,7 +93,7 @@ const SplitCandidate = struct {
 
     pub fn configurePartition(self: *Self, left: []const u32) void {
         self.condition = .{ .Partition = .{ .num = @intCast(left.len), .left = undefined } };
-        std.mem.copyForwards(u32, &self.condition.Partition.left, left);
+        @memcpy(&self.condition.Partition.left, left);
     }
 
     pub fn leftSide(self: *const Self, comptime T: type, l: u32, set: *const T) bool {

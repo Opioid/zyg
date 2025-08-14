@@ -20,7 +20,7 @@ const Vec2i = math.Vec2i;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 
 pub const Exporters = List(Sink);
 

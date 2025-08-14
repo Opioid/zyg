@@ -15,7 +15,7 @@ const Vec4f = math.Vec4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 
 pub const Graph = struct {
     pub const Null = Scene.Null;

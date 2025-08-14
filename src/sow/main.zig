@@ -41,7 +41,7 @@ const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 
 pub fn main() !void {
     log.info("Welcome to sow!", .{});

@@ -13,7 +13,7 @@ const encoding = base.encoding;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 
 const Data = struct {
     gonio_type: u32,

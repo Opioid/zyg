@@ -14,7 +14,7 @@ const Pack3f = math.Pack3f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 
 pub fn merge(alloc: Allocator, resources: *Resources) !bool {
     var model = Model{};
