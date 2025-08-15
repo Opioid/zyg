@@ -75,7 +75,7 @@ pub const Sample = struct {
         };
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32, force_disable_caustics: bool) bxdf.Result {
         if (self.super.properties.exit_sss) {
             const n_dot_wi = self.super.frame.clampNdot(wi);
             const pdf = n_dot_wi * math.pi_inv;
@@ -93,7 +93,7 @@ pub const Sample = struct {
         }
 
         if (self.super.properties.volumetric) {
-            return self.volumetricEvaluate(wi, max_splits);
+            return self.volumetricEvaluate(wi, max_splits, force_disable_caustics);
         }
 
         const wo = self.super.wo;
@@ -119,14 +119,14 @@ pub const Sample = struct {
         const h = math.normalize3(wo + wi);
         const wo_dot_h = math.safe.clampDot(wo, h);
 
-        var base_result = self.baseEvaluate(wi, wo, h, wo_dot_h);
+        var base_result = self.baseEvaluate(wi, wo, h, wo_dot_h, force_disable_caustics);
 
         if (translucent) {
             base_result.pdf *= op;
         }
 
         if (self.coating.thickness > 0.0) {
-            const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.specular_threshold, self.super.avoidCaustics());
+            const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.specular_threshold, self.super.avoidCausticsForce(force_disable_caustics));
             const pdf = coating.f * coating.pdf + (1.0 - coating.f) * base_result.pdf;
             return bxdf.Result.init(coating.reflection + coating.attenuation * base_result.reflection, pdf);
         }
@@ -223,7 +223,7 @@ pub const Sample = struct {
         }
     }
 
-    fn baseEvaluate(self: *const Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32) bxdf.Result {
+    fn baseEvaluate(self: *const Sample, wi: Vec4f, wo: Vec4f, h: Vec4f, wo_dot_h: f32, force_disable_caustics: bool) bxdf.Result {
         const frame = self.super.frame;
         const alpha = self.super.alpha;
 
@@ -242,7 +242,7 @@ pub const Sample = struct {
             dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, am);
         }
 
-        if (self.super.avoidCaustics() and alpha[1] <= self.specular_threshold) {
+        if (self.super.avoidCausticsForce(force_disable_caustics) and alpha[1] <= self.specular_threshold) {
             return bxdf.Result.init(@as(Vec4f, @splat(n_dot_wi)) * d.reflection, dw * d.pdf);
         }
 
@@ -405,7 +405,7 @@ pub const Sample = struct {
 
         const coating_attenuation = self.coating.reflect(wo, h, n_dot_wo, n_dot_h, h_dot_wi, self.specular_threshold, result);
 
-        const base_result = self.baseEvaluate(result.wi, wo, h, h_dot_wi);
+        const base_result = self.baseEvaluate(result.wi, wo, h, h_dot_wi, false);
 
         result.reflection = (result.reflection * @as(Vec4f, @splat(f))) + coating_attenuation * base_result.reflection;
         result.pdf = f * result.pdf + (1.0 - f) * base_result.pdf;
@@ -426,7 +426,7 @@ pub const Sample = struct {
         return fresnel.schlick1(math.max(n_dot_wi, n_dot_wo), f0);
     }
 
-    fn volumetricEvaluate(self: *const Sample, wi: Vec4f, max_splits: u32) bxdf.Result {
+    fn volumetricEvaluate(self: *const Sample, wi: Vec4f, max_splits: u32, force_disable_caustics: bool) bxdf.Result {
         const quo_ior = self.ior;
         if (quo_ior.eta_i == quo_ior.eta_t) {
             return bxdf.Result.empty();
@@ -478,7 +478,7 @@ pub const Sample = struct {
             );
         }
 
-        if (self.super.avoidCaustics() and alpha[1] <= self.specular_threshold) {
+        if (self.super.avoidCausticsForce(force_disable_caustics) and alpha[1] <= self.specular_threshold) {
             return bxdf.Result.empty();
         }
 
@@ -500,7 +500,7 @@ pub const Sample = struct {
         const base_pdf = split_pdf * gg.r.pdf;
 
         if (coated) {
-            const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.specular_threshold, self.super.avoidCaustics());
+            const coating = self.coating.evaluate(wi, wo, h, wo_dot_h, self.specular_threshold, self.super.avoidCausticsForce(force_disable_caustics));
             const pdf = coating.f * coating.pdf + (1.0 - coating.f) * base_pdf;
             return bxdf.Result.init(coating.reflection + coating.attenuation * base_reflection, pdf);
         }

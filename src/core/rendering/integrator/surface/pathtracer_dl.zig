@@ -168,7 +168,7 @@ pub const PathtracerDL = struct {
                     continue;
                 }
 
-                const bxdf_result = mat_sample.evaluate(light_sample.wi, 1);
+                const bxdf_result = mat_sample.evaluate(light_sample.wi, 1, false);
 
                 const radiance = light.evaluateTo(p, trafo, light_sample, sampler, context);
 

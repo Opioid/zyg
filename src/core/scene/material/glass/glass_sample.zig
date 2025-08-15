@@ -65,12 +65,12 @@ pub const Sample = struct {
         };
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32, force_disable_caustics: bool) bxdf.Result {
         const alpha = self.super.alpha[0];
         const rough = alpha > 0.0;
 
         if (self.ior == self.ior_outside or !rough or self.super.properties.lower_priority or
-            (self.super.avoidCaustics() and alpha <= self.specular_threshold))
+            (self.super.avoidCausticsForce(force_disable_caustics) and alpha <= self.specular_threshold))
         {
             return bxdf.Result.empty();
         }

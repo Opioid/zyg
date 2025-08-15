@@ -92,6 +92,10 @@ pub const Base = struct {
         return self.properties.avoid_caustics;
     }
 
+    pub fn avoidCausticsForce(self: Self, force: bool) bool {
+        return force or self.properties.avoid_caustics;
+    }
+
     pub fn averageAlpha(self: Self) f32 {
         return self.alpha[0];
     }

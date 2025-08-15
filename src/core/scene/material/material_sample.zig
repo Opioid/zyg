@@ -42,10 +42,10 @@ pub const Sample = union(enum) {
         };
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32, force_disable_caustics: bool) bxdf.Result {
         return switch (self.*) {
             .Light => bxdf.Result.init(@splat(0.0), 0.0),
-            inline .Glass, .Substitute => |*s| s.evaluate(wi, max_splits),
+            inline .Glass, .Substitute => |*s| s.evaluate(wi, max_splits, force_disable_caustics),
             inline else => |*s| s.evaluate(wi),
         };
     }

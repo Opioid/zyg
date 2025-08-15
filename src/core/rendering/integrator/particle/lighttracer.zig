@@ -228,7 +228,7 @@ pub const Lighttracer = struct {
                 continue;
             }
 
-            const bxdf_result = mat_sample.evaluate(wi, max_material_splits);
+            const bxdf_result = mat_sample.evaluate(wi, max_material_splits, true);
 
             const nsc = hlp.nonSymmetryCompensation(wi, wo, frag.geo_n, n);
 
