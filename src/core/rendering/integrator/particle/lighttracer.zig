@@ -67,6 +67,8 @@ pub const Lighttracer = struct {
         var vertices: VertexPool = undefined;
         vertices.start(input);
 
+        var energy: Vec4f = @splat(0.0);
+
         while (vertices.iterate()) {
             while (vertices.consume()) |vertex| {
                 const total_depth = vertex.probe.depth.total();
@@ -85,8 +87,7 @@ pub const Lighttracer = struct {
 
                 if (0 == vertex.probe.depth.surface) {
                     const pdf: Vec4f = @splat(light_sample.pdf());
-                    const energy = light.evaluateFrom(frag.p, light_sample, sampler, worker.context) / pdf;
-                    vertex.throughput *= energy;
+                    energy = light.evaluateFrom(frag.p, light_sample, sampler, worker.context) / pdf;
                 }
 
                 const mat_sample = vertex.sample(&frag, sampler, true, worker.context);
@@ -94,11 +95,11 @@ pub const Lighttracer = struct {
                 const max_splits = VertexPool.maxSplits(vertex, total_depth);
 
                 if (mat_sample.canEvaluate() and (vertex.state.started_specular or self.settings.full_light_path)) {
-                    _ = directCamera(camera, sensor, vertex, &frag, &mat_sample, max_splits, sampler, worker.context);
+                    directCamera(camera, sensor, energy, vertex, &frag, &mat_sample, max_splits, sampler, worker.context);
+                }
 
-                    if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
-                        continue;
-                    }
+                if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
+                    continue;
                 }
 
                 var bxdf_samples: bxdf.Samples = undefined;
@@ -131,14 +132,14 @@ pub const Lighttracer = struct {
                         next_vertex.state.primary_ray = false;
                     }
 
+                    if (.Straight != path.event) {
+                        next_vertex.origin = frag.p;
+                    }
+
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
                     next_vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
                     next_vertex.probe.depth.increment(&frag);
-
-                    if (.Straight != path.event) {
-                        next_vertex.origin = frag.p;
-                    }
 
                     if (0.0 == next_vertex.probe.wavelength) {
                         next_vertex.probe.wavelength = sample_result.wavelength;
@@ -182,6 +183,7 @@ pub const Lighttracer = struct {
     fn directCamera(
         camera: *const Camera,
         sensor: *Sensor,
+        energy: Vec4f,
         vertex: *const Vertex,
         frag: *const Fragment,
         mat_sample: *const MaterialSample,
@@ -208,7 +210,7 @@ pub const Lighttracer = struct {
         const n = mat_sample.super().interpolatedNormal();
 
         for (0..camera.numLayers()) |l| {
-            const layer: u32 = @truncate(l);
+            const layer: u32 = @intCast(l);
 
             const camera_sample = camera.sampleTo(
                 layer,
@@ -233,7 +235,7 @@ pub const Lighttracer = struct {
             const nsc = hlp.nonSymmetryCompensation(wi, wo, frag.geo_n, n);
 
             const weight: Vec4f = @splat(camera_sample.pdf * nsc * vertex.split_weight);
-            const result = weight * (tr * vertex.throughput * bxdf_result.reflection);
+            const result = weight * tr * vertex.throughput * bxdf_result.reflection * energy;
 
             sensor.splatSample(layer, camera_sample, result, crop);
         }
