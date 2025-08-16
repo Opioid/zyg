@@ -80,7 +80,7 @@ pub const Lighttracer = struct {
                 var frag: Fragment = undefined;
                 worker.context.nextEvent(vertex, &frag, sampler);
                 if (.Absorb == frag.event or .Abort == frag.event or !frag.hit()) {
-                    break;
+                    continue;
                 }
 
                 if (0 == vertex.probe.depth.surface) {
