@@ -207,7 +207,7 @@ pub const View = struct {
                     },
                 } };
             } else if (std.mem.eql(u8, "PTMIS", entry.key_ptr.*)) {
-                const regularize_roughness = json.readBoolMember(entry.value_ptr.*, "regularize_roughness", false);
+                const regularize_roughness = json.readFloatMember(entry.value_ptr.*, "regularize_roughness", 0.0);
                 const caustics_resolve = json.readBoolMember(entry.value_ptr.*, "caustics", true);
                 const depth = loadDepth(entry.value_ptr.*, Default_depth);
                 const light_sampling = loadLightSampling(entry.value_ptr.*);
@@ -231,10 +231,12 @@ pub const View = struct {
         const full_light_path = json.readBoolMember(value, "full_light_path", true);
         self.num_particles_per_pixel = json.readUIntMember(value, "particles_per_pixel", 1);
 
-        self.lighttracer = .{ .settings = .{
-            .max_depth = depth,
-            .full_light_path = full_light_path and !surface_integrator,
-        } };
+        self.lighttracer = .{
+            .settings = .{
+                .max_depth = depth,
+                .full_light_path = full_light_path and !surface_integrator,
+            },
+        };
     }
 
     fn loadPhotonSettings(value: std.json.Value, lighttracer: bool) PhotonSettings {

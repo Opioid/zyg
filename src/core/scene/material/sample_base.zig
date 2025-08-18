@@ -96,8 +96,8 @@ pub const Base = struct {
         return force or self.properties.avoid_caustics;
     }
 
-    pub fn averageAlpha(self: Self) f32 {
-        return self.alpha[0];
+    pub fn aovRoughness(self: Self) f32 {
+        return @sqrt(self.alpha[0]);
     }
 };
 

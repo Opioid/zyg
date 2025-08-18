@@ -167,7 +167,7 @@ pub const Material = struct {
             result.coating.absorption_coef = self.coating_absorption_coef;
             result.coating.thickness = coating_thickness;
             result.coating.f0 = fresnel.Schlick.IorToF0(coating_ior, rs.ior);
-            result.coating.alpha = r * r;
+            result.coating.alpha = rs.regularizeAlpha(@splat(r * r), context.scene.specular_threshold)[0];
             result.coating.weight = coating_weight;
         }
 

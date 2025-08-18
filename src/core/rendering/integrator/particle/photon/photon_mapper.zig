@@ -115,7 +115,7 @@ pub const Mapper = struct {
                     vertex.throughput *= energy;
                 }
 
-                const mat_sample = vertex.sample(&frag, &self.sampler, true, context);
+                const mat_sample = vertex.sample(&frag, &self.sampler, 0.0, true, context);
 
                 if (mat_sample.canEvaluate() and (vertex.state.started_specular or self.settings.full_light_path)) {
                     if (finite_world or bounds.pointInside(frag.p)) {
@@ -161,7 +161,7 @@ pub const Mapper = struct {
                 const path = sample_result.path;
                 if (.Specular == path.scattering) {
                     vertex.state.specular = true;
-                    vertex.state.singular = path.singular;
+                    vertex.state.singular = path.singular();
 
                     if (vertex.state.primary_ray) {
                         vertex.state.started_specular = true;

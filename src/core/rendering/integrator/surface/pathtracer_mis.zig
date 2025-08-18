@@ -25,7 +25,7 @@ pub const PathtracerMIS = struct {
     pub const Settings = struct {
         max_depth: hlp.Depth,
         light_sampling: hlp.LightSampling,
-        regularize_roughness: bool,
+        regularize_roughness: f32,
         caustics_path: bool,
         photons_not_only_through_specular: bool,
     };
@@ -91,14 +91,10 @@ pub const PathtracerMIS = struct {
                 }
 
                 const caustics = self.causticsResolve(vertex.state);
-                const mat_sample = vertex.sample(&frag, sampler, caustics, worker.context);
+                const mat_sample = vertex.sample(&frag, sampler, self.settings.regularize_roughness, caustics, worker.context);
 
                 if (worker.aov.active()) {
                     worker.commonAOV(vertex, &frag, &mat_sample);
-                }
-
-                if (self.settings.regularize_roughness) {
-                    vertex.min_alpha = math.max(vertex.min_alpha, mat_sample.super().averageAlpha());
                 }
 
                 split_throughput = vertex.throughput * split_weight;
@@ -143,7 +139,7 @@ pub const PathtracerMIS = struct {
                     const path = sample_result.path;
                     if (.Specular == path.scattering) {
                         next_vertex.state.specular = true;
-                        next_vertex.state.singular = path.singular;
+                        next_vertex.state.singular = path.singular();
 
                         if (vertex.state.primary_ray) {
                             next_vertex.state.started_specular = true;
@@ -160,6 +156,7 @@ pub const PathtracerMIS = struct {
                         next_vertex.bxdf_pdf = sample_result.pdf;
                         next_vertex.origin = frag.p;
                         next_vertex.geo_n = mat_sample.super().geometricNormal();
+                        next_vertex.reg_alpha = path.reg_alpha;
                     }
 
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));

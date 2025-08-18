@@ -1,6 +1,6 @@
-const smpl = @import("../sample_base.zig");
-const Base = smpl.Base;
-const IoR = smpl.IoR;
+const sample = @import("../sample_base.zig");
+const Base = sample.Base;
+const IoR = sample.IoR;
 const Material = @import("../material_base.zig").Base;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
@@ -125,7 +125,7 @@ pub const Sample = struct {
             const split_pdf = if (split) 1.0 else gg.f[0];
 
             return bxdf.Result.init(
-                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp * s)) * self.super.albedo * gg.r.reflection,
+                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp * s)) * gg.r.reflection,
                 split_pdf * gg.r.pdf,
             );
         } else if (self.super.sameHemisphere(wi)) {
@@ -376,7 +376,7 @@ pub const Sample = struct {
                     return buffer[0..1];
                 }
 
-                buffer[1].reflection *= @as(Vec4f, @splat(n_dot_wi * ep)) * weight * self.super.albedo;
+                buffer[1].reflection *= @as(Vec4f, @splat(n_dot_wi * ep)) * weight;
                 buffer[1].split_weight = 1.0 - f;
                 buffer[1].wavelength = wavelength;
             }
@@ -415,7 +415,7 @@ pub const Sample = struct {
 
                 const omf = 1.0 - f;
 
-                result.reflection *= @as(Vec4f, @splat(omf * n_dot_wi * ep)) * weight * self.super.albedo;
+                result.reflection *= @as(Vec4f, @splat(omf * n_dot_wi * ep)) * weight;
                 result.pdf *= omf;
             }
 

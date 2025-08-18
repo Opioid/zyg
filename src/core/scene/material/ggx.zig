@@ -119,7 +119,7 @@ pub const Iso = struct {
         result.reflection = @as(Vec4f, @splat(d * g[0])) * f;
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.path = .reflection(alpha <= specular_threshold);
+        result.path = .reflection(alpha, specular_threshold);
 
         return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = wo_dot_h };
     }
@@ -180,7 +180,7 @@ pub const Iso = struct {
         result.reflection = @splat(d * g[0]);
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.path = .reflection(alpha <= specular_threshold);
+        result.path = .reflection(alpha, specular_threshold);
 
         return n_dot_wi;
     }
@@ -221,7 +221,7 @@ pub const Iso = struct {
         result.reflection = @splat((factor * sqr_eta_t / denom) * refr);
         result.wi = wi;
         result.pdf = pdf * (abs_wi_dot_h * sqr_eta_t / denom);
-        result.path = .transmission(alpha <= specular_threshold);
+        result.path = .transmission(alpha, specular_threshold);
 
         return n_dot_wi;
     }
@@ -342,7 +342,7 @@ pub const Aniso = struct {
         result.reflection = @as(Vec4f, @splat(d * g[0])) * f;
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.path = .reflection(alpha[1] <= specular_threshold);
+        result.path = .reflection(alpha[1], specular_threshold);
 
         return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = wo_dot_h };
     }
@@ -381,7 +381,7 @@ pub const Aniso = struct {
         result.reflection = @splat(d * g[0]);
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.path = .reflection(alpha[1] <= specular_threshold);
+        result.path = .reflection(alpha[1], specular_threshold);
 
         return n_dot_wi;
     }

@@ -90,7 +90,7 @@ pub const Lighttracer = struct {
                     energy = light.evaluateFrom(frag.p, light_sample, sampler, worker.context) / pdf;
                 }
 
-                const mat_sample = vertex.sample(&frag, sampler, true, worker.context);
+                const mat_sample = vertex.sample(&frag, sampler, 0.0, true, worker.context);
 
                 const max_splits = VertexPool.maxSplits(vertex, total_depth);
 
@@ -121,7 +121,7 @@ pub const Lighttracer = struct {
 
                     if (.Specular == path.scattering) {
                         next_vertex.state.specular = true;
-                        next_vertex.state.singular = path.singular;
+                        next_vertex.state.singular = path.singular();
 
                         if (vertex.state.primary_ray) {
                             next_vertex.state.started_specular = true;

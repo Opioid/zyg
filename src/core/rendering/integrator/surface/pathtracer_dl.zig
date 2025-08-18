@@ -65,7 +65,7 @@ pub const PathtracerDL = struct {
             }
 
             const caustics = self.causticsResolve(vertex.state);
-            const mat_sample = vertex.sample(&frag, sampler, caustics, worker.context);
+            const mat_sample = vertex.sample(&frag, sampler, 0.0, caustics, worker.context);
 
             if (worker.aov.active()) {
                 worker.commonAOV(&vertex, &frag, &mat_sample);
@@ -90,7 +90,7 @@ pub const PathtracerDL = struct {
             const path = sample_result.path;
             if (.Specular == path.scattering) {
                 vertex.state.specular = true;
-                vertex.state.singular = path.singular;
+                vertex.state.singular = path.singular();
 
                 if (vertex.state.primary_ray) {
                     vertex.state.started_specular = true;

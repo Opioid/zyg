@@ -23,7 +23,8 @@ pub const Renderstate = struct {
     stochastic_r: f32,
     ior: f32,
     wavelength: f32,
-    min_alpha: f32,
+    reg_weight: f32,
+    reg_alpha: f32,
 
     prop: u32,
     part: u32,
@@ -57,11 +58,14 @@ pub const Renderstate = struct {
     }
 
     pub fn regularizeAlpha(self: Renderstate, alpha: Vec2f, specular_threshold: f32) Vec2f {
-        if (alpha[0] <= specular_threshold and !self.caustics) {
+        const weight = self.reg_weight;
+
+        if (0.0 == weight or (alpha[0] <= specular_threshold and !self.caustics)) {
             return alpha;
         }
 
-        return math.max2(alpha, @splat(self.min_alpha));
+        const one: Vec2f = @splat(1.0);
+        return one - ((one - alpha) * @as(Vec2f, @splat(1.0 - weight * self.reg_alpha)));
     }
 
     pub fn volumeScatter(self: Renderstate) bool {

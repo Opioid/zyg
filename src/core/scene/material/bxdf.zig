@@ -38,30 +38,34 @@ pub const Sample = struct {
         Straight,
     };
 
-    pub const Path = packed struct {
+    pub const Path = struct {
+        reg_alpha: f32,
         scattering: Scattering,
         event: Event,
-        singular: bool,
 
-        pub const straight: Path = .{ .scattering = .None, .event = .Straight, .singular = false };
-        pub const singularReflection: Path = .{ .scattering = .Specular, .event = .Reflection, .singular = true };
-        pub const singularTransmission: Path = .{ .scattering = .Specular, .event = .Transmission, .singular = true };
-        pub const glossyReflection: Path = .{ .scattering = .Glossy, .event = .Reflection, .singular = false };
+        pub const straight: Path = .{ .reg_alpha = 1.0, .scattering = .None, .event = .Straight };
+        pub const singularReflection: Path = .{ .reg_alpha = 0.0, .scattering = .Specular, .event = .Reflection };
+        pub const singularTransmission: Path = .{ .reg_alpha = 0.0, .scattering = .Specular, .event = .Transmission };
+        pub const diffuseReflection: Path = .{ .reg_alpha = 1.0, .scattering = .Diffuse, .event = .Reflection };
 
-        pub fn reflection(specular: bool) Path {
+        pub fn reflection(alpha: f32, specular_threshold: f32) Path {
             return .{
-                .scattering = if (specular) .Specular else .Glossy,
+                .reg_alpha = alpha,
+                .scattering = if (alpha <= specular_threshold) .Specular else .Glossy,
                 .event = .Reflection,
-                .singular = false,
             };
         }
 
-        pub fn transmission(specular: bool) Path {
+        pub fn transmission(alpha: f32, specular_threshold: f32) Path {
             return .{
-                .scattering = if (specular) .Specular else .Glossy,
+                .reg_alpha = alpha,
+                .scattering = if (alpha <= specular_threshold) .Specular else .Glossy,
                 .event = .Transmission,
-                .singular = false,
             };
+        }
+
+        pub fn singular(self: Path) bool {
+            return 0.0 == self.reg_alpha;
         }
     };
 

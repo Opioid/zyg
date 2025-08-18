@@ -1,5 +1,4 @@
-const sample = @import("../sample_base.zig");
-const Base = sample.Base;
+const Base = @import("../sample_base.zig").Base;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const bxdf = @import("../bxdf.zig");
@@ -46,7 +45,7 @@ pub const Sample = struct {
         sin2k_alpha: [3]f32,
         cos2k_alpha: [3]f32,
     ) Sample {
-        var super = Base.init(rs, wo, color, @splat(1.0), 0);
+        var super = Base.init(rs, wo, color, @splat(0.1), 0);
 
         super.properties.translucent = true;
         super.frame = .{ .x = rs.t, .y = rs.b, .z = rs.n };
@@ -238,7 +237,7 @@ pub const Sample = struct {
             .pdf = er.pdf,
             .split_weight = 1.0,
             .wavelength = 0.0,
-            .path = .glossyReflection,
+            .path = .reflection(self.super.alpha[1], 0.0),
         };
     }
 

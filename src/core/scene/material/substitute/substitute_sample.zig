@@ -159,7 +159,7 @@ pub const Sample = struct {
                 .pdf = pdf,
                 .split_weight = 1.0,
                 .wavelength = 0.0,
-                .path = .{ .scattering = .Diffuse, .event = .Reflection, .singular = false },
+                .path = .diffuseReflection,
             };
 
             return buffer[0..1];
@@ -372,7 +372,7 @@ pub const Sample = struct {
             result.reflection = @as(Vec4f, @splat(n_dot_wi * f * s)) * self.f0;
             result.wi = wi;
             result.pdf = f;
-            result.path = .glossyReflection;
+            result.path = .reflection(alpha[1], self.specular_threshold);
 
             return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = wi_dot_h };
         } else {

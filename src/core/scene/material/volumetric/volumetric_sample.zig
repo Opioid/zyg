@@ -68,7 +68,7 @@ pub const Sample = struct {
                 .pdf = phase,
                 .split_weight = split_weight,
                 .wavelength = 0.0,
-                .path = .{ .scattering = .Diffuse, .event = .Reflection, .singular = false },
+                .path = .diffuseReflection,
             };
         }
 
