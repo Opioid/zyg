@@ -25,6 +25,7 @@ pub const Sample = struct {
 
     cc: ccoef.CC,
 
+    albedo: Vec4f,
     f0: Vec4f,
 
     ior: IoR,
@@ -56,7 +57,7 @@ pub const Sample = struct {
         const volumetric = attenuation_distance > 0.0 and !translucent;
         const ior_medium = rs.ior;
 
-        var super = Base.init(rs, wo, color, reg_alpha, priority);
+        var super = Base.init(rs, wo, reg_alpha, priority);
         super.properties.can_evaluate = ior != ior_medium;
         super.properties.translucent = translucent;
         super.properties.volumetric = volumetric;
@@ -66,6 +67,7 @@ pub const Sample = struct {
         return .{
             .super = super,
             .cc = if (volumetric) ccoef.attenuation(attenuation_color, color, attenuation_distance, volumetric_anisotropy) else undefined,
+            .albedo = color,
             .f0 = math.lerp(@as(Vec4f, @splat(f0)), albedo, @as(Vec4f, @splat(metallic))),
             .ior = .{ .eta_t = ior, .eta_i = ior_medium },
             .metallic = metallic,
@@ -73,6 +75,14 @@ pub const Sample = struct {
             .specular_threshold = specular_threshold,
             .opacity = 1.0 - (0.5 * translucency),
         };
+    }
+
+    pub fn aovAlbedo(self: *const Sample) Vec4f {
+        if (self.super.properties.volumetric) {
+            return ccoef.meanSurfaceAlbedo(self.cc.a, self.cc.s);
+        }
+
+        return math.lerp(self.albedo, self.f0, @as(Vec4f, @splat(self.metallic)));
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32, force_disable_caustics: bool) bxdf.Result {
@@ -110,7 +120,7 @@ pub const Sample = struct {
 
                 const pdf = n_dot_wi * ((1.0 - op) * math.pi_inv);
 
-                return bxdf.Result.init(@as(Vec4f, @splat(pdf * (1.0 - f))) * self.super.albedo, pdf);
+                return bxdf.Result.init(@as(Vec4f, @splat(pdf * (1.0 - f))) * self.albedo, pdf);
             }
         } else if (!self.super.sameHemisphere(wo)) {
             return bxdf.Result.empty();
@@ -180,7 +190,7 @@ pub const Sample = struct {
             const p = s3[0];
             if (p <= tr) {
                 const frame = self.super.frame;
-                const n_dot_wi = diffuse.Lambert.reflect(self.super.albedo, frame, sampler, result);
+                const n_dot_wi = diffuse.Lambert.reflect(self.albedo, frame, sampler, result);
                 const n_dot_wo = frame.clampAbsNdot(self.super.wo);
 
                 const f = diffuseFresnelHack(n_dot_wi, n_dot_wo, self.f0[0]);
@@ -234,11 +244,11 @@ pub const Sample = struct {
         var dw: f32 = 0.0;
 
         if (1.0 != self.metallic) {
-            const albedo = @as(Vec4f, @splat(self.opacity)) * self.super.albedo;
+            const albedo = @as(Vec4f, @splat(self.opacity)) * self.albedo;
             const f0m = math.hmax3(self.f0);
             d = diffuse.Micro.reflection(albedo, f0m, n_dot_wi, n_dot_wo, alpha[1]);
 
-            const am = math.hmax3(self.super.albedo);
+            const am = math.hmax3(self.albedo);
             dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, am);
         }
 
@@ -277,7 +287,7 @@ pub const Sample = struct {
 
             const n_dot_wo = frame.clampAbsNdot(wo);
             const f0m = math.hmax3(self.f0);
-            const am = math.hmax3(self.super.albedo);
+            const am = math.hmax3(self.albedo);
             dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, am);
         }
 
@@ -310,7 +320,7 @@ pub const Sample = struct {
 
                 const n_dot_wo = frame.clampAbsNdot(wo);
                 const f0m = math.hmax3(self.f0);
-                const am = math.hmax3(self.super.albedo);
+                const am = math.hmax3(self.albedo);
                 dw = diffuse.Micro.estimateContribution(n_dot_wo, alpha[1], f0m, am);
             }
 
@@ -332,7 +342,7 @@ pub const Sample = struct {
 
         const n_dot_wo = frame.clampAbsNdot(wo);
 
-        const albedo = @as(Vec4f, @splat(self.opacity)) * self.super.albedo;
+        const albedo = @as(Vec4f, @splat(self.opacity)) * self.albedo;
         const f0m = math.hmax3(self.f0);
         const micro = diffuse.Micro.reflect(albedo, f0m, wo, n_dot_wo, frame, alpha[1], xi, result);
 
@@ -387,7 +397,7 @@ pub const Sample = struct {
             var d: bxdf.Result = bxdf.Result.empty();
 
             if (diffuse_weight > 0.0) {
-                const albedo = @as(Vec4f, @splat(self.opacity)) * self.super.albedo;
+                const albedo = @as(Vec4f, @splat(self.opacity)) * self.albedo;
                 const f0m = math.hmax3(self.f0);
                 d = diffuse.Micro.reflection(albedo, f0m, micro.n_dot_wi, n_dot_wo, alpha[1]);
             }

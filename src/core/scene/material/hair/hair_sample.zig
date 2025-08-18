@@ -38,14 +38,14 @@ pub const Sample = struct {
     pub fn init(
         rs: Renderstate,
         wo: Vec4f,
-        color: Vec4f,
+        mu_a: Vec4f,
         ior: f32,
         v: [3]f32,
         s: f32,
         sin2k_alpha: [3]f32,
         cos2k_alpha: [3]f32,
     ) Sample {
-        var super = Base.init(rs, wo, color, @splat(0.1), 0);
+        var super = Base.init(rs, wo, @splat(0.1), 0);
 
         super.properties.translucent = true;
         super.frame = .{ .x = rs.t, .y = rs.b, .z = rs.n };
@@ -64,10 +64,9 @@ pub const Sample = struct {
         const cos_gamma_t = @sqrt(1.0 - sin_gamma_t * sin_gamma_t);
 
         // Compute the transmittance tr of a single path through the cylinder
-        // We store absorption coefficient in albedo for this material!
         const sin_theta_t = sin_theta_o / eta;
         const cos_theta_t = @sqrt(1.0 - sin_theta_t * sin_theta_t);
-        const tr = @exp(-color * @as(Vec4f, @splat(2.0 * cos_gamma_t / cos_theta_t)));
+        const tr = @exp(-mu_a * @as(Vec4f, @splat(2.0 * cos_gamma_t / cos_theta_t)));
         const ap = apFunc(cos_theta_o, eta, h, tr);
 
         return .{
@@ -84,6 +83,16 @@ pub const Sample = struct {
             .cos2k_alpha = cos2k_alpha,
             .ap = ap,
         };
+    }
+
+    pub fn aovAlbedo(self: *const Sample) Vec4f {
+        const pdf = self.ap.pdf[MaxP];
+
+        if (0.0 == pdf) {
+            return @splat(0.0);
+        }
+
+        return math.min4(self.ap.reflection[MaxP] / @as(Vec4f, @splat(pdf)), @splat(1.0));
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {

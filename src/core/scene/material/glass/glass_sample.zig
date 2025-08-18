@@ -46,7 +46,7 @@ pub const Sample = struct {
         const rough = reg_alpha[0] > 0.0;
         const ior_outside = rs.ior;
 
-        var super = Base.init(rs, wo, @splat(1.0), reg_alpha, priority);
+        var super = Base.init(rs, wo, reg_alpha, priority);
 
         super.properties.can_evaluate = rough and ior != ior_outside;
         super.properties.translucent = thickness > 0.0;

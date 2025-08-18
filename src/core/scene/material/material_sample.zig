@@ -37,8 +37,10 @@ pub const Sample = union(enum) {
 
     pub fn aovAlbedo(self: *const Sample) Vec4f {
         return switch (self.*) {
-            .Substitute => |*s| math.lerp(s.super.albedo, s.f0, @as(Vec4f, @splat(s.metallic))),
-            inline else => |*s| s.super.albedo,
+            inline .Hair, .Substitute => |*s| s.aovAlbedo(),
+            .Debug => |*s| s.albedo,
+            .Glass => @splat(1.0),
+            inline else => @splat(0.0),
         };
     }
 
