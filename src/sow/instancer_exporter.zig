@@ -100,7 +100,7 @@ pub const Exporter = struct {
         var file_buffer: [4096]u8 = undefined;
         var txt_writer = file.writer(&file_buffer);
 
-        _ = try txt_writer.interface.writeAll(out.getWritten());
+        _ = try txt_writer.interface.writeAll(out.written());
         try txt_writer.end();
     }
 };

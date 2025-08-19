@@ -149,7 +149,7 @@ pub const Writer = struct {
 
         try writer.writeByte(0x00);
 
-        const header_buf = header.getWritten();
+        const header_buf = header.written();
         const header_size = header_buf.len;
         try writer_.writeAll(header_buf);
         header.deinit();
