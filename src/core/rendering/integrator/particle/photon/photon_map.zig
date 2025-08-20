@@ -110,7 +110,7 @@ pub const Map = struct {
 
         var aabb: AABB = .empty;
         for (self.photons[begin..end]) |p| {
-            aabb.insert(p.p);
+            aabb.insert(p.position());
         }
 
         self.aabbs[id] = aabb;

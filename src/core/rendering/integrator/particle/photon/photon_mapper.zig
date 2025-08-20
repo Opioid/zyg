@@ -128,12 +128,7 @@ pub const Mapper = struct {
                             radiance *= @as(Vec4f, @splat(eta * eta));
                         }
 
-                        self.photons[num_photons] = Photon{
-                            .p = frag.p,
-                            .wi = -vertex.probe.ray.direction,
-                            .alpha = .{ radiance[0], radiance[1], radiance[2] },
-                            .volumetric = frag.subsurface(),
-                        };
+                        self.photons[num_photons] = Photon.init(frag.p, -vertex.probe.ray.direction, radiance, frag.subsurface());
 
                         iteration = i + 1;
                         num_photons += 1;
