@@ -38,7 +38,7 @@ pub fn testSize() void {
     testType(Vertex, "Vertex", 672);
     testType(smpl.To, "SampleTo", 64);
     testType(smpl.From, "SampleFrom", 144);
-    testType(Photon, "Photon", 40);
+    testType(Photon, "Photon", 32);
     testType(BvhNode, "BvhNode", 32);
     testType(LightNode, "LightNode", 32);
     testType(mdm.Medium, "Medium", 80);

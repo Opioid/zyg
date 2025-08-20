@@ -2,6 +2,7 @@ const std = @import("std");
 const math = @import("minmax.zig");
 
 pub const Vec2b = @Vector(2, u8);
+pub const Vec2us = @Vector(2, u16);
 pub const Vec2i = @Vector(2, i32);
 pub const Vec2u = @Vector(2, u32);
 pub const Vec2f = @Vector(2, f32);

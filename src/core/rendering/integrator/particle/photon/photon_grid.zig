@@ -707,7 +707,7 @@ const Buffer = struct {
     };
 
     num_entries: u32 = 0,
-    entries: [128]Entry = undefined,
+    entries: [64]Entry = undefined,
 
     const Self = @This();
 

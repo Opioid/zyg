@@ -110,13 +110,10 @@ pub fn conePdfCosine(cos_theta_max: f32) f32 {
 }
 
 pub fn octEncode(v: Vec4f) Vec2f {
-    const inorm = 1.0 / (@abs(v[0]) + @abs(v[1]) + @abs(v[2]));
-    const t = mima.max(v[2], 0.0);
-
-    return .{
-        (v[0] + if (v[0] > 0.0) t else -t) * inorm,
-        (v[1] + if (v[1] > 0.0) t else -t) * inorm,
-    };
+    const inorm: Vec2f = @splat(1.0 / (@abs(v[0]) + @abs(v[1]) + @abs(v[2])));
+    const t: Vec2f = @splat(mima.max(v[2], 0.0));
+    const v2 = Vec2f{ v[0], v[1] };
+    return (v2 + @select(f32, v2 > @as(Vec2f, @splat(0.0)), t, -t)) * inorm;
 }
 
 pub fn octDecode(o: Vec2f) Vec4f {
