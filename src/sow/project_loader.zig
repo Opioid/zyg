@@ -15,7 +15,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
-    const buffer = try stream.readAll(alloc);
+    const buffer = try stream.readAlloc(alloc);
     defer alloc.free(buffer);
 
     var parsed = try std.json.parseFromSlice(

@@ -7,7 +7,7 @@ const Transformation = math.Transformation;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 
 pub const Prototype = struct {
     shape_type: []u8,

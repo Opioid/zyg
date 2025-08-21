@@ -41,8 +41,8 @@ pub const Sky = struct {
 
     pub const Radius = @tan(@as(f32, @floatCast(Model.AngularRadius)));
 
-    pub const Bake_dimensions = Vec2i{ 1024, 1024 };
-    pub const Bake_dimensions_sun: u32 = 1024;
+    pub const BakeDimensions = Vec2i{ 1024, 1024 };
+    pub const BakeDimensionsSun: u32 = 1024;
 
     const Self = @This();
 
@@ -180,14 +180,14 @@ pub const Sky = struct {
     ) !void {
         var image = &scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.data.image.id).Float3;
 
-        try image.resize(alloc, img.Description.init2D(Bake_dimensions));
+        try image.resize(alloc, img.Description.init2D(BakeDimensions));
 
         const sun_direction = self.sun_rotation.r[2];
         var model = Model.init(alloc, sun_direction, self.visibility, self.albedo, fs) catch {
             var y: i32 = 0;
-            while (y < Bake_dimensions[1]) : (y += 1) {
+            while (y < BakeDimensions[1]) : (y += 1) {
                 var x: i32 = 0;
-                while (x < Bake_dimensions[0]) : (x += 1) {
+                while (x < BakeDimensions[0]) : (x += 1) {
                     image.set2D(x, y, math.Pack3f.init1(0.0));
                 }
             }
@@ -199,10 +199,10 @@ pub const Sky = struct {
         };
         defer model.deinit();
 
-        var sun_image = try img.Float3.init(alloc, img.Description.init2D(.{ Bake_dimensions_sun, 1 }));
+        var sun_image = try img.Float3.init(alloc, img.Description.init2D(.{ BakeDimensionsSun, 1 }));
         defer sun_image.deinit(alloc);
 
-        const n: f32 = @floatFromInt(Bake_dimensions_sun - 1);
+        const n: f32 = @floatFromInt(BakeDimensionsSun - 1);
 
         var rng = RNG.init(0, 0);
 
@@ -227,15 +227,19 @@ pub const Sky = struct {
 
         const ew = ExrWriter{ .half = false };
 
+        var file_buffer: [4096]u8 = undefined;
+
         {
             var file = try std.fs.cwd().createFile(sky_filename, .{});
             defer file.close();
 
+            var writer = file.writer(&file_buffer);
+
             try ew.write(
                 alloc,
-                file.deprecatedWriter(),
+                &writer.interface,
                 .{ .Float3 = image.* },
-                .{ 0, 0, Bake_dimensions[0], Bake_dimensions[1] },
+                .{ 0, 0, BakeDimensions[0], BakeDimensions[1] },
                 .Color,
                 threads,
             );
@@ -245,11 +249,13 @@ pub const Sky = struct {
             var file = try std.fs.cwd().createFile(sun_filename, .{});
             defer file.close();
 
+            var writer = file.writer(&file_buffer);
+
             try ew.write(
                 alloc,
-                file.deprecatedWriter(),
+                &writer.interface,
                 .{ .Float3 = sun_image },
-                .{ 0, 0, Bake_dimensions_sun, 1 },
+                .{ 0, 0, BakeDimensionsSun, 1 },
                 .Color,
                 threads,
             );
@@ -280,19 +286,19 @@ const SkyContext = struct {
 
         var rng: RNG = undefined;
 
-        const idf = @as(Vec2f, @splat(1.0)) / @as(Vec2f, @floatFromInt(Sky.Bake_dimensions));
+        const idf = @as(Vec2f, @splat(1.0)) / @as(Vec2f, @floatFromInt(Sky.BakeDimensions));
 
         while (true) {
             const y = @atomicRmw(u32, &self.current, .Add, 1, .monotonic);
-            if (y >= Sky.Bake_dimensions[1]) {
+            if (y >= Sky.BakeDimensions[1]) {
                 return;
             }
 
             const v = idf[1] * (@as(f32, @floatFromInt(y)) + 0.5);
 
             var x: u32 = 0;
-            while (x < Sky.Bake_dimensions[0]) : (x += 1) {
-                rng.start(0, y * Sky.Bake_dimensions[0] + x);
+            while (x < Sky.BakeDimensions[0]) : (x += 1) {
+                rng.start(0, y * Sky.BakeDimensions[0] + x);
 
                 const u = idf[0] * (@as(f32, @floatFromInt(x)) + 0.5);
                 const uv = Vec2f{ u, v };

@@ -8,20 +8,18 @@ const mz = @cImport({
 });
 
 pub const GzipReadStream = struct {
-    const Error = error{
+    const ReadError = error{
         InvalidGzipHeader,
         UnknownGzipCompressionAlgorithm,
         InitMZStreamFailed,
         InflateMZStreamFailed,
-    } || std.posix.ReadError;
+    } || std.Io.Reader.ShortError;
 
     const SeekError = error{
-        Unseekable,
-        PermissionDenied,
         ResetMZStreamFailed,
-    } || Error;
+    } || ReadError || std.fs.File.Reader.SeekError;
 
-    const Buffer_size = 8192;
+    const BufferSize = 8192;
 
     stream: ReadStream,
 
@@ -33,12 +31,12 @@ pub const GzipReadStream = struct {
     buffer_head: u32,
     buffer_count: u32,
 
-    buffer: [Buffer_size]u8,
-    read_buffer: [Buffer_size]u8,
+    buffer: [BufferSize]u8,
+    read_buffer: [BufferSize]u8,
 
     const Self = @This();
 
-    const Reader = std.io.GenericReader(*Self, Error, read);
+    const Reader = std.io.GenericReader(*Self, ReadError, read);
 
     pub fn reader(self: *Self) Reader {
         return .{ .context = self };
@@ -57,37 +55,37 @@ pub const GzipReadStream = struct {
         _ = try self.stream.read(&header);
 
         if (0x1F != header[0] or 0x8B != header[1]) {
-            return Error.InvalidGzipHeader;
+            return ReadError.InvalidGzipHeader;
         }
 
         if (8 != header[2]) {
-            return Error.UnknownGzipCompressionAlgorithm;
+            return ReadError.UnknownGzipCompressionAlgorithm;
         }
 
         if ((1 << 2 & header[3]) != 0) {
             // FEXTRA
             var n: [2]u8 = undefined;
             _ = try self.stream.read(&n);
-            const len = @as(u64, n[0]) << 0 | @as(u64, n[1]) << 8;
-            try self.stream.seekBy(len);
+            const len = @as(usize, n[0]) << 0 | @as(usize, n[1]) << 8;
+            try self.stream.discard(len);
         }
 
         if ((1 << 3 & header[3]) != 0) {
             // FNAME
-            try self.stream.skipUntilDelimiter(0);
+            _ = try self.stream.discardDelimiter(0);
         }
 
         if ((1 << 4 & header[3]) != 0) {
             // FCOMMENT
-            try self.stream.skipUntilDelimiter(0);
+            _ = try self.stream.discardDelimiter(0);
         }
 
         if ((1 << 1 & header[3]) != 0) {
             // FRC
-            try self.stream.seekBy(2);
+            try self.stream.discard(2);
         }
 
-        self.data_start = try self.stream.getPos();
+        self.data_start = self.stream.getPos();
         self.buffer_head = 0;
         self.buffer_count = 0;
 
@@ -156,7 +154,7 @@ pub const GzipReadStream = struct {
         }
     }
 
-    pub fn seekBy(self: *Self, count: u64) !void {
+    pub fn discard(self: *Self, count: usize) !void {
         const cur = self.z_stream.total_out - self.buffer_count;
         try self.seekTo(cur + count);
     }
@@ -166,26 +164,26 @@ pub const GzipReadStream = struct {
         self.z_stream.zfree = null;
 
         if (mz.MZ_OK != mz.mz_inflateInit2(&self.z_stream, -mz.MZ_DEFAULT_WINDOW_BITS)) {
-            return Error.InitMZStreamFailed;
+            return ReadError.InitMZStreamFailed;
         }
 
         self.z_stream.avail_in = 0;
         self.z_stream.avail_out = 0;
     }
 
-    fn underflow(self: *Self) Error!bool {
+    fn underflow(self: *Self) ReadError!bool {
         var uncompressed_bytes: u32 = 0;
 
         while (0 == uncompressed_bytes) {
             if (0 == self.z_stream.avail_in) {
                 const read_bytes = try self.stream.read(&self.read_buffer);
 
-                self.z_stream.avail_in = @as(c_uint, @intCast(read_bytes));
+                self.z_stream.avail_in = @intCast(read_bytes);
                 self.z_stream.next_in = &self.read_buffer;
             }
 
             if (0 == self.z_stream.avail_out) {
-                self.z_stream.avail_out = Buffer_size;
+                self.z_stream.avail_out = BufferSize;
                 self.z_stream.next_out = &self.buffer;
 
                 self.buffer_head = 0;
@@ -196,7 +194,7 @@ pub const GzipReadStream = struct {
 
             const status = mz.mz_inflate(&self.z_stream, mz.MZ_NO_FLUSH);
             if (status != mz.MZ_OK and status != mz.MZ_STREAM_END and status != mz.MZ_BUF_ERROR and status != mz.MZ_NEED_DICT) {
-                return Error.InflateMZStreamFailed;
+                return ReadError.InflateMZStreamFailed;
             }
 
             uncompressed_bytes = avail_out - self.z_stream.avail_out;

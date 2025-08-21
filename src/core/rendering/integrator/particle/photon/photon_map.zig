@@ -88,6 +88,7 @@ pub const Map = struct {
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
+        //return self.grid.li(frag, sample, sampler, context);
         return self.grid.li2(frag, sample, sampler, context);
     }
 
@@ -109,7 +110,7 @@ pub const Map = struct {
 
         var aabb: AABB = .empty;
         for (self.photons[begin..end]) |p| {
-            aabb.insert(p.p);
+            aabb.insert(p.position());
         }
 
         self.aabbs[id] = aabb;

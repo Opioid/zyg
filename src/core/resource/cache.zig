@@ -79,7 +79,7 @@ const Entry = struct {
     source_name: []u8 = &.{},
 };
 
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 const EntryHashMap = std.HashMapUnmanaged(Key, Entry, KeyContext, 80);
 const MetaHashMap = std.AutoHashMapUnmanaged(u32, Variants);
 

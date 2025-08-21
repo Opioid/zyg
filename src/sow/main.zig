@@ -41,7 +41,7 @@ const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 
 pub fn main() !void {
     log.info("Welcome to sow!", .{});
@@ -77,6 +77,7 @@ pub fn main() !void {
         }
     }
 
+    // (Throwawy?) code for merging the wiggle animatin frames
     // if (try merger.merge(alloc, &resources)) {
     //     log.info("We end the merger", .{});
     //     return;
@@ -334,7 +335,7 @@ fn scatter(
                 continue;
             }
 
-            const mat_sample = vertex.sample(&frag, &sampler, .Off, context);
+            const mat_sample = vertex.sample(&frag, &sampler, 0.0, false, context);
 
             const probability = mat_sample.aovAlbedo()[0];
 

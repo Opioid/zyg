@@ -1,6 +1,6 @@
-const smpl = @import("../sample_base.zig");
-const Base = smpl.Base;
-const IoR = smpl.IoR;
+const sample = @import("../sample_base.zig");
+const Base = sample.Base;
+const IoR = sample.IoR;
 const Material = @import("../material_base.zig").Base;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const bxdf = @import("../bxdf.zig");
@@ -25,6 +25,7 @@ pub const Sample = struct {
     ior_outside: f32,
     f0: f32,
     specular: f32,
+    specular_threshold: f32,
     abbe: f32,
     wavelength: f32,
     thickness: f32,
@@ -34,19 +35,18 @@ pub const Sample = struct {
         wo: Vec4f,
         absorption_coef: Vec4f,
         ior: f32,
-        ior_outside: f32,
         alpha: f32,
         specular: f32,
+        specular_threshold: f32,
         thickness: f32,
         abbe: f32,
-        wavelength: f32,
         priority: i8,
     ) Sample {
-        const reg_alpha = rs.regularizeAlpha(@splat(alpha));
-
-        var super = Base.init(rs, wo, @splat(1.0), reg_alpha, priority);
-
+        const reg_alpha = rs.regularizeAlpha(@splat(alpha), specular_threshold);
         const rough = reg_alpha[0] > 0.0;
+        const ior_outside = rs.ior;
+
+        var super = Base.init(rs, wo, reg_alpha, priority);
 
         super.properties.can_evaluate = rough and ior != ior_outside;
         super.properties.translucent = thickness > 0.0;
@@ -58,18 +58,19 @@ pub const Sample = struct {
             .ior_outside = ior_outside,
             .f0 = if (rough) fresnel.Schlick.IorToF0(ior, ior_outside) else 0.0,
             .specular = specular,
+            .specular_threshold = specular_threshold,
             .abbe = abbe,
-            .wavelength = wavelength,
+            .wavelength = rs.wavelength,
             .thickness = thickness,
         };
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32, force_disable_caustics: bool) bxdf.Result {
         const alpha = self.super.alpha[0];
         const rough = alpha > 0.0;
 
         if (self.ior == self.ior_outside or !rough or self.super.properties.lower_priority or
-            (self.super.avoidCaustics() and alpha <= ggx.MinAlpha))
+            (self.super.avoidCausticsForce(force_disable_caustics) and alpha <= self.specular_threshold))
         {
             return bxdf.Result.empty();
         }
@@ -124,7 +125,7 @@ pub const Sample = struct {
             const split_pdf = if (split) 1.0 else gg.f[0];
 
             return bxdf.Result.init(
-                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp * s)) * self.super.albedo * gg.r.reflection,
+                @as(Vec4f, @splat(math.min(n_dot_wi, n_dot_wo) * comp * s)) * gg.r.reflection,
                 split_pdf * gg.r.pdf,
             );
         } else if (self.super.sameHemisphere(wi)) {
@@ -220,7 +221,7 @@ pub const Sample = struct {
                 .pdf = 1.0,
                 .split_weight = 1.0,
                 .wavelength = wavelength,
-                .class = .{ .specular = true, .transmission = true },
+                .path = .singularTransmission,
             };
 
             return buffer[0..1];
@@ -303,7 +304,7 @@ pub const Sample = struct {
                 .pdf = 1.0,
                 .split_weight = 1.0,
                 .wavelength = wavelength,
-                .class = .{ .specular = true, .transmission = true },
+                .path = .singularTransmission,
             };
             return buffer[0..1];
         }
@@ -344,7 +345,7 @@ pub const Sample = struct {
             const ep = ggx.ilmEpDielectric(n_dot_wo, alpha[0], self.f0);
 
             {
-                const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], frame, &buffer[0]);
+                const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], self.specular_threshold, frame, &buffer[0]);
 
                 buffer[0].reflection *= @as(Vec4f, @splat(n_dot_wi * ep * s)) * weight;
                 buffer[0].split_weight = f;
@@ -375,7 +376,7 @@ pub const Sample = struct {
                     return buffer[0..1];
                 }
 
-                buffer[1].reflection *= @as(Vec4f, @splat(n_dot_wi * ep)) * weight * self.super.albedo;
+                buffer[1].reflection *= @as(Vec4f, @splat(n_dot_wi * ep)) * weight;
                 buffer[1].split_weight = 1.0 - f;
                 buffer[1].wavelength = wavelength;
             }
@@ -388,7 +389,7 @@ pub const Sample = struct {
 
             const p = s3[0];
             if (p <= f) {
-                const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], frame, result);
+                const n_dot_wi = ggx.Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], self.specular_threshold, frame, result);
 
                 result.reflection *= @as(Vec4f, @splat(f * n_dot_wi * ep * s)) * weight;
                 result.pdf *= f;
@@ -414,7 +415,7 @@ pub const Sample = struct {
 
                 const omf = 1.0 - f;
 
-                result.reflection *= @as(Vec4f, @splat(omf * n_dot_wi * ep)) * weight * self.super.albedo;
+                result.reflection *= @as(Vec4f, @splat(omf * n_dot_wi * ep)) * weight;
                 result.pdf *= omf;
             }
 
@@ -432,7 +433,7 @@ pub const Sample = struct {
             .pdf = 1.0,
             .split_weight = split_weight,
             .wavelength = wavelength,
-            .class = .{ .specular = true, .reflection = true },
+            .path = .singularReflection,
         };
     }
 
@@ -467,6 +468,7 @@ pub const Sample = struct {
                 thin_n_dot_h,
                 thin_wo_dot_h,
                 alpha,
+                self.specular_threshold,
                 thin_frame,
                 result,
             );
@@ -479,7 +481,7 @@ pub const Sample = struct {
             const attenuation = ccoef.attenuation3(self.absorption_coef, approx_dist);
 
             result.reflection *= attenuation;
-            result.class = .{ .straight = true };
+            result.path = .straight;
 
             return n_dot_wi;
         } else {
@@ -492,6 +494,7 @@ pub const Sample = struct {
                 -wi_dot_h,
                 r_wo_dot_h,
                 alpha,
+                self.specular_threshold,
                 ior,
                 frame,
                 result,
@@ -509,7 +512,7 @@ pub const Sample = struct {
             .pdf = 1.0,
             .split_weight = split_weight,
             .wavelength = 0.0,
-            .class = .{ .straight = true },
+            .path = .straight,
         };
     }
 
@@ -529,7 +532,7 @@ pub const Sample = struct {
             .pdf = 1.0,
             .split_weight = split_weight,
             .wavelength = wavelength,
-            .class = .{ .specular = true, .transmission = true },
+            .path = .singularTransmission,
         };
     }
 };

@@ -3,7 +3,6 @@ const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Scene = @import("../../../scene/scene.zig").Scene;
 const Worker = @import("../../worker.zig").Worker;
 const Light = @import("../../../scene/light/light.zig").Light;
-const CausticsResolve = @import("../../../scene/renderstate.zig").CausticsResolve;
 const hlp = @import("../helper.zig");
 const IValue = hlp.IValue;
 const MaterialSample = @import("../../../scene/material/material_sample.zig").Sample;
@@ -23,7 +22,6 @@ pub const PathtracerDL = struct {
         max_depth: hlp.Depth,
         light_sampling: hlp.LightSampling,
         caustics_path: bool,
-        caustics_resolve: CausticsResolve,
     };
 
     settings: Settings,
@@ -52,7 +50,7 @@ pub const PathtracerDL = struct {
             const weighted_energy = vertex.throughput * energy;
 
             const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
-            result.add(weighted_energy, indirect_light_depth, 1, 0 == total_depth, vertex.state.treat_as_singular);
+            result.add(weighted_energy, indirect_light_depth, 1, 0 == total_depth, vertex.state.singular);
 
             if (!frag.hit() or
                 vertex.probe.depth.surface >= max_depth.surface or
@@ -67,7 +65,7 @@ pub const PathtracerDL = struct {
             }
 
             const caustics = self.causticsResolve(vertex.state);
-            const mat_sample = vertex.sample(&frag, sampler, caustics, worker.context);
+            const mat_sample = vertex.sample(&frag, sampler, 0.0, caustics, worker.context);
 
             if (worker.aov.active()) {
                 worker.commonAOV(&vertex, &frag, &mat_sample);
@@ -89,14 +87,21 @@ pub const PathtracerDL = struct {
 
             const sample_result = sample_results[0];
 
-            if (sample_result.class.specular) {
-                vertex.state.treat_as_singular = true;
-            } else if (!sample_result.class.straight) {
-                vertex.state.treat_as_singular = false;
+            const path = sample_result.path;
+            if (.Specular == path.scattering) {
+                vertex.state.specular = true;
+                vertex.state.singular = path.singular();
+
+                if (vertex.state.primary_ray) {
+                    vertex.state.started_specular = true;
+                }
+            } else if (.Straight != path.event) {
+                vertex.state.specular = false;
+                vertex.state.singular = false;
                 vertex.state.primary_ray = false;
             }
 
-            if (!sample_result.class.straight) {
+            if (.Straight != path.event) {
                 vertex.origin = frag.p;
             }
 
@@ -109,11 +114,11 @@ pub const PathtracerDL = struct {
                 vertex.probe.wavelength = sample_result.wavelength;
             }
 
-            if (sample_result.class.transmission) {
+            if (.Transmission == path.event) {
                 vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.context.scene);
             }
 
-            vertex.state.transparent = vertex.state.transparent and (sample_result.class.transmission or sample_result.class.straight);
+            vertex.state.transparent = vertex.state.transparent and (.Transmission == path.event or .Straight == path.event);
 
             sampler.incrementPadding();
         }
@@ -163,7 +168,7 @@ pub const PathtracerDL = struct {
                     continue;
                 }
 
-                const bxdf_result = mat_sample.evaluate(light_sample.wi, 1);
+                const bxdf_result = mat_sample.evaluate(light_sample.wi, 1, false);
 
                 const radiance = light.evaluateTo(p, trafo, light_sample, sampler, context);
 
@@ -177,14 +182,14 @@ pub const PathtracerDL = struct {
     }
 
     fn connectLight(self: Self, vertex: *Vertex, frag: *const Fragment, sampler: *Sampler, context: Context) Vec4f {
-        if (!self.settings.caustics_path and vertex.state.treat_as_singular and !vertex.state.primary_ray) {
+        if (!self.settings.caustics_path and vertex.state.specular and !vertex.state.primary_ray) {
             return @splat(0.0);
         }
 
         var energy: Vec4f = @splat(0.0);
 
         if (frag.hit()) {
-            if (vertex.state.treat_as_singular or !Light.isLight(frag.lightId(context.scene))) {
+            if (vertex.state.singular or !Light.isLight(frag.lightId(context.scene))) {
                 energy += vertex.evaluateRadiance(frag, sampler, context) orelse @splat(0.0);
             }
         }
@@ -192,7 +197,7 @@ pub const PathtracerDL = struct {
         var light_frag: Fragment = undefined;
         light_frag.event = .Pass;
 
-        if (vertex.state.treat_as_singular) {
+        if (vertex.state.singular) {
             energy += context.emission(vertex, &light_frag, 0.0, sampler);
         }
 
@@ -201,7 +206,7 @@ pub const PathtracerDL = struct {
                 continue;
             }
 
-            if (vertex.state.treat_as_singular or !Light.isLight(light_frag.lightId(context.scene))) {
+            if (vertex.state.singular or !Light.isLight(light_frag.lightId(context.scene))) {
                 context.propInterpolateFragment(prop, vertex.probe, &light_frag);
 
                 energy += vertex.evaluateRadiance(&light_frag, sampler, context) orelse @splat(0.0);
@@ -211,15 +216,11 @@ pub const PathtracerDL = struct {
         return energy;
     }
 
-    fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {
+    fn causticsResolve(self: Self, state: Vertex.State) bool {
         if (!state.primary_ray) {
-            if (!self.settings.caustics_path) {
-                return .Off;
-            }
-
-            return self.settings.caustics_resolve;
+            return self.settings.caustics_path;
         }
 
-        return .Full;
+        return true;
     }
 };

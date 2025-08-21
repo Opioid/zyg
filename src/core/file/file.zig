@@ -13,13 +13,11 @@ pub const Type = enum {
     SUB,
 };
 
-pub fn queryType(stream: ReadStream) Type {
+pub fn queryType(stream: ReadStream) !Type {
     var header: [4]u8 = undefined;
-    _ = stream.read(&header) catch {
-        return .Undefined;
-    };
+    _ = try stream.read(&header);
 
-    stream.seekTo(0) catch {};
+    try stream.seekTo(0);
 
     if (std.mem.startsWith(u8, &header, "\x76\x2F\x31\x01")) {
         return .EXR;

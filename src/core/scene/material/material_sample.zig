@@ -37,15 +37,17 @@ pub const Sample = union(enum) {
 
     pub fn aovAlbedo(self: *const Sample) Vec4f {
         return switch (self.*) {
-            .Substitute => |*s| math.lerp(s.super.albedo, s.f0, @as(Vec4f, @splat(s.metallic))),
-            inline else => |*s| s.super.albedo,
+            inline .Hair, .Substitute => |*s| s.aovAlbedo(),
+            .Debug => |*s| s.albedo,
+            .Glass => @splat(1.0),
+            inline else => @splat(0.0),
         };
     }
 
-    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32) bxdf.Result {
+    pub fn evaluate(self: *const Sample, wi: Vec4f, max_splits: u32, force_disable_caustics: bool) bxdf.Result {
         return switch (self.*) {
             .Light => bxdf.Result.init(@splat(0.0), 0.0),
-            inline .Glass, .Substitute => |*s| s.evaluate(wi, max_splits),
+            inline .Glass, .Substitute => |*s| s.evaluate(wi, max_splits, force_disable_caustics),
             inline else => |*s| s.evaluate(wi),
         };
     }

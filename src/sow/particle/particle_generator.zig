@@ -142,7 +142,7 @@ pub const Generator = struct {
 
             state.velocities[i] = Pack3f.init1(1.0);
 
-            const max_age = 0.12;
+            const max_age = 0.32;
 
             state.ages[i] = @intFromFloat((-rng.randomFloat() * max_age) / TickDuration);
             state.max_ages[i] = 0; // @intFromFloat(max_age / TickDuration);
@@ -173,7 +173,7 @@ pub const Generator = struct {
         const drag: Vec4f = @splat(1.0);
 
         const radius: Vec4f = @splat(0.005);
-        const velocity: Vec4f = @splat(2.0);
+        const velocity: Vec4f = @splat(3.0);
 
         const stepv: Vec4f = @splat(step);
 
@@ -190,7 +190,7 @@ pub const Generator = struct {
 
                 state.velocities[i] = math.vec4fTo3f((cone * velocity));
                 state.ages[i] = -2;
-                state.max_ages[i] = @intFromFloat((0.08 + 0.04 * rng.randomFloat()) / step);
+                state.max_ages[i] = @intFromFloat((0.24 + 0.12 * rng.randomFloat()) / step);
             } else if (state.ages[i] < 0) {
                 out_pos[i] = in_pos[i];
                 out_radius[i] = 0.0;

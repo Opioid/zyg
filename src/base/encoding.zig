@@ -1,6 +1,9 @@
-const math = @import("math/vector4.zig");
-const Vec4us = math.Vec4us;
-const Vec4f = math.Vec4f;
+const v2 = @import("math/vector2.zig");
+const Vec2us = v2.Vec2us;
+const Vec2f = v2.Vec2f;
+const v4 = @import("math/vector4.zig");
+const Vec4us = v4.Vec4us;
+const Vec4f = v4.Vec4f;
 
 pub fn floatToUnorm8(x: f32) u8 {
     return @intFromFloat(x * 255.0 + 0.5);
@@ -38,8 +41,16 @@ pub fn floatToSnorm16(x: f32) u16 {
     return @intFromFloat((x + 1.0) * (if (x > 0.0) @as(f32, 32767.5) else @as(f32, 32768.0)));
 }
 
+pub fn floatToSnorm16_2(x: Vec2f) Vec2us {
+    return @intFromFloat((x + @as(Vec2f, @splat(1.0))) * @select(f32, x > @as(Vec2f, @splat(0.0)), @as(Vec2f, @splat(32767.5)), @as(Vec2f, @splat(32768.0))));
+}
+
 pub fn snorm16ToFloat(norm: u16) f32 {
     return @as(f32, @floatFromInt(norm)) * (1.0 / 32768.0) - 1.0;
+}
+
+pub fn snorm16ToFloat2(norm: Vec2us) Vec2f {
+    return @as(Vec2f, @floatFromInt(norm)) * @as(Vec2f, @splat(1.0 / 32768.0)) - @as(Vec2f, @splat(1.0));
 }
 
 pub fn snorm16ToFloat4(norm: Vec4us) Vec4f {

@@ -18,7 +18,7 @@ const Transformation = math.Transformation;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 
 pub const Loader = struct {
     const Error = error{

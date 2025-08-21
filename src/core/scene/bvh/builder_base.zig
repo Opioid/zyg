@@ -26,7 +26,7 @@ const Task = struct {
     references: []const Reference,
 };
 
-const Tasks = std.ArrayListUnmanaged(Task);
+const Tasks = std.ArrayList(Task);
 
 const Kernel = struct {
     pub const Settings = struct {
@@ -39,9 +39,9 @@ const Kernel = struct {
 
     settings: Settings,
 
-    split_candidates: std.ArrayListUnmanaged(SplitCandidate),
-    reference_ids: std.ArrayListUnmanaged(u32) = .empty,
-    build_nodes: std.ArrayListUnmanaged(Node) = .empty,
+    split_candidates: std.ArrayList(SplitCandidate),
+    reference_ids: std.ArrayList(u32) = .empty,
+    build_nodes: std.ArrayList(Node) = .empty,
 
     aabb_surface_area: f32 = undefined,
     references: []const Reference = undefined,
@@ -49,7 +49,7 @@ const Kernel = struct {
     pub fn init(alloc: Allocator, settings: Settings) !Kernel {
         return Kernel{
             .settings = settings,
-            .split_candidates = try std.ArrayListUnmanaged(SplitCandidate).initCapacity(
+            .split_candidates = try std.ArrayList(SplitCandidate).initCapacity(
                 alloc,
                 3 + @max(3 * settings.sweep_threshold, 3 * 2 * settings.num_slices),
             ),

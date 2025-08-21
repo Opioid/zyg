@@ -30,6 +30,7 @@ pub const Transformation = @import("transformation.zig").Transformation;
 
 const vec2 = @import("vector2.zig");
 pub const Vec2b = vec2.Vec2b;
+pub const Vec2us = vec2.Vec2us;
 pub const Vec2i = vec2.Vec2i;
 pub const Vec2u = vec2.Vec2u;
 pub const Vec2f = vec2.Vec2f;
@@ -180,7 +181,7 @@ pub fn pow22(x: f32) f32 {
     return x16 * x6;
 }
 
-pub inline fn bilinear(comptime T: type, c: [4]T, s: f32, t: f32) T {
+pub inline fn bilinear(T: type, c: [4]T, s: f32, t: f32) T {
     switch (@typeInfo(T)) {
         .float => {
             const _s = 1.0 - s;

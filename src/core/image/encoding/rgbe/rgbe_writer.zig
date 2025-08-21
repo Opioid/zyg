@@ -11,13 +11,13 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Writer = struct {
-    pub fn write(alloc: Allocator, writer: anytype, image: Float4, crop: Vec4i) !void {
+    pub fn write(alloc: Allocator, writer: *std.Io.Writer, image: Float4, crop: Vec4i) !void {
         try writeHeader(writer, image);
 
         try writePixelsRle(alloc, writer, image, crop);
     }
 
-    fn writeHeader(writer: anytype, image: Float4) !void {
+    fn writeHeader(writer: *std.Io.Writer, image: Float4) !void {
         const d = image.dimensions;
 
         try writer.writeAll("#?RGBE\n");
@@ -28,7 +28,7 @@ pub const Writer = struct {
         try writer.writeAll(printed);
     }
 
-    fn writePixelsRle(alloc: Allocator, writer: anytype, image: Float4, crop: Vec4i) !void {
+    fn writePixelsRle(alloc: Allocator, writer: *std.Io.Writer, image: Float4, crop: Vec4i) !void {
         const d = image.dimensions;
 
         const width: u32 = @intCast(d[0]);
@@ -90,7 +90,7 @@ pub const Writer = struct {
         }
     }
 
-    fn writePixels(writer: anytype, image: Float4, crop: Vec4i) !void {
+    fn writePixels(writer: *std.Io.Writer, image: Float4, crop: Vec4i) !void {
         const d = image.dimensions;
 
         var i: u32 = 0;
@@ -115,7 +115,7 @@ pub const Writer = struct {
         }
     }
 
-    fn writeBytesRle(writer: anytype, data: []u8) !void {
+    fn writeBytesRle(writer: *std.Io.Writer, data: []u8) !void {
         const Min_run_length = comptime 4;
 
         var buffer: [2]u8 = undefined;

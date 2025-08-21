@@ -70,7 +70,7 @@ pub const Reference = struct {
     }
 };
 
-pub const References = std.ArrayListUnmanaged(Reference);
+pub const References = std.ArrayList(Reference);
 
 pub const SplitCandidate = struct {
     aabbs: [2]AABB = undefined,

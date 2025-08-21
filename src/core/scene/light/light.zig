@@ -341,7 +341,7 @@ pub const Light = struct {
     }
 
     fn propPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {
-        const total_sphere = vertex.state.is_translucent;
+        const total_sphere = vertex.state.translucent;
         const material = frag.material(scene);
 
         return scene.propShape(self.prop).pdf(

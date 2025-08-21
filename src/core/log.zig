@@ -28,7 +28,13 @@ pub const StdOut = struct {
 
         std.debug.lockStdErr();
         defer std.debug.unlockStdErr();
-        nosuspend std.fs.File.stdout().deprecatedWriter().print(prefix ++ format ++ "\n", args) catch return;
+
+        var buffer: [256]u8 = undefined;
+        var stdout_writer = std.fs.File.stdout().writer(&buffer);
+        const stdout = &stdout_writer.interface;
+
+        stdout.print(prefix ++ format ++ "\n", args) catch return;
+        stdout.flush() catch return;
     }
 };
 

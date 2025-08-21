@@ -8,6 +8,7 @@ const mdm = @import("scene/prop/medium.zig");
 const Fragment = @import("scene/shape/intersection.zig").Fragment;
 const smpl = @import("scene/shape/sample.zig");
 const Renderstate = @import("scene/renderstate.zig").Renderstate;
+const Photon = @import("rendering/integrator/particle/photon/photon.zig").Photon;
 const Vertex = @import("scene/vertex.zig").Vertex;
 const Shape = @import("scene/shape/shape.zig").Shape;
 const TriangleMesh = @import("scene/shape/triangle/triangle_mesh.zig").Mesh;
@@ -39,6 +40,7 @@ pub fn testSize() void {
     testType(Vertex, "Vertex", 672);
     testType(smpl.To, "SampleTo", 64);
     testType(smpl.From, "SampleFrom", 144);
+    testType(Photon, "Photon", 32);
     testType(BvhNode, "BvhNode", 32);
     testType(LightNode, "LightNode", 32);
     testType(mdm.Medium, "Medium", 80);
@@ -46,15 +48,15 @@ pub fn testSize() void {
     testType(mt.Material, "Material", 368);
     testType(mt.Substitute, "SubstituteMaterial", 352);
     testType(mt.Hair, "HairMaterial", 112);
-    testType(mt.Sample, "MaterialSample", 288);
+    testType(mt.Sample, "MaterialSample", 272);
     testType(mtsmpl.Substitute, "SubstituteSample", 256);
-    testType(mtsmpl.Hair, "HairSample", 272);
+    testType(mtsmpl.Hair, "HairSample", 256);
     testType(Texture, "Texture", 16);
     testType(Shape, "Shape", 104);
     testType(TriangleMesh, "TriangleMesh", 88);
     testType(TriangleMotionMesh, "TriangleMotionMesh", 96);
     testType(TriangleBvh, "TriangleBvh", 64);
-    testType(Worker, "Worker", 368);
+    testType(Worker, "Worker", 336);
 }
 
 fn testType(comptime T: type, name: []const u8, expected: usize) void {

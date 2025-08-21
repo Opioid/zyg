@@ -22,7 +22,7 @@ pub const Lambert = struct {
         result.reflection = @as(Vec4f, @splat(@as(f32, math.pi_inv))) * color;
         result.wi = wi;
         result.pdf = n_dot_wi * math.pi_inv;
-        result.class = .{ .diffuse = true, .reflection = true };
+        result.path = .diffuseReflection;
 
         return n_dot_wi;
     }
@@ -101,7 +101,7 @@ pub const Micro = struct {
         result.reflection = evaluate(color, n_dot_wi, n_dot_wo, alpha, f0);
         result.wi = wi;
         result.pdf = n_dot_wi * math.pi_inv;
-        result.class = .{ .diffuse = true, .reflection = true };
+        result.path = .diffuseReflection;
 
         return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = h_dot_wi };
     }

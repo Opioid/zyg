@@ -63,3 +63,18 @@ pub inline fn attenuation1(c: f32, distance: f32) f32 {
 pub inline fn attenuation3(c: Vec4f, distance: f32) Vec4f {
     return @exp(@as(Vec4f, @splat(-distance)) * c);
 }
+
+pub fn meanSurfaceAlbedo(mu_a: Vec4f, mu_s: Vec4f) Vec4f {
+    // reduced volume albedo, assuming no anisotropy and negligible radius (diffuse lobe)
+    const rva = mu_s / (mu_a + mu_s);
+
+    // mean surface albedo, this is the inverse of get_reduced_volume_albedo
+    const gamma = @sqrt(@as(Vec4f, @splat(1.0)) - rva);
+    return math.clamp4(
+        @as(Vec4f, @splat(82222.614)) *
+            @sqrt((@as(Vec4f, @splat(2.3313711)) * gamma + @as(Vec4f, @splat(3.9852263))) * gamma + @as(Vec4f, @splat(1.7031440))) -
+            @as(Vec4f, @splat(107303.26)) - @as(Vec4f, @splat(125544.18)) * gamma,
+        @splat(0.0),
+        @splat(1.0),
+    );
+}

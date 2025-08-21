@@ -20,7 +20,7 @@ const Transformation = math.Transformation;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 
 const Key = struct {
     shape: u32,
@@ -155,9 +155,10 @@ pub const Loader = struct {
             fs.popMount(alloc);
         }
 
-        const buffer = try stream.readAll(alloc);
-        stream.deinit();
+        const buffer = try stream.readAlloc(alloc);
         defer alloc.free(buffer);
+
+        stream.deinit();
 
         var parsed = try std.json.parseFromSlice(
             std.json.Value,
@@ -551,9 +552,10 @@ pub const Loader = struct {
 
         var stream = try fs.readStream(alloc, filename);
 
-        const buffer = try stream.readAll(alloc);
-        stream.deinit();
+        const buffer = try stream.readAlloc(alloc);
         defer alloc.free(buffer);
+
+        stream.deinit();
 
         var parsed = try std.json.parseFromSlice(
             std.json.Value,

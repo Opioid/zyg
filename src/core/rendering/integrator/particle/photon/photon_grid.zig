@@ -66,7 +66,7 @@ pub const Grid = struct {
         const dimensions = @as(Vec4i, @intFromFloat(@ceil(aabb.extent() / cell_diameter))) + @as(Vec4i, @splat(2));
 
         if (!math.equal(dimensions, self.dimensions)) {
-            std.debug.print("{}\n", .{dimensions});
+            std.debug.print("[{}, {}, {}]\n", .{ dimensions[0], dimensions[1], dimensions[2] });
 
             self.dimensions = dimensions;
 
@@ -349,7 +349,7 @@ pub const Grid = struct {
         for (self.grid, 0..) |*cell, c| {
             cell.* = current;
             while (current < photons.len) : (current += 1) {
-                if (self.map1(self.photons[current].p) != c) {
+                if (self.map1(self.photons[current].position()) != c) {
                     break;
                 }
             }
@@ -369,7 +369,7 @@ pub const Grid = struct {
 
     fn alphaPositive(context: void, p: Photon) bool {
         _ = context;
-        return p.alpha[0] >= 0.0;
+        return !p.marked();
     }
 
     pub fn reduceRange(context: Threads.Context, id: u32, begin: u32, end: u32) void {
@@ -385,18 +385,21 @@ pub const Grid = struct {
         while (i < end) : (i += 1) {
             var a = &self.photons[i];
 
-            if (a.alpha[0] < 0.0) {
+            var a_alpha = a.alpha();
+
+            if (a_alpha[0] < 0.0) {
                 continue;
             }
 
-            var a_alpha = Vec4f{ a.alpha[0], a.alpha[1], a.alpha[2], 0.0 };
+            const a_pos = a.position();
+
             var total_weight = math.average3(a_alpha);
-            var position = @as(Vec4f, @splat(total_weight)) * a.p;
-            var wi = a.wi;
+            var position = @as(Vec4f, @splat(total_weight)) * a_pos;
+            var wi = a.wi();
 
             var local_reduced: u32 = 0;
 
-            const adjacency = self.adjacentCells(a.p, cell_bound);
+            const adjacency = self.adjacentCells(a_pos, cell_bound);
 
             for (adjacency.cells[0..adjacency.num_cells]) |cell| {
                 const jlen = @min(cell[1], end);
@@ -408,54 +411,54 @@ pub const Grid = struct {
 
                     var b = &self.photons[j];
 
-                    if (a.volumetric != b.volumetric or b.alpha[0] < 0.0) {
+                    const b_alpha = b.alpha();
+
+                    if (a.volumetric != b.volumetric or b_alpha[0] < 0.0) {
                         continue;
                     }
 
-                    if (math.squaredDistance3(a.p, b.p) > merge_radius2) {
+                    const b_pos = b.position();
+
+                    if (math.squaredDistance3(a_pos, b_pos) > merge_radius2) {
                         continue;
                     }
 
-                    const b_alpha = Vec4f{ b.alpha[0], b.alpha[1], b.alpha[2], 0.0 };
                     const weight = math.average3(b_alpha);
                     const ratio = if (total_weight > weight) weight / total_weight else total_weight / weight;
                     const threshold = math.max(ratio - 0.1, 0.0);
+                    const b_wi = b.wi();
 
-                    if (math.dot3(wi, b.wi) < threshold) {
+                    if (math.dot3(wi, b_wi) < threshold) {
                         continue;
                     }
 
                     a_alpha += b_alpha;
-                    b.alpha[0] = -1.0;
+                    b.mark();
 
                     if (weight > total_weight) {
-                        wi = b.wi;
+                        wi = b_wi;
                     }
 
                     total_weight += weight;
-                    position += @as(Vec4f, @splat(weight)) * b.p;
+                    position += @as(Vec4f, @splat(weight)) * b_pos;
                     local_reduced += 1;
                 }
             }
 
             if (local_reduced > 0) {
                 if (total_weight < 1.0e-10) {
-                    a.alpha[0] = -1.0;
+                    a.mark();
                     local_reduced += 1;
                 } else {
-                    a.p = position / @as(Vec4f, @splat(total_weight));
-                    a.wi = wi;
-                    a.alpha[0] = a_alpha[0];
-                    a.alpha[1] = a_alpha[1];
-                    a.alpha[2] = a_alpha[2];
+                    a.* = Photon.init(position / @as(Vec4f, @splat(total_weight)), wi, a_alpha, a.volumetric);
                 }
             }
         }
     }
 
     fn compareByMap(self: *const Self, a: Photon, b: Photon) bool {
-        const ida = self.map1(a.p);
-        const idb = self.map1(b.p);
+        const ida = self.map1(a.position());
+        const idb = self.map1(b.position());
         return ida < idb;
     }
 
@@ -531,7 +534,9 @@ pub const Grid = struct {
         self.num_paths = @floatFromInt(num_paths);
     }
 
-    pub fn li(self: *const Self, frag: *const Fragment, sample: *const MaterialSample, scene: *const Scene) Vec4f {
+    pub fn li(self: *const Self, frag: *const Fragment, sample: *const MaterialSample, sampler: *Sampler, context: Context) Vec4f {
+        _ = sampler;
+
         var result: Vec4f = @splat(0.0);
 
         const position = frag.p;
@@ -548,7 +553,7 @@ pub const Grid = struct {
         if (frag.subsurface()) {} else {
             const inv_radius2 = 1.0 / radius2;
 
-            const two_sided = frag.material(scene).twoSided();
+            const two_sided = frag.material(context.scene).twoSided();
 
             for (adjacency.cells[0..adjacency.num_cells]) |cell| {
                 var i = cell[0];
@@ -567,17 +572,17 @@ pub const Grid = struct {
 
                             const n_dot_wi = math.safe.clampAbsDot(sample.super().shadingNormal(), p.wi);
 
-                            const bxdf = sample.evaluate(p.wi, false);
+                            const bxdf = sample.evaluate(p.wi, 1);
 
-                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                         } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
                             const k = coneFilter(distance2, inv_radius2);
 
                             const n_dot_wi = math.safe.clampDot(sample.super().shadingNormal(), p.wi);
 
-                            const bxdf = sample.evaluate(p.wi, false);
+                            const bxdf = sample.evaluate(p.wi, 1);
 
-                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2] } * bxdf.reflection;
+                            result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
                         }
                     }
                 }
@@ -602,7 +607,6 @@ pub const Grid = struct {
         const radius2 = radius * radius;
 
         var buffer = Buffer{};
-        buffer.clear();
 
         const subsurface = frag.subsurface();
 
@@ -612,26 +616,26 @@ pub const Grid = struct {
                     continue;
                 }
 
-                const distance2 = math.squaredDistance3(p.p, position);
+                const distance2 = math.squaredDistance3(p.position(), position);
                 if (distance2 < radius2) {
                     buffer.consider(.{ .id = cell[0] + @as(u32, @intCast(i)), .d2 = distance2 });
                 }
             }
         }
 
-        if (buffer.num_entries > 0) {
-            const used_entries = buffer.num_entries;
-            const max_radius2 = buffer.entries[used_entries - 1].d2;
+        const num_entries = buffer.num_entries;
+        if (num_entries > 0) {
+            const max_radius2 = if (buffer.entries.len == num_entries) buffer.entries[num_entries - 1].d2 else radius2;
 
             if (subsurface) {
                 const max_radius3 = max_radius2 * @sqrt(max_radius2);
 
-                for (buffer.entries[0..used_entries]) |entry| {
+                for (buffer.entries[0..num_entries]) |entry| {
                     const p = self.photons[entry.id];
 
-                    const bxdf = sample.evaluate(p.wi, 1);
+                    const bxdf = sample.evaluate(p.wi(), 1, false);
 
-                    result += Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
+                    result += p.alpha() * bxdf.reflection;
                 }
 
                 const normalization: f32 = @floatCast((((4.0 / 3.0) * std.math.pi) * self.num_paths * @as(f64, @floatCast(max_radius3))));
@@ -642,25 +646,25 @@ pub const Grid = struct {
                 const two_sided = frag.material(context.scene).twoSided();
                 const inv_max_radius2 = 1.0 / max_radius2;
 
-                for (buffer.entries[0..used_entries]) |entry| {
+                for (buffer.entries[0..num_entries]) |entry| {
                     const p = self.photons[entry.id];
 
+                    const k = coneFilter(entry.d2, inv_max_radius2);
+
+                    const p_wi = p.wi();
+
                     if (two_sided) {
-                        const k = coneFilter(entry.d2, inv_max_radius2);
+                        const n_dot_wi = math.safe.clampAbsDot(sample.super().shadingNormal(), p_wi);
 
-                        const n_dot_wi = math.safe.clampAbsDot(sample.super().shadingNormal(), p.wi);
+                        const bxdf = sample.evaluate(p_wi, 1, false);
 
-                        const bxdf = sample.evaluate(p.wi, 1);
+                        result += @as(Vec4f, @splat(k / n_dot_wi)) * p.alpha() * bxdf.reflection;
+                    } else if (math.dot3(sample.super().interpolatedNormal(), p_wi) > 0.0) {
+                        const n_dot_wi = math.safe.clampDot(sample.super().shadingNormal(), p_wi);
 
-                        result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
-                    } else if (math.dot3(sample.super().interpolatedNormal(), p.wi) > 0.0) {
-                        const k = coneFilter(entry.d2, inv_max_radius2);
+                        const bxdf = sample.evaluate(p_wi, 1, false);
 
-                        const n_dot_wi = math.safe.clampDot(sample.super().shadingNormal(), p.wi);
-
-                        const bxdf = sample.evaluate(p.wi, 1);
-
-                        result += @as(Vec4f, @splat(k / n_dot_wi)) * Vec4f{ p.alpha[0], p.alpha[1], p.alpha[2], 0.0 } * bxdf.reflection;
+                        result += @as(Vec4f, @splat(k / n_dot_wi)) * p.alpha() * bxdf.reflection;
                     }
                 }
 
@@ -702,14 +706,10 @@ const Buffer = struct {
         d2: f32,
     };
 
-    num_entries: u32 = undefined,
-    entries: [1024]Entry = undefined,
+    num_entries: u32 = 0,
+    entries: [64]Entry = undefined,
 
     const Self = @This();
-
-    pub fn clear(self: *Self) void {
-        self.num_entries = 0;
-    }
 
     pub fn consider(self: *Self, c: Entry) void {
         const num = self.num_entries;
@@ -721,10 +721,8 @@ const Buffer = struct {
         const lb = std.sort.lowerBound(Entry, self.entries[0..num], c, compareEntry);
 
         if (lb < num) {
-            const begin = lb + 1;
             const end = @min(num + 1, self.entries.len);
-            const range = end - begin;
-            std.mem.copyBackwards(Entry, self.entries[begin..end], self.entries[lb .. lb + range]);
+            @memmove(self.entries[lb + 1 .. end], self.entries[lb .. end - 1]);
 
             self.entries[lb] = c;
             self.num_entries = end;

@@ -35,7 +35,7 @@ pub const Provider = struct {
         var stream = try resources.fs.readStream(alloc, name);
         defer stream.deinit();
 
-        const file_type = file.queryType(stream);
+        const file_type = try file.queryType(stream);
 
         const swizzle = options.queryOr("swizzle", Swizzle.XYZ);
 

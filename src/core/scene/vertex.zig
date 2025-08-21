@@ -3,7 +3,6 @@ const Probe = @import("shape/probe.zig").Probe;
 const Context = @import("context.zig").Context;
 const rst = @import("renderstate.zig");
 const Renderstate = rst.Renderstate;
-const CausticsResolve = rst.CausticsResolve;
 const Scene = @import("scene.zig").Scene;
 const MaterialSample = @import("material/material_sample.zig").Sample;
 const MediumStack = @import("prop/medium.zig").Stack;
@@ -19,8 +18,9 @@ pub const Vertex = struct {
     pub const State = packed struct {
         primary_ray: bool = true,
         transparent: bool = true,
-        treat_as_singular: bool = true,
-        is_translucent: bool = false,
+        singular: bool = true,
+        specular: bool = false,
+        translucent: bool = false,
         started_specular: bool = false,
         from_shadow_catcher: bool = false,
         shadow_catcher_in_camera: bool = false,
@@ -32,7 +32,7 @@ pub const Vertex = struct {
     state: State,
     depth: Probe.Depth,
     bxdf_pdf: f32,
-    min_alpha: f32,
+    reg_alpha: f32,
     split_weight: f32,
     path_count: u32,
 
@@ -53,7 +53,7 @@ pub const Vertex = struct {
             .state = .{},
             .depth = .{},
             .bxdf_pdf = 0.0,
-            .min_alpha = 0.0,
+            .reg_alpha = 0.0,
             .split_weight = 1.0,
             .path_count = 1,
             .throughput = @splat(1.0),
@@ -120,7 +120,8 @@ pub const Vertex = struct {
         self: *const Self,
         frag: *const Fragment,
         sampler: *Sampler,
-        caustics: CausticsResolve,
+        reg_weight: f32,
+        caustics: bool,
         context: Context,
     ) mat.Sample {
         const wo = -self.probe.ray.direction;
@@ -146,7 +147,8 @@ pub const Vertex = struct {
         rs.stochastic_r = sampler.sample1D();
         rs.ior = self.iorOutside(frag, wo);
         rs.wavelength = self.probe.wavelength;
-        rs.min_alpha = self.min_alpha;
+        rs.reg_weight = reg_weight;
+        rs.reg_alpha = self.reg_alpha;
         rs.time = self.probe.time;
         rs.prop = frag.prop;
         rs.part = frag.part;

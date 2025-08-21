@@ -15,13 +15,6 @@ const spectrum = base.spectrum;
 const std = @import("std");
 
 pub const Emittance = struct {
-    const Quantity = enum {
-        Flux,
-        Intensity,
-        Radiosity,
-        Radiance,
-    };
-
     emission_map: Texture = Texture.initUniform1(1.0),
     profile: Texture = Texture.initUniform1(0.0),
 
@@ -29,49 +22,8 @@ pub const Emittance = struct {
 
     camera_weight: f32 = 1.0,
     cos_a: f32 = -1.0,
-    quantity: Quantity = .Radiance,
     num_samples: u32 = 1,
-
-    // unit: lumen
-    pub fn setLuminousFlux(self: *Emittance, color: Vec4f, value: f32, cos_a: f32) void {
-        const luminance = spectrum.aces.AP1toLuminance(color);
-
-        self.value = @as(Vec4f, @splat(value / (std.math.pi * luminance))) * color;
-        self.cos_a = cos_a;
-        self.quantity = .Intensity;
-    }
-
-    // unit: lumen per unit solid angle (lm / sr == candela (cd))
-    pub fn setLuminousIntensity(self: *Emittance, color: Vec4f, value: f32, cos_a: f32) void {
-        const luminance = spectrum.aces.AP1toLuminance(color);
-
-        self.value = @as(Vec4f, @splat(value / luminance)) * color;
-        self.cos_a = cos_a;
-        self.quantity = .Intensity;
-    }
-
-    // unit: lumen per unit solid angle per unit projected area (lm / sr / m^2 == cd / m^2)
-    pub fn setLuminance(self: *Emittance, color: Vec4f, value: f32, cos_a: f32) void {
-        const luminance = spectrum.aces.AP1toLuminance(color);
-
-        self.value = @as(Vec4f, @splat(value / luminance)) * color;
-        self.cos_a = cos_a;
-        self.quantity = .Radiance;
-    }
-
-    // unit: watt per unit solid angle (W / sr)
-    pub fn setRadiantIntensity(self: *Emittance, radi: Vec4f, cos_a: f32) void {
-        self.value = radi;
-        self.cos_a = cos_a;
-        self.quantity = .Intensity;
-    }
-
-    // unit: watt per unit solid angle per unit projected area (W / sr / m^2)
-    pub fn setRadiance(self: *Emittance, rad: Vec4f, cos_a: f32) void {
-        self.value = rad;
-        self.cos_a = cos_a;
-        self.quantity = .Radiance;
-    }
+    normalize: bool = false,
 
     pub fn radiance(
         self: Emittance,
@@ -97,7 +49,7 @@ pub const Emittance = struct {
 
         const intensity = self.value * ts.sample2D_3(self.emission_map, rs, sampler, context);
 
-        if (self.quantity == .Intensity) {
+        if (self.normalize) {
             const area = context.scene.propShape(rs.prop).area(rs.part, rs.trafo.scale());
             return @as(Vec4f, @splat(factor / area)) * intensity;
         }
@@ -106,7 +58,7 @@ pub const Emittance = struct {
     }
 
     pub fn averageRadiance(self: Emittance, area: f32) Vec4f {
-        if (self.quantity == .Intensity) {
+        if (self.normalize) {
             return self.value / @as(Vec4f, @splat(area));
         }
 

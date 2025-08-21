@@ -10,15 +10,17 @@ const Vec4f = math.Vec4f;
 pub const Sample = struct {
     super: Base,
 
+    albedo: Vec4f,
+
     pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f) Sample {
-        return .{ .super = Base.initTBN(rs, wo, albedo, @splat(1.0), 0, true) };
+        return .{ .super = Base.initTBN(rs, wo, @splat(1.0), 0, true), .albedo = albedo };
     }
 
     pub fn evaluate(self: *const Sample, wi: Vec4f) bxdf.Result {
         const n_dot_wi = self.super.frame.clampNdot(wi);
         const pdf = n_dot_wi * math.pi_inv;
 
-        const reflection = @as(Vec4f, @splat(pdf)) * self.super.albedo;
+        const reflection = @as(Vec4f, @splat(pdf)) * self.albedo;
 
         return bxdf.Result.init(reflection, pdf);
     }
@@ -32,7 +34,7 @@ pub const Sample = struct {
         const n_dot_wi = self.super.frame.clampNdot(wi);
         const pdf = n_dot_wi * math.pi_inv;
 
-        const reflection = @as(Vec4f, @splat(pdf)) * self.super.albedo;
+        const reflection = @as(Vec4f, @splat(pdf)) * self.albedo;
 
         return .{
             .reflection = reflection,
@@ -40,7 +42,7 @@ pub const Sample = struct {
             .pdf = pdf,
             .split_weight = 1.0,
             .wavelength = 0.0,
-            .class = .{ .diffuse = true, .reflection = true },
+            .path = .diffuseReflection,
         };
     }
 };

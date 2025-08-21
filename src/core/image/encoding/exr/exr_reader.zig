@@ -49,13 +49,10 @@ pub const Reader = struct {
         }
 
         // Skip version
-        try stream.seekBy(exr.Signature.len);
+        try stream.discard(exr.Signature.len);
 
         var name_buf: [128]u8 = undefined;
         var type_buf: [128]u8 = undefined;
-
-        var name_fbs = std.io.fixedBufferStream(&name_buf);
-        var type_fbs = std.io.fixedBufferStream(&type_buf);
 
         var channels = try Channels.init(alloc);
         defer channels.deinit(alloc);
@@ -66,17 +63,17 @@ pub const Reader = struct {
         var display_window: Vec4i = @splat(0);
 
         while (true) {
-            name_fbs.reset();
-            try stream.streamUntilDelimiter(name_fbs.writer(), '\x00', name_buf.len);
-            const attribute_name = name_fbs.getWritten();
+            var name_writer: std.Io.Writer = .fixed(&name_buf);
+            _ = try stream.streamDelimiter(&name_writer, '\x00', .limited(name_buf.len));
+            const attribute_name = name_writer.buffered();
 
             if (0 == attribute_name.len) {
                 break;
             }
 
-            type_fbs.reset();
-            try stream.streamUntilDelimiter(type_fbs.writer(), '\x00', type_buf.len);
-            const attribute_type = type_fbs.getWritten();
+            var type_writer: std.Io.Writer = .fixed(&type_buf);
+            _ = try stream.streamDelimiter(&type_writer, '\x00', .limited(type_buf.len));
+            const attribute_type = type_writer.buffered();
 
             var attribute_size: u32 = undefined;
             _ = try stream.read(std.mem.asBytes(&attribute_size));
@@ -95,7 +92,7 @@ pub const Reader = struct {
             } else if (std.mem.eql(u8, attribute_type, "compression")) {
                 _ = try stream.read(std.mem.asBytes(&compression));
             } else {
-                try stream.seekBy(attribute_size);
+                _ = try stream.discard(attribute_size);
             }
         }
 
@@ -149,7 +146,7 @@ pub const Reader = struct {
 
         const bytes_per_row_block = bytes_per_row * rows_per_block;
 
-        try stream.seekBy(row_blocks * 8);
+        try stream.discard(row_blocks * 8);
 
         var buffer = try alloc.allocWithOptions(u8, bytes_per_row_block, .@"4", null);
         defer alloc.free(buffer);
@@ -357,10 +354,10 @@ fn interleaveScalar(source: []const u8, out: [*]u8) void {
 }
 
 const Channels = struct {
-    channels: std.ArrayListUnmanaged(exr.Channel),
+    channels: std.ArrayList(exr.Channel),
 
     pub fn init(alloc: Allocator) !Channels {
-        return Channels{ .channels = try std.ArrayListUnmanaged(exr.Channel).initCapacity(alloc, 4) };
+        return Channels{ .channels = try std.ArrayList(exr.Channel).initCapacity(alloc, 4) };
     }
 
     pub fn deinit(self: *Channels, alloc: Allocator) void {
@@ -397,14 +394,15 @@ const Channels = struct {
     }
 
     pub fn read(self: *Channels, alloc: Allocator, stream: ReadStream) !void {
-        var buf: std.ArrayListUnmanaged(u8) = .empty;
+        var name_buf: [128]u8 = undefined;
 
         while (true) {
             var channel: exr.Channel = undefined;
 
-            buf.shrinkRetainingCapacity(0);
-            try stream.streamUntilDelimiter(buf.writer(alloc), '\x00', null);
-            channel.name = try buf.toOwnedSlice(alloc);
+            var name_writer: std.Io.Writer = .fixed(&name_buf);
+
+            _ = try stream.streamDelimiter(&name_writer, '\x00', .limited(name_buf.len));
+            channel.name = try alloc.dupe(u8, name_writer.buffered());
 
             if (0 == channel.name.len) {
                 break;
@@ -413,13 +411,13 @@ const Channels = struct {
             _ = try stream.read(std.mem.asBytes(&channel.format));
 
             // pLinear
-            try stream.seekBy(1);
+            try stream.discard(1);
 
             // reserved
-            try stream.seekBy(3);
+            try stream.discard(3);
 
             // xSampling ySampling
-            try stream.seekBy(4 + 4);
+            try stream.discard(4 + 4);
 
             try self.channels.append(alloc, channel);
         }

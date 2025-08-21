@@ -97,6 +97,7 @@ pub const Iso = struct {
         wo: Vec4f,
         n_dot_wo: f32,
         alpha: f32,
+        specular_threshold: f32,
         xi: Vec2f,
         fresnel: anytype,
         frame: Frame,
@@ -118,7 +119,7 @@ pub const Iso = struct {
         result.reflection = @as(Vec4f, @splat(d * g[0])) * f;
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.path = .reflection(alpha, specular_threshold);
 
         return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = wo_dot_h };
     }
@@ -164,6 +165,7 @@ pub const Iso = struct {
         n_dot_h: f32,
         wo_dot_h: f32,
         alpha: f32,
+        specular_threshold: f32,
         frame: Frame,
         result: *bxdf.Sample,
     ) f32 {
@@ -178,7 +180,7 @@ pub const Iso = struct {
         result.reflection = @splat(d * g[0]);
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.path = .reflection(alpha, specular_threshold);
 
         return n_dot_wi;
     }
@@ -191,6 +193,7 @@ pub const Iso = struct {
         wi_dot_h: f32,
         wo_dot_h: f32,
         alpha: f32,
+        specular_threshold: f32,
         ior: IoR,
         frame: Frame,
         result: *bxdf.Sample,
@@ -218,7 +221,7 @@ pub const Iso = struct {
         result.reflection = @splat((factor * sqr_eta_t / denom) * refr);
         result.wi = wi;
         result.pdf = pdf * (abs_wi_dot_h * sqr_eta_t / denom);
-        result.class = if (alpha <= MinAlpha) .{ .specular = true, .transmission = true } else .{ .glossy = true, .transmission = true };
+        result.path = .transmission(alpha, specular_threshold);
 
         return n_dot_wi;
     }
@@ -303,13 +306,14 @@ pub const Aniso = struct {
         wo: Vec4f,
         n_dot_wo: f32,
         alpha: Vec2f,
+        specular_threshold: f32,
         xi: Vec2f,
         fresnel: anytype,
         frame: Frame,
         result: *bxdf.Sample,
     ) Micro {
         if (alpha[0] == alpha[1]) {
-            return Iso.reflect(wo, n_dot_wo, alpha[0], xi, fresnel, frame, result);
+            return Iso.reflect(wo, n_dot_wo, alpha[0], specular_threshold, xi, fresnel, frame, result);
         }
 
         var n_dot_h: f32 = undefined;
@@ -338,7 +342,7 @@ pub const Aniso = struct {
         result.reflection = @as(Vec4f, @splat(d * g[0])) * f;
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha[1] <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.path = .reflection(alpha[1], specular_threshold);
 
         return .{ .h = h, .n_dot_wi = n_dot_wi, .h_dot_wi = wo_dot_h };
     }
@@ -350,11 +354,12 @@ pub const Aniso = struct {
         n_dot_h: f32,
         wo_dot_h: f32,
         alpha: Vec2f,
+        specular_threshold: f32,
         frame: Frame,
         result: *bxdf.Sample,
     ) f32 {
         if (alpha[0] == alpha[1]) {
-            return Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], frame, result);
+            return Iso.reflectNoFresnel(wo, h, n_dot_wo, n_dot_h, wo_dot_h, alpha[0], specular_threshold, frame, result);
         }
 
         const x_dot_h = math.dot3(frame.x, h);
@@ -376,7 +381,7 @@ pub const Aniso = struct {
         result.reflection = @splat(d * g[0]);
         result.wi = wi;
         result.pdf = pdfVisible(d, g[1]);
-        result.class = if (alpha[1] <= MinAlpha) .{ .specular = true, .reflection = true } else .{ .glossy = true, .reflection = true };
+        result.path = .reflection(alpha[1], specular_threshold);
 
         return n_dot_wi;
     }

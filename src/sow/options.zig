@@ -6,7 +6,7 @@ pub const Options = struct {
 
     output: []u8 = &.{},
 
-    mounts: std.ArrayListUnmanaged([]u8) = .empty,
+    mounts: std.ArrayList([]u8) = .empty,
 
     threads: i32 = 0,
 
@@ -101,8 +101,6 @@ pub const Options = struct {
     }
 
     fn help() void {
-        const stdout = std.fs.File.stdout().deprecatedWriter();
-
         const text =
             \\scatter tool
             \\Usage:
@@ -118,6 +116,8 @@ pub const Options = struct {
             \\                       logical CPUs minus x. Default is 0.
         ;
 
-        stdout.print(text, .{}) catch return;
+        var file_buffer: [4096]u8 = undefined;
+        var stdout = std.fs.File.stdout().writer(&file_buffer);
+        stdout.interface.print(text, .{}) catch return;
     }
 };

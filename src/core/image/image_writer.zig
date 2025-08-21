@@ -43,7 +43,7 @@ pub const Writer = union(enum) {
     pub fn write(
         self: *Self,
         alloc: Allocator,
-        writer: anytype,
+        writer: *std.Io.Writer,
         image: Float4,
         crop: Vec4i,
         encoding: Encoding,

@@ -68,7 +68,7 @@ pub const Reader = struct {
         // miniz
         stream: mz.mz_stream = undefined,
 
-        data_chunks: std.ArrayListUnmanaged(Chunk) = .empty,
+        data_chunks: std.ArrayList(Chunk) = .empty,
         num_chunks: u32 = 0,
 
         buffer_data: []u8 = &.{},
@@ -488,7 +488,7 @@ pub const Reader = struct {
             return false;
         }
 
-        try stream.seekBy(length + 4);
+        try stream.discard(length + 4);
 
         return true;
     }
@@ -499,7 +499,7 @@ pub const Reader = struct {
         _ = try stream.read(chunk.data[0..chunk.length]);
 
         // crc32
-        try stream.seekBy(4);
+        try stream.discard(4);
     }
 
     fn parseHeader(self: *Reader, alloc: Allocator, info: *Info) !void {

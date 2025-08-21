@@ -2,7 +2,7 @@ const Model = @import("model.zig").Model;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const List = std.ArrayListUnmanaged;
+const List = std.ArrayList;
 
 const VertexLayoutDescription = struct {
     pub const Encoding = enum {

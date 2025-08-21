@@ -4,7 +4,7 @@ const Allocator = std.mem.Allocator;
 pub const Options = struct {
     take: []u8 = &.{},
 
-    mounts: std.ArrayListUnmanaged([]u8) = .empty,
+    mounts: std.ArrayList([]u8) = .empty,
 
     threads: i32 = 0,
 
@@ -159,7 +159,8 @@ pub const Options = struct {
             \\      --iter                      Prompt to render again, retaining loaded assets.
         ;
 
-        const stdout = std.fs.File.stdout().deprecatedWriter();
-        stdout.print(text, .{}) catch return;
+        var file_buffer: [4096]u8 = undefined;
+        var stdout = std.fs.File.stdout().writer(&file_buffer);
+        stdout.interface.print(text, .{}) catch return;
     }
 };

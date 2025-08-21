@@ -24,7 +24,6 @@ pub const Base = struct {
     geo_n: Vec4f,
     n: Vec4f,
     wo: Vec4f,
-    albedo: Vec4f,
 
     alpha: Vec2f,
 
@@ -32,33 +31,31 @@ pub const Base = struct {
 
     const Self = @This();
 
-    pub fn init(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, priority: i8) Self {
+    pub fn init(rs: Renderstate, wo: Vec4f, alpha: Vec2f, priority: i8) Self {
         return .{
             .frame = undefined,
             .geo_n = rs.geo_n,
             .n = rs.n,
             .wo = wo,
-            .albedo = albedo,
             .alpha = alpha,
             .properties = .{
                 .can_evaluate = true,
-                .avoid_caustics = .Full != rs.caustics,
+                .avoid_caustics = !rs.caustics,
                 .lower_priority = priority < rs.highest_priority,
             },
         };
     }
 
-    pub fn initTBN(rs: Renderstate, wo: Vec4f, albedo: Vec4f, alpha: Vec2f, priority: i8, can_evaluate: bool) Self {
+    pub fn initTBN(rs: Renderstate, wo: Vec4f, alpha: Vec2f, priority: i8, can_evaluate: bool) Self {
         return .{
             .frame = .{ .x = rs.t, .y = rs.b, .z = rs.n },
             .geo_n = rs.geo_n,
             .n = rs.n,
             .wo = wo,
-            .albedo = albedo,
             .alpha = alpha,
             .properties = .{
                 .can_evaluate = can_evaluate,
-                .avoid_caustics = .Full != rs.caustics,
+                .avoid_caustics = !rs.caustics,
                 .lower_priority = priority < rs.highest_priority,
             },
         };
@@ -92,8 +89,12 @@ pub const Base = struct {
         return self.properties.avoid_caustics;
     }
 
-    pub fn averageAlpha(self: Self) f32 {
-        return self.alpha[0];
+    pub fn avoidCausticsForce(self: Self, force: bool) bool {
+        return force or self.properties.avoid_caustics;
+    }
+
+    pub fn aovRoughness(self: Self) f32 {
+        return @sqrt(self.alpha[0]);
     }
 };
 

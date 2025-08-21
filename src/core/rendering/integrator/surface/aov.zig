@@ -27,7 +27,7 @@ pub const AOV = struct {
         ShadingNormal,
         LightSampleCount,
         Side,
-        Photons,
+        Photon,
     };
 
     pub const Settings = struct {
@@ -63,10 +63,10 @@ pub const AOV = struct {
             .Tangent, .Bitangent, .GeometricNormal, .ShadingNormal => self.vector(vertex, &frag, worker),
             .LightSampleCount => self.lightSampleCount(vertex, &frag, worker),
             .Side => self.side(vertex, &frag, worker),
-            .Photons => self.photons(&vertex, &frag, worker),
+            .Photon => self.photons(&vertex, &frag, worker),
         };
 
-        return .{ .direct = vertex.throughput * result, .indirect = @splat(0.0) };
+        return .{ .direct = result };
     }
 
     fn ao(self: Self, vertex: Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
@@ -76,7 +76,7 @@ pub const AOV = struct {
         var result: f32 = 0.0;
         var sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
+        const mat_sample = vertex.sample(frag, sampler, 0.0, false, worker.context);
 
         if (worker.aov.active()) {
             worker.commonAOV(&vertex, frag, &mat_sample);
@@ -112,7 +112,7 @@ pub const AOV = struct {
 
         const sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
+        const mat_sample = vertex.sample(frag, sampler, 0.0, false, worker.context);
 
         if (worker.aov.active()) {
             worker.commonAOV(&vertex, frag, &mat_sample);
@@ -142,7 +142,7 @@ pub const AOV = struct {
     fn lightSampleCount(self: Self, vertex: Vertex, frag: *const Fragment, worker: *Worker) Vec4f {
         var sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
+        const mat_sample = vertex.sample(frag, sampler, 0.0, false, worker.context);
 
         const n = mat_sample.super().geometricNormal();
         const p = frag.p;
@@ -179,7 +179,7 @@ pub const AOV = struct {
 
         const sampler = worker.pickSampler(0);
 
-        const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
+        const mat_sample = vertex.sample(frag, sampler, 0.0, false, worker.context);
 
         const super = mat_sample.super();
         const n = math.cross3(super.shadingTangent(), super.shadingBitangent());
@@ -197,7 +197,7 @@ pub const AOV = struct {
 
             var sampler = worker.pickSampler(total_depth);
 
-            const mat_sample = vertex.sample(frag, sampler, .Off, worker.context);
+            const mat_sample = vertex.sample(frag, sampler, 0.0, false, worker.context);
 
             const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
             if (mat_sample.canEvaluate() and gather_photons) {
@@ -211,27 +211,30 @@ pub const AOV = struct {
 
             const sample_result = sample_results[0];
 
-            if (sample_result.class.specular) {
-                vertex.state.treat_as_singular = true;
+            const path = sample_result.path;
+            if (.Specular == path.scattering) {
+                vertex.state.specular = true;
+                vertex.state.singular = path.singular();
 
                 if (vertex.state.primary_ray) {
                     vertex.state.started_specular = true;
                 }
-            } else if (!sample_result.class.straight) {
-                vertex.state.treat_as_singular = false;
+            } else if (.Straight != path.event) {
+                vertex.state.specular = false;
+                vertex.state.singular = false;
                 vertex.state.primary_ray = false;
             }
 
             vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
             vertex.probe.depth.increment(frag);
 
-            if (vertex.probe.depth.surface >= self.settings.max_depth.surface) {
+            if (vertex.probe.depth.surface >= self.settings.max_depth.surface or !vertex.state.primary_ray) {
                 break;
             }
 
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-            if (!sample_result.class.straight) {
+            if (.Straight != path.event) {
                 vertex.origin = frag.p;
             }
 
@@ -239,7 +242,7 @@ pub const AOV = struct {
                 vertex.probe.wavelength = sample_result.wavelength;
             }
 
-            if (sample_result.class.transmission) {
+            if (.Transmission == path.event) {
                 vertex.interfaceChange(sample_result.wi, frag, &mat_sample, worker.context.scene);
             }
 

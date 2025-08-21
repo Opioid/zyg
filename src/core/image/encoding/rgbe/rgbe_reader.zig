@@ -6,7 +6,6 @@ const base = @import("base");
 const math = base.math;
 const Vec2i = math.Vec2i;
 const Pack3h = math.Pack3h;
-const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
 const spectrum = base.spectrum;
 
@@ -42,21 +41,22 @@ pub const Reader = struct {
 
     fn readHeader(stream: ReadStream) !Header {
         var buf: [128]u8 = undefined;
-        var fbs = std.io.fixedBufferStream(&buf);
 
         {
-            fbs.reset();
-            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
-            if (!std.mem.startsWith(u8, fbs.getWritten(), "#?")) {
+            var writer: std.Io.Writer = .fixed(&buf);
+            _ = try stream.streamDelimiter(&writer, '\n', .limited(buf.len));
+
+            if (!std.mem.startsWith(u8, writer.buffered(), "#?")) {
                 return Error.BadInitialToken;
             }
         }
 
         var format_specifier: bool = false;
         while (true) {
-            fbs.reset();
-            try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
-            const line = fbs.getWritten();
+            var writer: std.Io.Writer = .fixed(&buf);
+            _ = try stream.streamDelimiter(&writer, '\n', .limited(buf.len));
+            const line = writer.buffered();
+
             if (0 == line.len or 0 == line[0]) {
                 // blank lines signifies end of meta data header
                 break;
@@ -71,9 +71,10 @@ pub const Reader = struct {
             return Error.MissingFormatSpecifier;
         }
 
-        fbs.reset();
-        try stream.streamUntilDelimiter(fbs.writer(), '\n', buf.len);
-        var line = fbs.getWritten();
+        var writer: std.Io.Writer = .fixed(&buf);
+        _ = try stream.streamDelimiter(&writer, '\n', .limited(buf.len));
+        var line = writer.buffered();
+
         var i = (std.mem.indexOfScalar(u8, line, ' ') orelse return Error.MissingImageSizeSpecifier) + 1;
         if (!std.mem.eql(u8, line[0..i], "-Y ")) {
             return Error.MissingImageSizeSpecifier;
@@ -121,11 +122,11 @@ pub const Reader = struct {
             if (rgbe[0] != 2 or rgbe[1] != 2 or (rgbe[2] & 0x80) != 0) {
                 // this file is not run length encoded
 
-                const color = rgbeTofloat3(rgbe);
+                const color = rgbeToVec4f(rgbe);
                 image.pixels[offset] = Pack3h.init3(
-                    @as(f16, @floatCast(color.v[0])),
-                    @as(f16, @floatCast(color.v[1])),
-                    @as(f16, @floatCast(color.v[2])),
+                    @floatCast(color[0]),
+                    @floatCast(color[1]),
+                    @floatCast(color[2]),
                 );
 
                 return try readPixels(stream, scanline_width * num_scanlines - 1, image, 1);
@@ -175,18 +176,17 @@ pub const Reader = struct {
             }
 
             // now convert data from buffer into floats
-            var i: u32 = 0;
-            while (i < scanline_width) : (i += 1) {
+            for (0..scanline_width) |i| {
                 rgbe[0] = scanline_buffer[i];
                 rgbe[1] = scanline_buffer[i + scanline_width];
                 rgbe[2] = scanline_buffer[i + 2 * scanline_width];
                 rgbe[3] = scanline_buffer[i + 3 * scanline_width];
 
-                const color = rgbeTofloat3(rgbe);
+                const color = rgbeToVec4f(rgbe);
                 image.pixels[offset] = Pack3h.init3(
-                    @floatCast(color.v[0]),
-                    @floatCast(color.v[1]),
-                    @floatCast(color.v[2]),
+                    @floatCast(color[0]),
+                    @floatCast(color[1]),
+                    @floatCast(color[2]),
                 );
 
                 offset += 1;
@@ -202,11 +202,11 @@ pub const Reader = struct {
         while (i > 0) : (i -= 1) {
             _ = try stream.read(&rgbe);
 
-            const color = rgbeTofloat3(rgbe);
+            const color = rgbeToVec4f(rgbe);
             image.pixels[o] = Pack3h.init3(
-                @floatCast(color.v[0]),
-                @floatCast(color.v[1]),
-                @floatCast(color.v[2]),
+                @floatCast(color[0]),
+                @floatCast(color[1]),
+                @floatCast(color[2]),
             );
 
             o += 1;
@@ -214,7 +214,7 @@ pub const Reader = struct {
     }
 
     // https://cbloomrants.blogspot.com/2020/06/widespread-error-in-radiance-hdr-rgbe.html
-    fn rgbeTofloat3(rgbe: [4]u8) Pack3f {
+    fn rgbeToVec4f(rgbe: [4]u8) Vec4f {
         if (rgbe[3] > 0) {
             // nonzero pixel
             const f = std.math.scalbn(@as(f32, 1.0), @as(i32, rgbe[3]) - (128 + 8));
@@ -226,9 +226,9 @@ pub const Reader = struct {
                 0.0,
             };
 
-            return math.vec4fTo3f(spectrum.aces.sRGBtoAP1(srgb));
+            return spectrum.aces.sRGBtoAP1(srgb);
         }
 
-        return Pack3f.init1(0.0);
+        return @splat(0.0);
     }
 };

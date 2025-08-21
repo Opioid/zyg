@@ -366,7 +366,7 @@ pub const Sphere = struct {
                 one_minus_cos_theta_max = 0.5 * sin2_theta_max;
             }
 
-            const cos_alpha = sin2_theta / sin_theta_max + cos_theta * @sqrt(1.0 - math.min(sin2_theta / sin2_theta_max, 1.0));
+            const cos_alpha = math.min(sin2_theta / sin_theta_max + cos_theta * @sqrt(1.0 - math.min(sin2_theta / sin2_theta_max, 1.0)), 1.0);
             const sin_alpha = @sqrt(1.0 - cos_alpha * cos_alpha);
 
             const phi = s2[1] * (2.0 * std.math.pi);

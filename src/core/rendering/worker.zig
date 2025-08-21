@@ -323,7 +323,7 @@ pub const Worker = struct {
         }
 
         if (self.aov.activeClass(.Roughness)) {
-            self.aov.insert1(.Roughness, @sqrt(mat_sample.super().averageAlpha()));
+            self.aov.insert1(.Roughness, mat_sample.super().aovRoughness());
         }
 
         if (self.aov.activeClass(.Depth)) {

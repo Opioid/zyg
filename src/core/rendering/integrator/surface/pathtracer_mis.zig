@@ -25,9 +25,8 @@ pub const PathtracerMIS = struct {
     pub const Settings = struct {
         max_depth: hlp.Depth,
         light_sampling: hlp.LightSampling,
-        regularize_roughness: bool,
+        regularize_roughness: f32,
         caustics_path: bool,
-        caustics_resolve: CausticsResolve,
         photons_not_only_through_specular: bool,
     };
 
@@ -73,7 +72,7 @@ pub const PathtracerMIS = struct {
                 }
 
                 const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
-                result.add(split_throughput * this_light.emission, indirect_light_depth, 2, 0 == total_depth, vertex.state.treat_as_singular);
+                result.add(split_throughput * this_light.emission, indirect_light_depth, 2, 0 == total_depth, vertex.state.singular);
 
                 if (!frag.hit() or
                     vertex.probe.depth.surface >= max_depth.surface or
@@ -92,14 +91,10 @@ pub const PathtracerMIS = struct {
                 }
 
                 const caustics = self.causticsResolve(vertex.state);
-                const mat_sample = vertex.sample(&frag, sampler, caustics, worker.context);
+                const mat_sample = vertex.sample(&frag, sampler, self.settings.regularize_roughness, caustics, worker.context);
 
                 if (worker.aov.active()) {
                     worker.commonAOV(vertex, &frag, &mat_sample);
-                }
-
-                if (self.settings.regularize_roughness) {
-                    vertex.min_alpha = math.max(vertex.min_alpha, mat_sample.super().averageAlpha());
                 }
 
                 split_throughput = vertex.throughput * split_weight;
@@ -141,24 +136,27 @@ pub const PathtracerMIS = struct {
                     next_vertex.path_count = vertex.path_count * path_count;
                     next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
 
-                    const class = sample_result.class;
-                    if (class.specular) {
-                        next_vertex.state.treat_as_singular = true;
+                    const path = sample_result.path;
+                    if (.Specular == path.scattering) {
+                        next_vertex.state.specular = true;
+                        next_vertex.state.singular = path.singular();
 
                         if (vertex.state.primary_ray) {
                             next_vertex.state.started_specular = true;
                         }
-                    } else if (!class.straight) {
-                        next_vertex.state.treat_as_singular = false;
+                    } else if (.Straight != path.event) {
+                        next_vertex.state.specular = false;
+                        next_vertex.state.singular = false;
                         next_vertex.state.primary_ray = false;
                     }
 
-                    if (!class.straight) {
-                        next_vertex.state.is_translucent = mat_sample.isTranslucent();
+                    if (.Straight != path.event) {
+                        next_vertex.state.translucent = mat_sample.isTranslucent();
                         next_vertex.depth = next_vertex.probe.depth;
                         next_vertex.bxdf_pdf = sample_result.pdf;
                         next_vertex.origin = frag.p;
                         next_vertex.geo_n = mat_sample.super().geometricNormal();
+                        next_vertex.reg_alpha = path.reg_alpha;
                     }
 
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
@@ -170,11 +168,11 @@ pub const PathtracerMIS = struct {
                         next_vertex.probe.wavelength = sample_result.wavelength;
                     }
 
-                    if (class.transmission) {
+                    if (.Transmission == path.event) {
                         next_vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.context.scene);
                     }
 
-                    next_vertex.state.transparent = next_vertex.state.transparent and (class.transmission or class.straight);
+                    next_vertex.state.transparent = next_vertex.state.transparent and (.Transmission == path.event or .Straight == path.event);
                 }
 
                 sampler.incrementPadding();
@@ -268,7 +266,7 @@ pub const PathtracerMIS = struct {
 
             const radiance = light.evaluateTo(p, trafo, light_sample, sampler, context);
 
-            const bxdf_result = mat_sample.evaluate(light_sample.wi, max_material_splits);
+            const bxdf_result = mat_sample.evaluate(light_sample.wi, max_material_splits, false);
 
             const light_pdf = light_sample.pdf() * light_pick.pdf;
             const weight: Vec4f = @splat(hlp.predividedPowerHeuristic(light_pdf, bxdf_result.pdf));
@@ -296,7 +294,7 @@ pub const PathtracerMIS = struct {
     ) LightResult {
         var result: LightResult = .empty;
 
-        if (!self.settings.caustics_path and vertex.state.treat_as_singular and !vertex.state.primary_ray) {
+        if (!self.settings.caustics_path and vertex.state.specular and !vertex.state.primary_ray) {
             return result;
         }
 
@@ -357,15 +355,11 @@ pub const PathtracerMIS = struct {
         return result;
     }
 
-    fn causticsResolve(self: Self, state: Vertex.State) CausticsResolve {
+    fn causticsResolve(self: Self, state: Vertex.State) bool {
         if (!state.primary_ray) {
-            if (!self.settings.caustics_path) {
-                return .Off;
-            }
-
-            return self.settings.caustics_resolve;
+            return self.settings.caustics_path;
         }
 
-        return .Full;
+        return true;
     }
 };

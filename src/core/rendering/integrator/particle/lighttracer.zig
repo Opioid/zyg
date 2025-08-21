@@ -67,6 +67,8 @@ pub const Lighttracer = struct {
         var vertices: VertexPool = undefined;
         vertices.start(input);
 
+        var energy: Vec4f = @splat(0.0);
+
         while (vertices.iterate()) {
             while (vertices.consume()) |vertex| {
                 const total_depth = vertex.probe.depth.total();
@@ -80,25 +82,24 @@ pub const Lighttracer = struct {
                 var frag: Fragment = undefined;
                 worker.context.nextEvent(vertex, &frag, sampler);
                 if (.Absorb == frag.event or .Abort == frag.event or !frag.hit()) {
-                    break;
+                    continue;
                 }
 
                 if (0 == vertex.probe.depth.surface) {
                     const pdf: Vec4f = @splat(light_sample.pdf());
-                    const energy = light.evaluateFrom(frag.p, light_sample, sampler, worker.context) / pdf;
-                    vertex.throughput *= energy;
+                    energy = light.evaluateFrom(frag.p, light_sample, sampler, worker.context) / pdf;
                 }
 
-                const mat_sample = vertex.sample(&frag, sampler, .Full, worker.context);
+                const mat_sample = vertex.sample(&frag, sampler, 0.0, true, worker.context);
 
                 const max_splits = VertexPool.maxSplits(vertex, total_depth);
 
                 if (mat_sample.canEvaluate() and (vertex.state.started_specular or self.settings.full_light_path)) {
-                    _ = directCamera(camera, sensor, vertex, &frag, &mat_sample, max_splits, sampler, worker.context);
+                    directCamera(camera, sensor, energy, vertex, &frag, &mat_sample, max_splits, sampler, worker.context);
+                }
 
-                    if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
-                        continue;
-                    }
+                if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
+                    continue;
                 }
 
                 var bxdf_samples: bxdf.Samples = undefined;
@@ -106,9 +107,9 @@ pub const Lighttracer = struct {
                 const path_count: u32 = @intCast(sample_results.len);
 
                 for (sample_results) |sample_result| {
-                    const class = sample_result.class;
+                    const path = sample_result.path;
 
-                    if (!self.settings.full_light_path and !vertex.state.started_specular and !class.specular) {
+                    if (!self.settings.full_light_path and !vertex.state.started_specular and .Specular != path.scattering) {
                         continue;
                     }
 
@@ -118,15 +119,21 @@ pub const Lighttracer = struct {
                     next_vertex.path_count = vertex.path_count * path_count;
                     next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
 
-                    if (class.specular) {
-                        next_vertex.state.treat_as_singular = true;
+                    if (.Specular == path.scattering) {
+                        next_vertex.state.specular = true;
+                        next_vertex.state.singular = path.singular();
 
-                        if (next_vertex.state.primary_ray) {
+                        if (vertex.state.primary_ray) {
                             next_vertex.state.started_specular = true;
                         }
-                    } else if (!class.straight) {
-                        next_vertex.state.treat_as_singular = false;
+                    } else if (.Straight != path.event) {
+                        next_vertex.state.specular = false;
+                        next_vertex.state.singular = false;
                         next_vertex.state.primary_ray = false;
+                    }
+
+                    if (.Straight != path.event) {
+                        next_vertex.origin = frag.p;
                     }
 
                     next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
@@ -134,15 +141,11 @@ pub const Lighttracer = struct {
                     next_vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
                     next_vertex.probe.depth.increment(&frag);
 
-                    if (!class.straight) {
-                        next_vertex.origin = frag.p;
-                    }
-
                     if (0.0 == next_vertex.probe.wavelength) {
                         next_vertex.probe.wavelength = sample_result.wavelength;
                     }
 
-                    if (class.transmission) {
+                    if (.Transmission == path.event) {
                         const ior = next_vertex.interfaceChangeIor(sample_result.wi, &frag, &mat_sample, worker.context.scene);
                         const eta = ior.eta_i / ior.eta_t;
                         next_vertex.throughput *= @as(Vec4f, @splat(eta * eta));
@@ -180,6 +183,7 @@ pub const Lighttracer = struct {
     fn directCamera(
         camera: *const Camera,
         sensor: *Sensor,
+        energy: Vec4f,
         vertex: *const Vertex,
         frag: *const Fragment,
         mat_sample: *const MaterialSample,
@@ -206,7 +210,7 @@ pub const Lighttracer = struct {
         const n = mat_sample.super().interpolatedNormal();
 
         for (0..camera.numLayers()) |l| {
-            const layer: u32 = @truncate(l);
+            const layer: u32 = @intCast(l);
 
             const camera_sample = camera.sampleTo(
                 layer,
@@ -226,12 +230,12 @@ pub const Lighttracer = struct {
                 continue;
             }
 
-            const bxdf_result = mat_sample.evaluate(wi, max_material_splits);
+            const bxdf_result = mat_sample.evaluate(wi, max_material_splits, true);
 
             const nsc = hlp.nonSymmetryCompensation(wi, wo, frag.geo_n, n);
 
             const weight: Vec4f = @splat(camera_sample.pdf * nsc * vertex.split_weight);
-            const result = weight * (tr * vertex.throughput * bxdf_result.reflection);
+            const result = weight * tr * vertex.throughput * bxdf_result.reflection * energy;
 
             sensor.splatSample(layer, camera_sample, result, crop);
         }

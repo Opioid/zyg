@@ -114,8 +114,8 @@ pub const Pool = struct {
         self.running_parallel = true;
 
         const range = end - begin;
-        const rangef = @as(f32, @floatFromInt(range));
-        const num_threads = @as(f32, @floatFromInt(self.uniques.len));
+        const rangef: f32 = @floatFromInt(range);
+        const num_threads: f32 = @floatFromInt(self.uniques.len);
 
         const step = if (item_size_hint != 0 and 0 == Cache_line % item_size_hint)
             @as(u32, @intFromFloat(@ceil((rangef * @as(f32, @floatFromInt(item_size_hint))) / num_threads / Cache_line))) *

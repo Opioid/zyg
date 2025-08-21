@@ -81,13 +81,13 @@ pub const Mapper = struct {
 
     fn tracePhoton(self: *Self, bounds: AABB, frame: u32, max_photons: u32, finite_world: bool, context: Context) Result {
         // How often should we try to create a valid photon path?
-        const Max_iterations = 1024 * 10;
+        const MaxIterations = 1024 * 10;
 
         var iteration: u32 = 0;
         var num_photons: u32 = 0;
 
         var i: u32 = 0;
-        while (i < Max_iterations) : (i += 1) {
+        while (i < MaxIterations) : (i += 1) {
             var light_id: u32 = undefined;
             var light_sample: SampleFrom = undefined;
             var vertex = self.generateLightVertex(
@@ -115,7 +115,7 @@ pub const Mapper = struct {
                     vertex.throughput *= energy;
                 }
 
-                const mat_sample = vertex.sample(&frag, &self.sampler, .Full, context);
+                const mat_sample = vertex.sample(&frag, &self.sampler, 0.0, true, context);
 
                 if (mat_sample.canEvaluate() and (vertex.state.started_specular or self.settings.full_light_path)) {
                     if (finite_world or bounds.pointInside(frag.p)) {
@@ -128,12 +128,7 @@ pub const Mapper = struct {
                             radiance *= @as(Vec4f, @splat(eta * eta));
                         }
 
-                        self.photons[num_photons] = Photon{
-                            .p = frag.p,
-                            .wi = -vertex.probe.ray.direction,
-                            .alpha = .{ radiance[0], radiance[1], radiance[2] },
-                            .volumetric = frag.subsurface(),
-                        };
+                        self.photons[num_photons] = Photon.init(frag.p, -vertex.probe.ray.direction, radiance, frag.subsurface());
 
                         iteration = i + 1;
                         num_photons += 1;
@@ -152,37 +147,38 @@ pub const Mapper = struct {
 
                 const sample_result = sample_results[0];
 
-                const class = sample_result.class;
-
                 vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
                 if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
                     break;
                 }
 
-                if (class.specular) {
-                    vertex.state.treat_as_singular = true;
+                const path = sample_result.path;
+                if (.Specular == path.scattering) {
+                    vertex.state.specular = true;
+                    vertex.state.singular = path.singular();
 
                     if (vertex.state.primary_ray) {
                         vertex.state.started_specular = true;
                     }
-                } else if (!class.straight) {
-                    vertex.state.treat_as_singular = false;
+                } else if (.Straight != path.event) {
+                    vertex.state.specular = false;
+                    vertex.state.singular = false;
                     vertex.state.primary_ray = false;
+                }
+
+                if (.Straight != path.event) {
+                    vertex.origin = frag.p;
                 }
 
                 vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
                 vertex.probe.depth.increment(&frag);
 
-                if (!sample_result.class.straight) {
-                    vertex.origin = frag.p;
-                }
-
                 if (0.0 == vertex.probe.wavelength) {
                     vertex.probe.wavelength = sample_result.wavelength;
                 }
 
-                if (class.transmission) {
+                if (.Transmission == path.event) {
                     const ior = vertex.interfaceChangeIor(sample_result.wi, &frag, &mat_sample, context.scene);
                     const eta = ior.eta_i / ior.eta_t;
                     vertex.throughput *= @as(Vec4f, @splat(eta * eta));

@@ -17,7 +17,7 @@ pub const Options = struct {
         TXT,
     };
 
-    inputs: std.ArrayListUnmanaged([]u8) = .empty,
+    inputs: std.ArrayList([]u8) = .empty,
     operator: Operator = .Over,
     format: ?Format = null,
     exposure: f32 = 0.0,
@@ -163,8 +163,6 @@ pub const Options = struct {
     }
 
     fn help() void {
-        const stdout = std.fs.File.stdout().deprecatedWriter();
-
         const text =
             \\image tool
             \\Usage:
@@ -180,6 +178,8 @@ pub const Options = struct {
             \\                       logical CPUs minus x. Default is 0.
         ;
 
-        stdout.print(text, .{}) catch return;
+        var file_buffer: [4096]u8 = undefined;
+        var stdout = std.fs.File.stdout().writer(&file_buffer);
+        stdout.interface.print(text, .{}) catch return;
     }
 };

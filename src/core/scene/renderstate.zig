@@ -7,12 +7,6 @@ const math = @import("base").math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
-pub const CausticsResolve = enum(u8) {
-    Off,
-    Rough,
-    Full,
-};
-
 pub const Renderstate = struct {
     trafo: Trafo,
 
@@ -24,12 +18,13 @@ pub const Renderstate = struct {
     origin: Vec4f,
     uvw: Vec4f,
 
+    time: u64,
+
     stochastic_r: f32,
     ior: f32,
     wavelength: f32,
-    min_alpha: f32,
-
-    time: u64,
+    reg_weight: f32,
+    reg_alpha: f32,
 
     prop: u32,
     part: u32,
@@ -39,7 +34,7 @@ pub const Renderstate = struct {
     primary: bool,
     highest_priority: i8,
     event: Event,
-    caustics: CausticsResolve,
+    caustics: bool,
 
     pub fn uv(self: Renderstate) Vec2f {
         const uvw = self.uvw;
@@ -62,30 +57,15 @@ pub const Renderstate = struct {
         };
     }
 
-    pub fn regularizeAlpha(self: Renderstate, alpha: Vec2f) Vec2f {
-        // const mod_alpha = math.max2(alpha, @splat(self.min_alpha));
+    pub fn regularizeAlpha(self: Renderstate, alpha: Vec2f, specular_threshold: f32) Vec2f {
+        const weight = self.reg_weight;
 
-        // if (mod_alpha[0] <= ggx.Min_alpha and .Rough == self.caustics) {
-        //     const l = math.length3(self.p - self.origin);
-        //     const m = math.min(0.1 * (1.0 + l), 1.0);
-        //     return math.max2(mod_alpha, @splat(m));
-        // }
-
-        // return mod_alpha;
-
-        const mod_alpha = math.max2(alpha, @splat(self.min_alpha));
-
-        if (alpha[0] <= ggx.MinAlpha) {
-            if (.Rough == self.caustics) {
-                const l = math.length3(self.p - self.origin);
-                const m = math.min(0.1 * (1.0 + l), 1.0);
-                return math.max2(mod_alpha, @splat(m));
-            } else {
-                return alpha;
-            }
+        if (0.0 == weight or (alpha[0] <= specular_threshold and !self.caustics)) {
+            return alpha;
         }
 
-        return mod_alpha;
+        const one: Vec2f = @splat(1.0);
+        return one - ((one - alpha) * @as(Vec2f, @splat(1.0 - weight * self.reg_alpha)));
     }
 
     pub fn volumeScatter(self: Renderstate) bool {
