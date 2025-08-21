@@ -613,12 +613,7 @@ pub const Builder = struct {
             const p = bounds.position();
             const center = Vec4f{ p[0], p[1], p[2], 0.5 * math.length3(bounds.extent()) };
             dest.compressCenter(center, total_bounds);
-
-            dest.cone[0] = enc.floatToSnorm16(source.cone[0]);
-            dest.cone[1] = enc.floatToSnorm16(source.cone[1]);
-            dest.cone[2] = enc.floatToSnorm16(source.cone[2]);
-            dest.cone[3] = enc.floatToSnorm16(source.cone[3]);
-
+            dest.cone = enc.floatToSnorm16(source.cone);
             dest.power = source.power;
             dest.variance = source.variance;
             dest.meta.has_children = source.hasChildren();

@@ -7,6 +7,7 @@ const Scene = @import("../scene.zig").Scene;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 
 const base = @import("base");
+const enc = base.encoding;
 const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
@@ -41,7 +42,7 @@ pub const Emittance = struct {
 
         if (self.profile.isImage()) {
             const lwi = -math.normalize3(rs.trafo.worldToObjectPoint(rs.origin));
-            const o = math.smpl.octEncode(lwi);
+            const o = enc.octEncode(lwi);
             const ouv = (o + @as(Vec2f, @splat(1.0))) * @as(Vec2f, @splat(0.5));
 
             factor *= ts.sampleImage2D_1(self.profile, ouv, rs.stochastic_r, context.scene);
@@ -91,7 +92,7 @@ pub const Emittance = struct {
                 const s = self.profile.image2D_1(x, y, scene);
 
                 if (s > 0.0) {
-                    const dir = math.smpl.octDecode(@as(Vec2f, @splat(2.0)) * (Vec2f{ u, v } - @as(Vec2f, @splat(0.5))));
+                    const dir = enc.octDecode(@as(Vec2f, @splat(2.0)) * (Vec2f{ u, v } - @as(Vec2f, @splat(0.5))));
                     cos_a = math.min(cos_a, -dir[2]);
                 }
             }

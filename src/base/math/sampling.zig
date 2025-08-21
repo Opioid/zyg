@@ -108,21 +108,3 @@ pub fn conePdfUniform(one_minus_cos_theta_max: f32) f32 {
 pub fn conePdfCosine(cos_theta_max: f32) f32 {
     return 1.0 / ((1.0 - (cos_theta_max * cos_theta_max)) * std.math.pi);
 }
-
-pub fn octEncode(v: Vec4f) Vec2f {
-    const inorm: Vec2f = @splat(1.0 / (@abs(v[0]) + @abs(v[1]) + @abs(v[2])));
-    const t: Vec2f = @splat(mima.max(v[2], 0.0));
-    const v2 = Vec2f{ v[0], v[1] };
-    return (v2 + @select(f32, v2 > @as(Vec2f, @splat(0.0)), t, -t)) * inorm;
-}
-
-pub fn octDecode(o: Vec2f) Vec4f {
-    var v = Vec4f{ o[0], o[1], -1.0 + @abs(o[0]) + @abs(o[1]), 0.0 };
-
-    const t = mima.max(v[2], 0.0);
-
-    v[0] += if (v[0] > 0.0) -t else t;
-    v[1] += if (v[1] > 0.0) -t else t;
-
-    return math.normalize3(v);
-}

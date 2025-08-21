@@ -32,7 +32,7 @@ pub const Node = struct {
     num_lights: u32,
 
     fn decompressCenter(self: Node, bounds: AABB) Vec4f {
-        const t = enc.unorm16ToFloat4(self.center);
+        const t = enc.unorm16ToFloat(self.center);
         return math.lerp(bounds.bounds[0], bounds.bounds[1], t);
     }
 
@@ -49,14 +49,14 @@ pub const Node = struct {
         // assumes that bounds[0][3] == 0.0, therefore d[3] == center[3]
         const q = d / div;
 
-        self.center = enc.floatToUnorm16_4(q);
+        self.center = enc.floatToUnorm16(q);
     }
 
     pub fn weight(self: Node, p: Vec4f, n: Vec4f, bounds: AABB, total_sphere: bool) f32 {
         const center = self.decompressCenter(bounds);
         const r = center[3];
 
-        const cone = enc.snorm16ToFloat4(self.cone);
+        const cone = enc.snorm16ToFloat(self.cone);
 
         return importance(p, n, center, cone, r, self.power, self.meta.two_sided, total_sphere);
     }

@@ -3,12 +3,12 @@ const Image = img.Image;
 const ReadStream = @import("../../../file/read_stream.zig").ReadStream;
 
 const base = @import("base");
+const enc = base.encoding;
 const math = base.math;
 const Vec2i = math.Vec2i;
 const Vec2f = math.Vec2f;
 const Vec3b = math.Vec3b;
 const Vec4f = math.Vec4f;
-const encoding = base.encoding;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -371,7 +371,7 @@ pub const Reader = struct {
             while (x < d[0]) : (x += 1) {
                 const u = idf * (@as(f32, @floatFromInt(x)) + 0.5);
 
-                const dir = math.smpl.octDecode(@as(Vec2f, @splat(2.0)) * (Vec2f{ u, v } - @as(Vec2f, @splat(0.5))));
+                const dir = enc.octDecode(@as(Vec2f, @splat(2.0)) * (Vec2f{ u, v } - @as(Vec2f, @splat(0.5))));
                 const ll = dirToLatlong(Vec4f{ dir[0], -dir[2], -dir[1], 0.0 });
 
                 const value = data.sample(ll[0], ll[1]);
