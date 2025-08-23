@@ -27,7 +27,7 @@ pub const Options = struct {
         var iter = args;
 
         if (!iter.skip()) {
-            help();
+            try help();
             return options;
         }
 
@@ -70,7 +70,7 @@ pub const Options = struct {
 
     fn handle(self: *Options, alloc: Allocator, command: []const u8, parameter: []const u8) !void {
         if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
-            help();
+            try help();
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
             alloc.free(self.project);
             self.project = try alloc.dupe(u8, parameter);
@@ -100,7 +100,7 @@ pub const Options = struct {
         return true;
     }
 
-    fn help() void {
+    fn help() !void {
         const text =
             \\scatter tool
             \\Usage:
@@ -118,6 +118,7 @@ pub const Options = struct {
 
         var file_buffer: [4096]u8 = undefined;
         var stdout = std.fs.File.stdout().writer(&file_buffer);
-        stdout.interface.print(text, .{}) catch return;
+        try stdout.interface.print(text, .{});
+        try stdout.interface.flush();
     }
 };

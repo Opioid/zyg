@@ -37,7 +37,7 @@ pub const Options = struct {
         var iter = args;
 
         if (!iter.skip()) {
-            help();
+            try help();
             return options;
         }
 
@@ -111,7 +111,7 @@ pub const Options = struct {
                 self.format = .TXT;
             }
         } else if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
-            help();
+            try help();
         } else if (std.mem.eql(u8, "max-value", command)) {
             var value: Vec4f = @splat(0.0);
 
@@ -162,7 +162,7 @@ pub const Options = struct {
         return true;
     }
 
-    fn help() void {
+    fn help() !void {
         const text =
             \\image tool
             \\Usage:
@@ -180,6 +180,7 @@ pub const Options = struct {
 
         var file_buffer: [4096]u8 = undefined;
         var stdout = std.fs.File.stdout().writer(&file_buffer);
-        stdout.interface.print(text, .{}) catch return;
+        try stdout.interface.print(text, .{});
+        try stdout.interface.flush();
     }
 };
