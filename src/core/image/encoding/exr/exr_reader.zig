@@ -114,7 +114,7 @@ pub const Reader = struct {
             return Error.NotZipCompression;
         }
 
-        return try readZip(alloc, stream, data_window, display_window, channels, swizzle, color);
+        return readZip(alloc, stream, data_window, display_window, channels, swizzle, color);
     }
 
     fn readZip(

@@ -197,7 +197,7 @@ pub fn Cache(comptime T: type, comptime P: type) type {
         ) !u32 {
             const item = try self.provider.loadData(alloc, data, options, resources);
 
-            return try self.store(alloc, id, item);
+            return self.store(alloc, id, item);
         }
 
         pub fn get(self: *const Self, id: u32) ?*T {

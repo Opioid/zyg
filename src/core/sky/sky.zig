@@ -143,7 +143,7 @@ pub const Sky = struct {
 
         {
             var stream = fs.readStream(alloc, sky_filename) catch {
-                return try self.bakeSky(alloc, scene, threads, fs, sky_filename, sun_filename);
+                return self.bakeSky(alloc, scene, threads, fs, sky_filename, sun_filename);
             };
 
             defer stream.deinit();
@@ -157,7 +157,7 @@ pub const Sky = struct {
 
         {
             var stream = fs.readStream(alloc, sun_filename) catch {
-                return try self.bakeSky(alloc, scene, threads, fs, sky_filename, sun_filename);
+                return self.bakeSky(alloc, scene, threads, fs, sky_filename, sun_filename);
             };
 
             defer stream.deinit();

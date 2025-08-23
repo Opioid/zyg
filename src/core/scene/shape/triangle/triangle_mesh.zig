@@ -892,7 +892,7 @@ pub const Mesh = struct {
             self.primitive_mapping = primitive_mapping;
         }
 
-        return try self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
+        return self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
     }
 
     pub fn surfaceDifferentials(self: *const Mesh, primitive: u32, trafo: Trafo) DifferentialSurface {

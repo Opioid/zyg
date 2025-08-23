@@ -89,7 +89,7 @@ pub const GzipReadStream = struct {
         self.buffer_head = 0;
         self.buffer_count = 0;
 
-        return try self.initZstream();
+        return self.initZstream();
     }
 
     pub fn read(self: *Self, dest: []u8) !usize {

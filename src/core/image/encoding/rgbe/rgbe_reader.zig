@@ -104,7 +104,7 @@ pub const Reader = struct {
         image: *img.Half3,
     ) !void {
         if (scanline_width < 8 or scanline_width > 0x7fff) {
-            return try readPixels(stream, scanline_width * num_scanlines, image, 0);
+            return readPixels(stream, scanline_width * num_scanlines, image, 0);
         }
 
         var offset: u32 = 0;
@@ -129,7 +129,7 @@ pub const Reader = struct {
                     @floatCast(color[2]),
                 );
 
-                return try readPixels(stream, scanline_width * num_scanlines - 1, image, 1);
+                return readPixels(stream, scanline_width * num_scanlines - 1, image, 1);
             }
 
             if ((@as(u32, rgbe[2]) << 8 | @as(u32, rgbe[3])) != scanline_width) {

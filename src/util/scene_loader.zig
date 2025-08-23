@@ -403,7 +403,7 @@ pub const Loader = struct {
             const key = Key{ .shape = shape, .materials = graph.materials.items };
 
             if (self.instances.get(key)) |instance| {
-                return try scene.createPropInstance(alloc, instance);
+                return scene.createPropInstance(alloc, instance);
             }
 
             const entity = try scene.createPropShape(alloc, shape, graph.materials.items, false, prototype);
@@ -411,7 +411,7 @@ pub const Loader = struct {
             return entity;
         } else {
             const unoccluding = !json.readBoolMember(value, "occluding", !unoccluding_default);
-            return try scene.createPropShape(alloc, shape, graph.materials.items, unoccluding, prototype);
+            return scene.createPropShape(alloc, shape, graph.materials.items, unoccluding, prototype);
         }
     }
 
@@ -529,7 +529,7 @@ pub const Loader = struct {
 
             const shape = try self.resources.instancers.store(alloc, Scene.Null, instancer);
 
-            return try graph.scene.createPropInstancer(alloc, shape, prototype);
+            return graph.scene.createPropInstancer(alloc, shape, prototype);
         }
 
         return Scene.Null;
@@ -545,7 +545,7 @@ pub const Loader = struct {
         prototype: bool,
     ) !u32 {
         if (self.resources.instancers.getByName(filename, .{})) |shape_id| {
-            return try graph.scene.createPropInstancer(alloc, shape_id, prototype);
+            return graph.scene.createPropInstancer(alloc, shape_id, prototype);
         }
 
         const fs = &self.resources.fs;

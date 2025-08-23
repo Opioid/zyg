@@ -18,6 +18,7 @@ pub const Options = struct {
     };
 
     inputs: std.ArrayList([]u8) = .empty,
+    outputs: std.ArrayList([]u8) = .empty,
     operator: Operator = .Over,
     format: ?Format = null,
     exposure: f32 = 0.0,
@@ -29,6 +30,12 @@ pub const Options = struct {
         }
 
         self.inputs.deinit(alloc);
+
+        for (self.outputs.items) |output| {
+            alloc.free(output);
+        }
+
+        self.outputs.deinit(alloc);
     }
 
     pub fn parse(alloc: Allocator, args: std.process.ArgIterator) !Options {
@@ -94,6 +101,9 @@ pub const Options = struct {
         } else if (std.mem.eql(u8, "input", command) or std.mem.eql(u8, "i", command)) {
             const input = try alloc.dupe(u8, parameter);
             try self.inputs.append(alloc, input);
+        } else if (std.mem.eql(u8, "output", command) or std.mem.eql(u8, "o", command)) {
+            const output = try alloc.dupe(u8, parameter);
+            try self.outputs.append(alloc, output);
         } else if (std.mem.eql(u8, "diff", command) or std.mem.eql(u8, "d", command)) {
             self.operator = .Diff;
         } else if (std.mem.eql(u8, "down-sample", command)) {

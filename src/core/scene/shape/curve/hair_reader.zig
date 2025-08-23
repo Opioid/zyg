@@ -36,7 +36,7 @@ pub const Reader = struct {
     pub fn read(alloc: Allocator, stream: ReadStream) !Result {
         const generic = false;
         if (generic) {
-            return try genericCrap(alloc);
+            return genericCrap(alloc);
         }
 
         var header: [4]u8 = undefined;

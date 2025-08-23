@@ -61,7 +61,7 @@ pub const Provider = struct {
 
         const image_id = try resources.loadFile(Image, alloc, name, image_options);
 
-        return try createTexture(image_id, usage, sampler, scale, resources);
+        return createTexture(image_id, usage, sampler, scale, resources);
     }
 
     pub fn createTexture(image_id: u32, usage: Usage, sampler: Texture.Mode, scale: Vec2f, resources: *Resources) !Texture {
