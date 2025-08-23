@@ -164,21 +164,16 @@ pub const Reader = struct {
         const desc = img.Description.init2D(display_dim);
 
         var image = switch (num_channels) {
-            4 => if (half)
-                Image{ .Half4 = try img.Half4.init(alloc, desc) }
-            else
-                Image{ .Float4 = try img.Float4.init(alloc, desc) },
-            else => if (half)
-                Image{ .Half3 = try img.Half3.init(alloc, desc) }
-            else
-                Image{ .Float3 = try img.Float3.init(alloc, desc) },
+            1 => if (half) Image{ .Half1 = try img.Half1.init(alloc, desc) } else Image{ .Float1 = try img.Float1.init(alloc, desc) },
+            3 => if (half) Image{ .Half3 = try img.Half3.init(alloc, desc) } else Image{ .Float3 = try img.Float3.init(alloc, desc) },
+            else => if (half) Image{ .Half4 = try img.Half4.init(alloc, desc) } else Image{ .Float4 = try img.Float4.init(alloc, desc) },
         };
 
         errdefer image.deinit(alloc);
 
         const r_o = file_num_channels - 1;
-        const g_o = file_num_channels - 2;
-        const b_o = file_num_channels - 3;
+        const g_o = if (file_num_channels >= 2) file_num_channels - 2 else 0;
+        const b_o = if (file_num_channels >= 3) file_num_channels - 3 else 0;
         const a_o: u32 = 0;
 
         var i: u32 = 0;
@@ -207,6 +202,38 @@ pub const Reader = struct {
             }
 
             switch (image) {
+                .Half1 => |half1| {
+                    const halfs: [*]const f16 = @ptrCast(buffer.ptr);
+
+                    var y: u32 = 0;
+                    while (y < num_rows_here) : (y += 1) {
+                        const o = file_num_channels * y * width;
+
+                        var p = (row + y) * display_width + @as(u32, @intCast(data_window[0]));
+                        var x: u32 = 0;
+                        while (x < width) : (x += 1) {
+                            half1.pixels[p] = halfs[o + r_o * width + x];
+
+                            p += 1;
+                        }
+                    }
+                },
+                .Float1 => |float1| {
+                    const floats: [*]const f32 = @ptrCast(buffer.ptr);
+
+                    var y: u32 = 0;
+                    while (y < num_rows_here) : (y += 1) {
+                        const o = file_num_channels * y * width;
+
+                        var p = (row + y) * display_width + @as(u32, @intCast(data_window[0]));
+                        var x: u32 = 0;
+                        while (x < width) : (x += 1) {
+                            float1.pixels[p] = floats[o + r_o * width + x];
+
+                            p += 1;
+                        }
+                    }
+                },
                 .Half3 => |half3| {
                     const halfs: [*]const f16 = @ptrCast(buffer.ptr);
 

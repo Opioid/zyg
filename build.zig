@@ -194,14 +194,14 @@ pub fn build(b: *std.Build) void {
     // } else {
     //     run_exe.addArgs(&[_][]const u8{
     //         "-i",
-    //         // "image_00_indirect.png",
-    //         // "image_00_n.png",
-    //         // "image_00_albedo.png",
-    //         // "image_00_depth.png",
-    //         // "--denoise",
-    //         // "2.0",
-    //         "leaves_1024.png",
-    //         "--down-sample",
+    //         "image_00_000000_indirect.exr",
+    //         "image_00_000000_n.exr",
+    //         "image_00_000000_albedo.exr",
+    //         "image_00_000000_depth.exr",
+    //         "--denoise",
+    //         "2.0",
+    //         // "leaves_1024.png",
+    //         // "--down-sample",
     //         "-t",
     //         "-1",
     //     });
