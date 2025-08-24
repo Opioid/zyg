@@ -191,10 +191,15 @@ pub const Denoise = struct {
 
         const noise_estimate = estimateNoise(source, dim, px, py, scene);
 
-        // const ref_l = std.math.pow(f32, math.hmax3(ref_color), 1.0 / 2.2);
+        const depth_dx = math.max(1.0 / 512.0, math.min(
+            @abs(depth.image2D_1(@min(px + 1, dim[0] - 1), py, scene) - ref_depth),
+            @abs(depth.image2D_1(@max(px - 1, 0), py, scene) - ref_depth),
+        ));
 
-        const depth_dx = math.max(1.0 / 512.0, math.min(@abs(depth.image2D_1(@min(px + 1, dim[0] - 1), py, scene) - ref_depth), @abs(depth.image2D_1(@max(px - 1, 0), py, scene) - ref_depth)));
-        const depth_dy = math.max(1.0 / 512.0, math.min(@abs(depth.image2D_1(px, @min(py + 1, dim[1] - 1), scene) - ref_depth), @abs(depth.image2D_1(px, @max(py - 1, 0), scene) - ref_depth)));
+        const depth_dy = math.max(1.0 / 512.0, math.min(
+            @abs(depth.image2D_1(px, @min(py + 1, dim[1] - 1), scene) - ref_depth),
+            @abs(depth.image2D_1(px, @max(py - 1, 0), scene) - ref_depth),
+        ));
 
         var result: Vec4f = @splat(0.0);
 
