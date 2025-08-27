@@ -364,7 +364,7 @@ pub const Part = struct {
 
 pub const Mesh = struct {
     const HackArea = 0.00001;
-    const HackDistance = 0.0005;
+    const HackDistance = 0.0004;
 
     tree: Tree = .{},
 
@@ -626,7 +626,7 @@ pub const Mesh = struct {
         return 1.0 / sarea;
     }
 
-    const Area_distance_ratio = 0.001;
+    const AreaDistanceRatio = 0.001;
 
     pub fn sampleTo(
         self: *const Mesh,
@@ -680,7 +680,7 @@ pub const Mesh = struct {
             var sample_pdf: f32 = undefined;
             var n_dot_dir: f32 = undefined;
 
-            if (tri_area / math.distance3(center, op) > Area_distance_ratio) {
+            if (tri_area / math.distance3(center, op) > AreaDistanceRatio) {
                 const sample = sampleSpherical(op, a, b, c, sampler.sample2D()) orelse continue;
 
                 if (math.dot3(sample.dir, on) <= 0.0 and !total_sphere) {
@@ -836,7 +836,7 @@ pub const Mesh = struct {
 
         const center = (a + b + c) / @as(Vec4f, @splat(3.0));
 
-        if (tri_area / math.distance3(center, op) > Area_distance_ratio) {
+        if (tri_area / math.distance3(center, op) > AreaDistanceRatio) {
             return tri_pdf * pdfSpherical(op, a, b, c);
         } else {
             const sl = math.squaredDistance3(p, frag.p);
