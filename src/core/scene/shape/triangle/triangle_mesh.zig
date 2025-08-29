@@ -363,9 +363,6 @@ pub const Part = struct {
 };
 
 pub const Mesh = struct {
-    const HackArea = 0.00001;
-    const HackDistance = 0.0004;
-
     tree: Tree = .{},
 
     num_parts: u32,
@@ -721,11 +718,7 @@ pub const Mesh = struct {
                 }
 
                 n_dot_dir = -math.dot3(wn, dir);
-
-                const hack_bias: f32 = if (tri_area < HackArea) HackDistance else 0.0;
-                const biased_sl = math.max(sl, hack_bias);
-
-                sample_pdf = (s.pdf * biased_sl) / (n_dot_dir * tri_area);
+                sample_pdf = (s.pdf * sl) / (n_dot_dir * tri_area);
             }
 
             if (n_dot_dir < math.safe.DotMin) {
@@ -840,11 +833,7 @@ pub const Mesh = struct {
             return tri_pdf * pdfSpherical(op, a, b, c);
         } else {
             const sl = math.squaredDistance3(p, frag.p);
-
-            const hack_bias: f32 = if (tri_area < HackArea) HackDistance else 0.0;
-            const biased_sl = math.max(sl, hack_bias);
-
-            return (biased_sl * tri_pdf) / (n_dot_dir * tri_area);
+            return (tri_pdf * sl) / (n_dot_dir * tri_area);
         }
     }
 
