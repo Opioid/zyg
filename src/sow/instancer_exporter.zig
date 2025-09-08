@@ -13,7 +13,7 @@ pub const Exporter = struct {
         prototypes: []const Prototype,
         instances: []const Instance,
     ) !void {
-        var out: std.io.Writer.Allocating = .init(alloc);
+        var out: std.Io.Writer.Allocating = .init(alloc);
         var stream: std.json.Stringify = .{
             .writer = &out.writer,
             .options = .{ .whitespace = .indent_4 },

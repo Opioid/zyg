@@ -33,7 +33,7 @@ pub const Writer = struct {
         encoding: Encoding,
         threads: *Threads,
     ) !void {
-        var header: std.io.Writer.Allocating = .init(alloc);
+        var header: std.Io.Writer.Allocating = .init(alloc);
         var writer = &header.writer;
 
         try writer.writeAll(&exr.Signature);
