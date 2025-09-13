@@ -1,4 +1,8 @@
 pub fn countFrames(shutter_duration: u64, animation_frame_duration: u64) u32 {
+    if (0 == animation_frame_duration) {
+        return 0;
+    }
+
     const a: u32 = @max(@as(u32, @intCast(shutter_duration / animation_frame_duration)), 1);
     const b: u32 = if (matching(shutter_duration, animation_frame_duration)) 0 else 1;
     const c: u32 = if (matching(shutter_duration, animation_frame_duration)) 0 else 1;

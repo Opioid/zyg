@@ -194,10 +194,12 @@ pub fn build(b: *std.Build) void {
     // } else {
     //     run_exe.addArgs(&[_][]const u8{
     //         "-i",
-    //         "image_00_000000_indirect.exr",
-    //         "image_00_000000_n.exr",
-    //         "image_00_000000_albedo.exr",
-    //         "image_00_000000_depth.exr",
+    //         "candle_indirect.exr",
+    //         // "image_00_000000_n.exr",
+    //         // "image_00_000000_albedo.exr",
+    //         // "image_00_000000_depth.exr",
+    //         "-o",
+    //         "candle_indirect_denoised.exr",
     //         "--denoise",
     //         "2.0",
     //         // "leaves_1024.png",
