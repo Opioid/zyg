@@ -3,7 +3,7 @@ const Tree = tr.Tree;
 const PrimitiveTree = tr.PrimitiveTree;
 const Node = tr.Node;
 const Scene = @import("../scene.zig").Scene;
-const Part = @import("../shape/triangle/triangle_mesh.zig").Part;
+const MeshSampler = @import("../shape/shape_sampler.zig").MeshImpl;
 
 const base = @import("base");
 const enc = base.encoding;
@@ -120,11 +120,11 @@ const SplitCandidate = struct {
         };
     }
 
-    pub fn evaluate(self: *Self, comptime T: type, lights: []u32, bounds: AABB, cone_weight: f32, set: *const T, variant: u32) void {
+    pub fn evaluate(self: *Self, comptime T: type, lights: []u32, bounds: AABB, cone_weight: f32, set: *const T) void {
         if (Scene == T) {
             self.evaluateScene(lights, bounds, cone_weight, set);
-        } else if (Part == T) {
-            self.evaluatePart(lights, bounds, cone_weight, set, variant);
+        } else if (MeshSampler == T) {
+            self.evaluateSampler(lights, bounds, cone_weight, set);
         }
     }
 
@@ -136,14 +136,14 @@ const SplitCandidate = struct {
         var powers: [2]f32 = .{ 0.0, 0.0 };
 
         for (lights) |l| {
-            const power = scene.lightPower(0, l);
+            const power = scene.lightPower(l);
             if (0.0 == power) {
                 continue;
             }
 
             const box = scene.lightAabb(l);
             const lcone = scene.lightCone(l);
-            const ltwo_sided = scene.lightTwoSided(0, l);
+            const ltwo_sided = scene.lightTwoSided(l);
 
             const side: u32 = if (self.leftSide(Scene, l, scene)) 0 else 1;
 
@@ -184,14 +184,14 @@ const SplitCandidate = struct {
         }
     }
 
-    fn evaluatePart(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, part: *const Part, variant: u32) void {
+    fn evaluateSampler(self: *Self, lights: []u32, bounds: AABB, cone_weight: f32, part: *const MeshSampler) void {
         var num_sides: [2]u32 = .{ 0, 0 };
         var boxs: [2]AABB = .{ .empty, .empty };
         var dominant_axis: [2]Vec4f = .{ @splat(0.0), @splat(0.0) };
         var powers: [2]f32 = .{ 0.0, 0.0 };
 
         for (lights) |l| {
-            const power = part.lightPower(variant, l);
+            const power = part.lightPower(l);
             if (0.0 == power) {
                 continue;
             }
@@ -199,7 +199,7 @@ const SplitCandidate = struct {
             const box = part.lightAabb(l);
             const n = part.lightCone(l);
 
-            const side: u32 = if (self.leftSide(Part, l, part)) 0 else 1;
+            const side: u32 = if (self.leftSide(MeshSampler, l, part)) 0 else 1;
 
             num_sides[side] += 1;
             boxs[side].mergeAssign(box);
@@ -213,14 +213,14 @@ const SplitCandidate = struct {
         var angles: [2]f32 = .{ 0.0, 0.0 };
 
         for (lights) |l| {
-            const power = part.lightPower(variant, l);
+            const power = part.lightPower(l);
             if (0.0 == power) {
                 continue;
             }
 
             const n = part.lightCone(l);
 
-            const side: u32 = if (self.leftSide(Part, l, part)) 0 else 1;
+            const side: u32 = if (self.leftSide(MeshSampler, l, part)) 0 else 1;
 
             const c = math.clamp(math.dot3(dominant_axis[side], n), -1.0, 1.0);
             angles[side] = math.max(angles[side], std.math.acos(c));
@@ -234,7 +234,7 @@ const SplitCandidate = struct {
         };
 
         const extent = bounds.extent();
-        const two_sided = part.lightTwoSided(variant, 0);
+        const two_sided = part.two_sided;
 
         self.aabbs = boxs;
         self.cones = cones;
@@ -318,7 +318,7 @@ pub const Builder = struct {
 
         var infinite_total_power: f32 = 0.0;
         for (tree.light_mapping[0..num_infinite_lights], 0..) |l, i| {
-            const power = scene.lightPower(0, l);
+            const power = scene.lightPower(l);
             tree.infinite_light_powers[i] = power;
             tree.light_orders[l] = self.light_order;
             self.light_order += 1;
@@ -346,8 +346,8 @@ pub const Builder = struct {
             for (tree.light_mapping[num_infinite_lights..num_lights]) |l| {
                 bounds.mergeAssign(scene.lightAabb(l));
                 cone = math.cone.merge(cone, scene.lightCone(l));
-                two_sided = two_sided or scene.lightTwoSided(0, l);
-                total_power += scene.lightPower(0, l);
+                two_sided = two_sided or scene.lightTwoSided(l);
+                total_power += scene.lightPower(l);
             }
 
             _ = self.split(tree, 0, num_infinite_lights, num_lights, bounds, cone, two_sided, total_power, 0, scene, threads);
@@ -393,11 +393,11 @@ pub const Builder = struct {
         self: *Builder,
         alloc: Allocator,
         tree: *PrimitiveTree,
-        part: *const Part,
-        variant: u32,
+        shape_sampler: *const MeshSampler,
         threads: *Threads,
     ) !void {
-        const num_finite_lights = part.num_triangles;
+        const num_finite_lights = shape_sampler.numTriangles();
+
         try tree.allocateLightMapping(alloc, num_finite_lights);
 
         self.light_order = 0;
@@ -410,18 +410,17 @@ pub const Builder = struct {
 
         self.current_node = 1;
 
-        const total_power = part.power(variant);
+        const total_power = shape_sampler.power();
 
         _ = self.splitPrimitive(
             tree,
             0,
             0,
             num_finite_lights,
-            part.aabb(variant),
-            part.totalCone(variant),
+            shape_sampler.aabb,
+            shape_sampler.cone,
             total_power,
-            part,
-            variant,
+            shape_sampler,
             threads,
         );
 
@@ -471,13 +470,13 @@ pub const Builder = struct {
             for (lights) |l| {
                 tree.light_orders[l] = self.light_order;
                 self.light_order += 1;
-                node_two_sided = node_two_sided or scene.lightTwoSided(0, l);
+                node_two_sided = node_two_sided or scene.lightTwoSided(l);
             }
 
             node.bounds = bounds;
             node.cone = cone;
             node.power = total_power;
-            node.variance = variance(Scene, lights, scene, 0);
+            node.variance = variance(Scene, lights, scene);
             node.middle = 0;
             node.children_or_light = begin;
             node.num_lights = len;
@@ -488,7 +487,7 @@ pub const Builder = struct {
 
         const child0 = self.current_node;
 
-        const sc = evaluateSplits(Scene, lights, bounds, cone, two_sided, Scene_sweep_threshold, self.candidates, scene, 0, threads);
+        const sc = evaluateSplits(Scene, lights, bounds, cone, two_sided, Scene_sweep_threshold, self.candidates, scene, threads);
 
         const predicate = Predicate(Scene){ .sc = &sc, .set = scene };
         const split_node = begin + @as(u32, @intCast(base.memory.partition(u32, lights, predicate, Predicate(Scene).f)));
@@ -500,7 +499,7 @@ pub const Builder = struct {
         node.bounds = bounds;
         node.cone = cone;
         node.power = total_power;
-        node.variance = variance(Scene, lights, scene, 0);
+        node.variance = variance(Scene, lights, scene);
         node.middle = c0_end;
         node.children_or_light = child0;
         node.num_lights = len;
@@ -518,8 +517,7 @@ pub const Builder = struct {
         bounds: AABB,
         cone: Vec4f,
         total_power: f32,
-        part: *const Part,
-        variant: u32,
+        shape_sampler: *const MeshSampler,
         threads: *Threads,
     ) u32 {
         const lights = tree.light_mapping[begin..end];
@@ -528,30 +526,30 @@ pub const Builder = struct {
         var node = &self.build_nodes[node_id];
 
         if (len <= 4) {
-            return self.assignPrimitive(node, tree, begin, end, bounds, cone, total_power, part, variant);
+            return self.assignPrimitive(node, tree, begin, end, bounds, cone, total_power, shape_sampler);
         }
 
         const child0 = self.current_node;
 
-        const two_sided = part.lightTwoSided(variant, 0);
+        const two_sided = shape_sampler.two_sided;
 
-        const sc = evaluateSplits(Part, lights, bounds, cone, two_sided, Part_sweep_threshold, self.candidates, part, variant, threads);
+        const sc = evaluateSplits(MeshSampler, lights, bounds, cone, two_sided, Part_sweep_threshold, self.candidates, shape_sampler, threads);
 
         if (sc.exhausted) {
-            return self.assignPrimitive(node, tree, begin, end, bounds, cone, total_power, part, variant);
+            return self.assignPrimitive(node, tree, begin, end, bounds, cone, total_power, shape_sampler);
         }
 
-        const predicate = Predicate(Part){ .sc = &sc, .set = part };
-        const split_node = begin + @as(u32, @intCast(base.memory.partition(u32, lights, predicate, Predicate(Part).f)));
+        const predicate = Predicate(MeshSampler){ .sc = &sc, .set = shape_sampler };
+        const split_node = begin + @as(u32, @intCast(base.memory.partition(u32, lights, predicate, Predicate(MeshSampler).f)));
 
         self.current_node += 2;
-        const c0_end = self.splitPrimitive(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.powers[0], part, variant, threads);
-        const c1_end = self.splitPrimitive(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.powers[1], part, variant, threads);
+        const c0_end = self.splitPrimitive(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.powers[0], shape_sampler, threads);
+        const c1_end = self.splitPrimitive(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.powers[1], shape_sampler, threads);
 
         node.bounds = bounds;
         node.cone = cone;
         node.power = total_power;
-        node.variance = variance(Part, lights, part, variant);
+        node.variance = variance(MeshSampler, lights, shape_sampler);
         node.middle = c0_end;
         node.children_or_light = child0;
         node.num_lights = len;
@@ -582,8 +580,7 @@ pub const Builder = struct {
         bounds: AABB,
         cone: Vec4f,
         total_power: f32,
-        part: *const Part,
-        variant: u32,
+        shape_sampler: *const MeshSampler,
     ) u32 {
         const lights = tree.light_mapping[begin..end];
         const len = end - begin;
@@ -596,11 +593,11 @@ pub const Builder = struct {
         node.bounds = bounds;
         node.cone = cone;
         node.power = total_power;
-        node.variance = variance(Part, lights, part, variant);
+        node.variance = variance(MeshSampler, lights, shape_sampler);
         node.middle = 0;
         node.children_or_light = begin;
         node.num_lights = len;
-        node.two_sided = part.lightTwoSided(variant, 0);
+        node.two_sided = shape_sampler.two_sided;
 
         return begin + len;
     }
@@ -625,13 +622,13 @@ pub const Builder = struct {
         }
     }
 
-    fn variance(comptime T: type, lights: []u32, set: *const T, variant: u32) f32 {
+    fn variance(comptime T: type, lights: []u32, set: *const T) f32 {
         var ap: f32 = 0.0;
         var aps: f32 = 0.0;
 
         var n: u32 = 0;
         for (lights) |l| {
-            const p = set.lightPower(variant, l);
+            const p = set.lightPower(l);
             if (p > 0.0) {
                 n += 1;
                 const in = 1.0 / @as(f32, @floatFromInt(n));
@@ -653,7 +650,6 @@ pub const Builder = struct {
         sweep_threshold: u32,
         candidates: []SplitCandidate,
         set: *const T,
-        variant: u32,
         threads: *Threads,
     ) SplitCandidate {
         const X = 0;
@@ -753,13 +749,12 @@ pub const Builder = struct {
                 .cone_weight = cone_weight,
                 .candidates = candidates,
                 .set = set,
-                .variant = variant,
             };
 
             _ = threads.runRange(&context, Eval.run, 0, num_candidates, 0);
         } else {
             for (candidates[0..num_candidates]) |*c| {
-                c.evaluate(T, lights, bounds, cone_weight, set, variant);
+                c.evaluate(T, lights, bounds, cone_weight, set);
             }
         }
 
@@ -783,7 +778,6 @@ pub const Builder = struct {
             cone_weight: f32,
             candidates: []SplitCandidate,
             set: *const T,
-            variant: u32,
 
             const Self = @This();
 
@@ -793,7 +787,7 @@ pub const Builder = struct {
                 const self: *Self = @ptrCast(@alignCast(context));
 
                 for (self.candidates[begin..end]) |*c| {
-                    c.evaluate(T, self.lights, self.bounds, self.cone_weight, self.set, self.variant);
+                    c.evaluate(T, self.lights, self.bounds, self.cone_weight, self.set);
                 }
             }
         };

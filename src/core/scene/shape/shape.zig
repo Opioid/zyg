@@ -23,6 +23,7 @@ pub const Probe = @import("probe.zig").Probe;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
+const ShapeSampler = @import("shape_sampler.zig").Sampler;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Vertex = @import("../vertex.zig").Vertex;
 const LightTreeBuilder = @import("../light/light_tree_builder.zig").Builder;
@@ -112,6 +113,13 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn cone(self: *const Shape) Vec4f {
+        return switch (self.*) {
+            .Disk, .Rectangle, .DistantSphere => .{ 0.0, 0.0, 1.0, 1.0 },
+            else => .{ 0.0, 0.0, 1.0, -1.0 },
+        };
+    }
+
     pub fn partAabb(self: *const Shape, part: u32, variant: u32) AABB {
         return switch (self.*) {
             .TriangleMesh => |m| m.partAabb(part, variant),
@@ -121,9 +129,8 @@ pub const Shape = union(enum) {
 
     pub fn partCone(self: *const Shape, part: u32, variant: u32) Vec4f {
         return switch (self.*) {
-            .Disk, .Rectangle, .DistantSphere => .{ 0.0, 0.0, 1.0, 1.0 },
             .TriangleMesh => |m| m.partCone(part, variant),
-            else => .{ 0.0, 0.0, 1.0, -1.0 },
+            else => self.cone(),
         };
     }
 
@@ -298,31 +305,30 @@ pub const Shape = union(enum) {
         trafo: Trafo,
         time: u64,
         part: u32,
-        variant: u32,
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
         buffer: *SamplesTo,
     ) []SampleTo {
         return switch (self.*) {
             .Canopy => Canopy.sampleTo(n, trafo, total_sphere, sampler, buffer),
-            .Disk => Disk.sampleTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
+            .Disk => Disk.sampleTo(p, n, trafo, two_sided, total_sphere, split_threshold, shape_sampler, sampler, buffer),
             .DistantSphere => DistantSphere.sampleTo(n, trafo, total_sphere, sampler, buffer),
             .InfiniteSphere => InfiniteSphere.sampleTo(n, trafo, total_sphere, sampler, buffer),
-            .PointMotionCloud => |c| c.sampleTo(p, n, trafo, time, total_sphere, split_threshold, material, sampler, buffer),
-            .Rectangle => Rectangle.sampleTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
-            .Sphere => Sphere.sampleTo(p, n, trafo, total_sphere, split_threshold, material, sampler, buffer),
+            .PointMotionCloud => |c| c.sampleTo(p, n, trafo, time, total_sphere, split_threshold, shape_sampler, sampler, buffer),
+            .Rectangle => Rectangle.sampleTo(p, n, trafo, two_sided, total_sphere, split_threshold, shape_sampler, sampler, buffer),
+            .Sphere => Sphere.sampleTo(p, n, trafo, total_sphere, split_threshold, shape_sampler, sampler, buffer),
             .TriangleMesh => |m| m.sampleTo(
                 part,
-                variant,
                 p,
                 n,
                 trafo,
                 two_sided,
                 total_sphere,
                 split_threshold,
+                shape_sampler,
                 sampler,
                 buffer,
             ),
@@ -348,18 +354,18 @@ pub const Shape = union(enum) {
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
         buffer: *SamplesTo,
     ) []SampleTo {
         _ = part;
 
         return switch (self.*) {
-            .Canopy => Canopy.sampleMaterialTo(n, trafo, total_sphere, material, sampler, buffer),
-            .Disk => Disk.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
-            .InfiniteSphere => InfiniteSphere.sampleMaterialTo(n, trafo, total_sphere, split_threshold, material, sampler, buffer),
-            .Rectangle => Rectangle.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, split_threshold, material, sampler, buffer),
-            .Sphere => Sphere.sampleMaterialTo(p, n, trafo, total_sphere, material, sampler, buffer),
+            .Canopy => Canopy.sampleMaterialTo(n, trafo, total_sphere, shape_sampler, sampler, buffer),
+            .Disk => Disk.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, split_threshold, shape_sampler, sampler, buffer),
+            .InfiniteSphere => InfiniteSphere.sampleMaterialTo(n, trafo, total_sphere, split_threshold, shape_sampler, sampler, buffer),
+            .Rectangle => Rectangle.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, split_threshold, shape_sampler, sampler, buffer),
+            .Sphere => Sphere.sampleMaterialTo(p, n, trafo, total_sphere, shape_sampler, sampler, buffer),
             else => buffer[0..0],
         };
     }
@@ -397,9 +403,9 @@ pub const Shape = union(enum) {
         uv: Vec2f,
         importance_uv: Vec2f,
         part: u32,
-        variant: u32,
         cos_a: f32,
         two_sided: bool,
+        shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
         bounds: AABB,
         from_image: bool,
@@ -417,8 +423,8 @@ pub const Shape = union(enum) {
                 uv,
                 importance_uv,
                 part,
-                variant,
                 two_sided,
+                shape_sampler,
                 sampler,
             ),
             else => null,
@@ -436,8 +442,6 @@ pub const Shape = union(enum) {
 
     pub fn pdf(
         self: *const Shape,
-        part: u32,
-        variant: u32,
         dir: Vec4f,
         p: Vec4f,
         n: Vec4f,
@@ -445,17 +449,17 @@ pub const Shape = union(enum) {
         time: u64,
         total_sphere: bool,
         split_threshold: f32,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
     ) f32 {
         return switch (self.*) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
-            .Disk => Disk.pdf(dir, p, frag, split_threshold, material),
+            .Disk => Disk.pdf(dir, p, frag, split_threshold, shape_sampler),
             .DistantSphere => DistantSphere.pdf(frag.isec.trafo),
             .InfiniteSphere => InfiniteSphere.pdf(total_sphere),
             .PointMotionCloud => |c| c.pdf(dir, p, frag, time, split_threshold),
-            .Rectangle => Rectangle.pdf(dir, p, frag, split_threshold, material),
-            .Sphere => Sphere.pdf(p, frag.isec.trafo, split_threshold, material),
-            .TriangleMesh => |m| m.pdf(part, variant, dir, p, n, frag, total_sphere, split_threshold),
+            .Rectangle => Rectangle.pdf(dir, p, frag, split_threshold, shape_sampler),
+            .Sphere => Sphere.pdf(p, frag.isec.trafo, split_threshold, shape_sampler),
+            .TriangleMesh => |m| m.pdf(dir, p, n, frag, total_sphere, split_threshold, shape_sampler),
             else => 0.0,
         };
     }
@@ -466,14 +470,14 @@ pub const Shape = union(enum) {
         p: Vec4f,
         frag: *const Fragment,
         split_threshold: f32,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
     ) f32 {
         return switch (self.*) {
-            .Canopy => material.emissionPdf(frag.uvw) / (2.0 * std.math.pi),
-            .Disk => Disk.materialPdf(dir, p, frag, split_threshold, material),
-            .InfiniteSphere => InfiniteSphere.materialPdf(frag, split_threshold, material),
-            .Rectangle => Rectangle.materialPdf(dir, p, frag, split_threshold, material),
-            .Sphere => Sphere.materialPdf(dir, p, frag, material),
+            .Canopy => shape_sampler.impl.pdf(frag.uvw) / (2.0 * std.math.pi),
+            .Disk => Disk.materialPdf(dir, p, frag, split_threshold, shape_sampler),
+            .InfiniteSphere => InfiniteSphere.materialPdf(frag, split_threshold, shape_sampler),
+            .Rectangle => Rectangle.materialPdf(dir, p, frag, split_threshold, shape_sampler),
+            .Sphere => Sphere.materialPdf(dir, p, frag, shape_sampler),
             else => 0.0,
         };
     }
@@ -494,6 +498,13 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn hasShapeSampler(self: *Shape) bool {
+        return switch (self.*) {
+            .TriangleMesh => true,
+            else => false,
+        };
+    }
+
     pub fn prepareSampling(
         self: *Shape,
         alloc: Allocator,
@@ -502,10 +513,10 @@ pub const Shape = union(enum) {
         builder: *LightTreeBuilder,
         scene: *const Scene,
         threads: *Threads,
-    ) !u32 {
+    ) !?ShapeSampler {
         return switch (self.*) {
             .TriangleMesh => |*m| try m.prepareSampling(alloc, part, material, builder, scene, threads),
-            else => 0,
+            else => null,
         };
     }
 

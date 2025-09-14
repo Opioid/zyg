@@ -58,12 +58,16 @@ pub const Emittance = struct {
         return @as(Vec4f, @splat(factor)) * intensity;
     }
 
-    pub fn averageRadiance(self: Emittance, area: f32) Vec4f {
-        if (self.normalize) {
-            return self.value / @as(Vec4f, @splat(area));
+    pub fn totalEmission(self: Emittance, emission: Vec4f, area: f32) Vec4f {
+        if (area <= 0.0) {
+            return @splat(0.0);
         }
 
-        return self.value;
+        if (self.normalize) {
+            return emission;
+        }
+
+        return emission * @as(Vec4f, @splat(area));
     }
 
     pub fn imageRadiance(self: Emittance, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {

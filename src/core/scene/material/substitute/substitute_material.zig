@@ -10,6 +10,7 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
 const Context = @import("../../context.zig").Context;
 const Scene = @import("../../scene.zig").Scene;
+const ShapeSampler = @import("../../shape/shape_sampler.zig").Sampler;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const ts = @import("../../../texture/texture_sampler.zig");
 const Texture = @import("../../../texture/texture.zig").Texture;
@@ -93,13 +94,21 @@ pub const Material = struct {
         self.flakes_res = math.max(4.0, @ceil(@sqrt(N / K)));
     }
 
-    pub fn prepareSampling(self: *const Material, area: f32, scene: *const Scene) Vec4f {
-        const rad = self.emittance.averageRadiance(area);
+    pub fn prepareSampling(self: *const Material, scene: *const Scene) ShapeSampler {
+        const rad = self.emittance.value;
         if (!self.emittance.emission_map.isUniform()) {
-            return rad * self.emittance.emission_map.average_3(scene);
+            return .{
+                .impl = .Uniform,
+                .average_emission = rad * self.emittance.emission_map.average_3(scene),
+                .num_samples = self.emittance.num_samples,
+            };
         }
 
-        return rad;
+        return .{
+            .impl = .Uniform,
+            .average_emission = rad,
+            .num_samples = self.emittance.num_samples,
+        };
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate, sampler: *Sampler, context: Context) Sample {

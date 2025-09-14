@@ -6,7 +6,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const Material = @import("../material/material.zig").Material;
+const ShapeSampler = @import("shape_sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
 
@@ -95,12 +95,12 @@ pub const Canopy = struct {
         n: Vec4f,
         trafo: Trafo,
         total_sphere: bool,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         const r2 = sampler.sample2D();
-        const rs = material.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+        const rs = shape_sampler.impl.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
         if (0.0 == rs.pdf()) {
             return buffer[0..0];
         }

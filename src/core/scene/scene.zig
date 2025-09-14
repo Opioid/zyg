@@ -19,6 +19,8 @@ const Volume = int.Volume;
 pub const Material = @import("material/material.zig").Material;
 pub const shp = @import("shape/shape.zig");
 pub const Shape = shp.Shape;
+const ShapeSampler = @import("shape/shape_sampler.zig").Sampler;
+const ShapeSamplerCache = @import("shape/shape_sampler_cache.zig").Cache;
 const Probe = @import("shape/probe.zig").Probe;
 const Image = @import("../image/image.zig").Image;
 const Procedural = @import("../texture/procedural.zig").Procedural;
@@ -76,6 +78,7 @@ pub const Scene = struct {
     materials: List(Material) = .empty,
     shapes: List(Shape),
     instancers: List(Instancer),
+    samplers: ShapeSamplerCache = .{},
 
     specular_threshold: f32 = ggx.MinAlpha,
     num_interpolation_frames: u32 = 0,
@@ -174,6 +177,7 @@ pub const Scene = struct {
         self.light_cones.deinit(alloc);
         self.light_aabbs.deinit(alloc);
         self.lights.deinit(alloc);
+        self.samplers.deinit(alloc);
         self.prop_parts.deinit(alloc);
         self.prop_space.deinit(alloc);
         self.props.deinit(alloc);
@@ -242,8 +246,8 @@ pub const Scene = struct {
         }
 
         for (0..num_lights) |i| {
-            self.propPrepareSampling(alloc, i, time, threads);
-            self.light_temp_powers[i] = self.lightPower(0, i);
+            try self.propPrepareSampling(alloc, i, time, threads);
+            self.light_temp_powers[i] = self.lightPower(i);
         }
 
         try self.light_distribution.configure(alloc, self.light_temp_powers[0..num_lights], 0);
@@ -443,7 +447,7 @@ pub const Scene = struct {
         self.props.items[entity].setShadowCatcher();
     }
 
-    fn propPrepareSampling(self: *Scene, alloc: Allocator, light_id: usize, time: u64, threads: *Threads) void {
+    fn propPrepareSampling(self: *Scene, alloc: Allocator, light_id: usize, time: u64, threads: *Threads) !void {
         var l = &self.lights.items[light_id];
 
         const entity = l.prop;
@@ -455,20 +459,30 @@ pub const Scene = struct {
 
         self.light_ids.items[p] = @intCast(light_id);
 
-        const m = self.material_ids.items[p];
-        const mat = &self.materials.items[m];
-
-        const variant = shape_inst.prepareSampling(alloc, part, m, &self.light_tree_builder, self, threads) catch 0;
-        l.variant = variant;
+        const shape_id = self.propShapeId(entity);
+        const material_id = self.material_ids.items[p];
 
         const trafo = self.prop_space.transformationAt(entity, time, self.frame_start);
         const extent = if (l.volumetric()) shape_inst.volume(trafo.scale()) else shape_inst.area(part, trafo.scale());
 
-        const average_radiance = mat.prepareSampling(alloc, shape_inst, part, trafo, extent, self, threads);
+        const sampler_id = try self.samplers.prepareSampling(
+            alloc,
+            shape_inst,
+            shape_id,
+            part,
+            material_id,
+            self,
+            threads,
+        );
+
+        l.sampler = sampler_id;
+
+        const sampler = self.samplers.sampler(sampler_id);
+        const average_radiance = sampler.averageEmission(self.material(material_id));
 
         const f = self.prop_space.frames.items[entity];
-        const part_aabb = shape_inst.partAabb(part, variant);
-        const part_cone = shape_inst.partCone(part, variant);
+        const part_aabb = sampler.impl.aabb(shape_inst);
+        const part_cone = sampler.impl.cone(shape_inst);
 
         if (Null == f) {
             var bb = part_aabb.transform(trafo.objectToWorld());
@@ -522,8 +536,12 @@ pub const Scene = struct {
             self.light_cones.items[light_id] = cone;
         }
 
+        const mat = self.material(material_id);
+
+        const total_emission = mat.totalEmission(average_radiance, extent);
+
         self.light_aabbs.items[light_id].bounds[0][3] = math.hmax3(
-            self.lights.items[light_id].power(average_radiance, extent, self.aabb(), self),
+            self.lights.items[light_id].power(total_emission, self.aabb(), self),
         );
     }
 
@@ -537,6 +555,10 @@ pub const Scene = struct {
 
     pub fn propRadius(self: *const Scene, entity: u32) f32 {
         return self.prop_space.aabbs.items[entity].cachedRadius();
+    }
+
+    pub fn propShapeId(self: *const Scene, entity: usize) u32 {
+        return self.props.items[entity].resource;
     }
 
     pub fn propShape(self: *const Scene, entity: usize) *Shape {
@@ -602,6 +624,10 @@ pub const Scene = struct {
         return self.lights.items[id];
     }
 
+    pub fn shapeSampler(self: *const Scene, id: u32) *const ShapeSampler {
+        return &self.samplers.resources.items[id];
+    }
+
     pub fn randomLight(self: *const Scene, random: f32) LightPick {
         return self.light_distribution.sampleDiscrete(random);
     }
@@ -650,13 +676,11 @@ pub const Scene = struct {
         return hlp.powerHeuristic(vertex.bxdf_pdf, sample_pdf * select_pdf);
     }
 
-    pub fn lightTwoSided(self: *const Scene, variant: u32, light_id: u32) bool {
-        _ = variant;
+    pub fn lightTwoSided(self: *const Scene, light_id: u32) bool {
         return self.lights.items[light_id].two_sided;
     }
 
-    pub fn lightPower(self: *const Scene, variant: u32, light_id: usize) f32 {
-        _ = variant;
+    pub fn lightPower(self: *const Scene, light_id: usize) f32 {
         return self.light_aabbs.items[light_id].bounds[0][3];
     }
 
@@ -668,9 +692,7 @@ pub const Scene = struct {
         return self.light_cones.items[light_id];
     }
 
-    pub fn lightProperties(self: *const Scene, light_id: u32, variant: u32) LightProperties {
-        _ = variant;
-
+    pub fn lightProperties(self: *const Scene, light_id: u32) LightProperties {
         const box = self.light_aabbs.items[light_id];
         const pos = box.position();
 
@@ -705,7 +727,7 @@ pub const Scene = struct {
             .shadow_catcher_light = shadow_catcher_light,
             .prop = entity,
             .part = part,
-            .variant = undefined,
+            .sampler = undefined,
         });
         try self.light_aabbs.append(alloc, AABB.init(@splat(0.0), @splat(0.0)));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });

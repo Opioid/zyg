@@ -2,6 +2,7 @@ const VertexBuffer = @import("vertex_buffer.zig").Buffer;
 const triangle = @import("triangle.zig");
 
 const math = @import("base").math;
+const AABB = math.AABB;
 const Vec2f = math.Vec2f;
 const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
@@ -162,6 +163,14 @@ pub const Data = struct {
         const c = self.position(tri.c);
 
         return triangle.area(a, b, c);
+    }
+
+    pub fn triangleAabb(self: Self, tri: Triangle) AABB {
+        const a = self.position(tri.a);
+        const b = self.position(tri.b);
+        const c = self.position(tri.c);
+
+        return AABB.init(triangle.min(a, b, c), triangle.max(a, b, c));
     }
 
     pub fn triangleP(self: Self, tri: Triangle) [3]Vec4f {

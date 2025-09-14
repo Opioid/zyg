@@ -5,6 +5,7 @@ const Context = @import("../../context.zig").Context;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Scene = @import("../../scene.zig").Scene;
 const Shape = @import("../../shape/shape.zig").Shape;
+const ShapeSampler = @import("../../shape/shape_sampler.zig").Sampler;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const ts = @import("../../../texture/texture_sampler.zig");
 const Texture = @import("../../../texture/texture.zig").Texture;
@@ -29,14 +30,6 @@ pub const Material = struct {
 
     emittance: Emittance = .{ .value = @splat(1.0) },
 
-    distribution: Distribution2D = .{},
-    average_emission: Vec4f = @splat(-1.0),
-    total_weight: f32 = 0.0,
-
-    pub fn deinit(self: *Material, alloc: Allocator) void {
-        self.distribution.deinit(alloc);
-    }
-
     pub fn commit(self: *Material) void {
         var properties = &self.super.properties;
 
@@ -46,28 +39,24 @@ pub const Material = struct {
     }
 
     pub fn prepareSampling(
-        self: *Material,
+        self: *const Material,
         alloc: Allocator,
         shape: *const Shape,
-        area: f32,
         scene: *const Scene,
         threads: *Threads,
-    ) Vec4f {
-        if (self.average_emission[0] >= 0.0) {
-            // Hacky way to check whether prepare_sampling has been called before
-            // average_emission_ is initialized with negative values...
-            return self.average_emission;
-        }
-
-        const rad = self.emittance.averageRadiance(area);
+    ) !ShapeSampler {
+        const rad = self.emittance.value;
         if (!self.emittance.emission_map.isImage()) {
-            self.average_emission = rad;
-            return self.average_emission;
+            return .{
+                .impl = .Uniform,
+                .average_emission = rad,
+                .num_samples = self.emittance.num_samples,
+            };
         }
 
         const d = self.emittance.emission_map.dimensions(scene);
 
-        const luminance = alloc.alloc(f32, @intCast(d[0] * d[1])) catch return @splat(0.0);
+        const luminance = try alloc.alloc(f32, @intCast(d[0] * d[1]));
         defer alloc.free(luminance);
 
         var avg: Vec4f = @splat(0.0);
@@ -78,8 +67,7 @@ pub const Material = struct {
                 .shape = shape,
                 .texture = self.emittance.emission_map,
                 .luminance = luminance.ptr,
-                .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
-                    return @splat(0.0),
+                .averages = try alloc.alloc(Vec4f, threads.numThreads()),
             };
             defer alloc.free(context.averages);
 
@@ -90,16 +78,21 @@ pub const Material = struct {
         }
 
         const average_emission = avg / @as(Vec4f, @splat(avg[3]));
-        self.average_emission = rad * average_emission;
 
-        self.total_weight = avg[3];
+        var image_sampler = ShapeSampler{
+            .impl = .{ .Image = .{
+                .total_weight = avg[3],
+                .mode = self.emittance.emission_map.mode,
+            } },
+            .average_emission = rad * average_emission,
+            .num_samples = self.emittance.num_samples,
+        };
 
         {
             var context = DistributionContext{
                 .al = 0.6 * math.hmax3(average_emission),
                 .width = @intCast(d[0]),
-                .conditional = self.distribution.allocate(alloc, @intCast(d[1])) catch
-                    return @splat(0.0),
+                .conditional = try image_sampler.impl.Image.distribution.allocate(alloc, @intCast(d[1])),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
             };
@@ -107,10 +100,9 @@ pub const Material = struct {
             _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(d[1]), 0);
         }
 
-        self.distribution.configure(alloc) catch
-            return @splat(0.0);
+        try image_sampler.impl.Image.distribution.configure(alloc);
 
-        return self.average_emission;
+        return image_sampler;
     }
 
     pub fn sample(wo: Vec4f, rs: Renderstate) Sample {
@@ -126,20 +118,6 @@ pub const Material = struct {
         context: Context,
     ) Vec4f {
         return self.emittance.radiance(wi, rs, in_camera, sampler, context);
-    }
-
-    pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
-        const result = self.distribution.sampleContinuous(.{ r3[0], r3[1] });
-
-        return Base.RadianceSample.init2(result.uv, result.pdf * self.total_weight);
-    }
-
-    pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
-        if (!self.emittance.emission_map.isUniform()) {
-            return self.distribution.pdf(self.emittance.emission_map.mode.address2(uv)) * self.total_weight;
-        }
-
-        return 1.0;
     }
 };
 

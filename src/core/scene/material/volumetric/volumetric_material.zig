@@ -9,6 +9,7 @@ const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
 const Context = @import("../../context.zig").Context;
 const Scene = @import("../../scene.zig").Scene;
+const ShapeSampler = @import("../../shape/shape_sampler.zig").Sampler;
 const ts = @import("../../../texture/texture_sampler.zig");
 const Texture = @import("../../../texture/texture.zig").Texture;
 const Sampler = @import("../../../sampler/sampler.zig").Sampler;
@@ -38,8 +39,6 @@ pub const Material = struct {
 
     blackbody: math.ifunc.InterpolatedFunction1D(Vec4f) = .{},
 
-    distribution: Distribution3D = .{},
-
     tree: Gridtree = .{},
 
     average_emission: Vec4f = @splat(-1.0),
@@ -47,8 +46,6 @@ pub const Material = struct {
 
     cc: CC = undefined,
     attenuation_distance: f32 = 0.0,
-
-    pdf_factor: f32 = undefined,
 
     sr_low: u32 = 16,
     sr_high: u32 = 48,
@@ -60,7 +57,6 @@ pub const Material = struct {
 
     pub fn deinit(self: *Material, alloc: Allocator) void {
         self.blackbody.deinit(alloc);
-        self.distribution.deinit(alloc);
         self.tree.deinit(alloc);
     }
 
@@ -124,21 +120,16 @@ pub const Material = struct {
         self.sr_high = high;
     }
 
-    pub fn prepareSampling(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) Vec4f {
-        if (self.average_emission[0] >= 0.0) {
-            // Hacky way to check whether prepare_sampling has been called before
-            // average_emission_ is initialized with negative values...
-            return self.average_emission;
-        }
-
+    pub fn prepareSampling(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !ShapeSampler {
         if (self.density_map.isUniform()) {
             self.average_emission = self.cc.a * self.emittance.value;
-            return self.average_emission;
+
+            return .{ .impl = .Uniform, .average_emission = self.cc.a * self.emittance.value };
         }
 
         const d = self.density_map.dimensions(scene);
 
-        const luminance = alloc.alloc(f32, @intCast(d[0] * d[1] * d[2])) catch return @splat(0.0);
+        const luminance = try alloc.alloc(f32, @intCast(d[0] * d[1] * d[2]));
         defer alloc.free(luminance);
 
         var avg: Vec4f = @splat(0.0);
@@ -148,8 +139,7 @@ pub const Material = struct {
                 .material = self,
                 .scene = scene,
                 .luminance = luminance.ptr,
-                .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
-                    return @splat(0.0),
+                .averages = try alloc.alloc(Vec4f, threads.numThreads()),
             };
             defer alloc.free(context.averages);
 
@@ -163,12 +153,25 @@ pub const Material = struct {
 
         const average_emission = avg / @as(Vec4f, @splat(num_pixels));
 
+        self.average_emission = average_emission;
+
+        const cca = self.cc.a;
+        const majorant_a = math.hmax3(cca);
+        self.a_norm = @as(Vec4f, @splat(majorant_a)) / cca;
+
+        var volume_sampler = ShapeSampler{
+            .impl = .{ .Volume = .{
+                .pdf_factor = num_pixels / majorant_a,
+                .mode = self.density_map.mode,
+            } },
+            .average_emission = average_emission,
+        };
+
         {
             var context = DistributionContext{
                 .al = 0.6 * math.hmax3(average_emission),
                 .d = d,
-                .conditional = self.distribution.allocate(alloc, @intCast(d[2])) catch
-                    return @splat(0.0),
+                .conditional = try volume_sampler.impl.Volume.distribution.allocate(alloc, @intCast(d[2])),
                 .luminance = luminance.ptr,
                 .alloc = alloc,
             };
@@ -176,17 +179,9 @@ pub const Material = struct {
             _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(d[2]), 0);
         }
 
-        self.distribution.configure(alloc) catch
-            return @splat(0.0);
+        try volume_sampler.impl.Volume.distribution.configure(alloc);
 
-        self.average_emission = average_emission;
-
-        const cca = self.cc.a;
-        const majorant_a = math.hmax3(cca);
-        self.a_norm = @as(Vec4f, @splat(majorant_a)) / cca;
-        self.pdf_factor = num_pixels / majorant_a;
-
-        return average_emission;
+        return volume_sampler;
     }
 
     pub fn sample(self: *const Material, wo: Vec4f, rs: Renderstate) Sample {
@@ -241,23 +236,6 @@ pub const Material = struct {
             const d = ts.sample3D_1(self.density_map, uvw, rs.stochastic_r, context);
             return @as(Vec4f, @splat(d)) * norm_emission;
         }
-    }
-
-    pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
-        if (!self.density_map.isUniform()) {
-            const result = self.distribution.sampleContinuous(r3);
-            return Base.RadianceSample.init3(result, result[3] * self.pdf_factor);
-        }
-
-        return Base.RadianceSample.init3(r3, 1.0);
-    }
-
-    pub fn emissionPdf(self: *const Material, uvw: Vec4f) f32 {
-        if (!self.density_map.isUniform()) {
-            return self.distribution.pdf(self.density_map.mode.address3(uvw)) * self.pdf_factor;
-        }
-
-        return 1.0;
     }
 
     pub fn density(self: *const Material, uvw: Vec4f, r: f32, context: Context) f32 {

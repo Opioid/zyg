@@ -10,7 +10,7 @@ const Context = @import("../context.zig").Context;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const Material = @import("../material/material.zig").Material;
+const ShapeSampler = @import("shape_sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
 
@@ -312,11 +312,11 @@ pub const Rectangle = struct {
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
-        const num_samples = material.numSamples(split_threshold);
+        const num_samples = shape_sampler.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
         const scale = trafo.scale();
@@ -406,11 +406,11 @@ pub const Rectangle = struct {
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
-        const num_samples = material.numSamples(split_threshold);
+        const num_samples = shape_sampler.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
         const scale = trafo.scale();
@@ -419,7 +419,7 @@ pub const Rectangle = struct {
         var current_sample: u32 = 0;
         for (0..num_samples) |_| {
             const r2 = sampler.sample2D();
-            const rs = material.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+            const rs = shape_sampler.impl.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
             if (0.0 == rs.pdf()) {
                 continue;
             }
@@ -488,8 +488,8 @@ pub const Rectangle = struct {
         );
     }
 
-    pub fn pdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, split_threshold: f32, material: *const Material) f32 {
-        const num_samples = material.numSamples(split_threshold);
+    pub fn pdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, split_threshold: f32, shape_sampler: *const ShapeSampler) f32 {
+        const num_samples = shape_sampler.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
         const scale = frag.isec.trafo.scale();
@@ -511,7 +511,13 @@ pub const Rectangle = struct {
         }
     }
 
-    pub fn materialPdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, split_threshold: f32, material: *const Material) f32 {
+    pub fn materialPdf(
+        dir: Vec4f,
+        p: Vec4f,
+        frag: *const Fragment,
+        split_threshold: f32,
+        shape_sampler: *const ShapeSampler,
+    ) f32 {
         const c = @abs(math.dot3(frag.isec.trafo.rotation.r[2], dir));
 
         const scale = frag.isec.trafo.scale();
@@ -519,8 +525,8 @@ pub const Rectangle = struct {
 
         const sl = math.squaredDistance3(p, frag.p);
 
-        const num_samples = material.numSamples(split_threshold);
-        const material_pdf = material.emissionPdf(frag.uvw) * @as(f32, @floatFromInt(num_samples));
+        const num_samples = shape_sampler.numSamples(split_threshold);
+        const material_pdf = shape_sampler.impl.pdf(frag.uvw) * @as(f32, @floatFromInt(num_samples));
 
         return (material_pdf * sl) / (c * area);
     }

@@ -1,6 +1,7 @@
 const Scene = @import("../scene.zig").Scene;
 const Shape = @import("../shape/shape.zig").Shape;
 const Part = @import("../shape/triangle/triangle_mesh.zig").Part;
+const MeshSampler = @import("../shape/shape_sampler.zig").MeshImpl;
 
 const base = @import("base");
 const enc = base.encoding;
@@ -95,7 +96,6 @@ pub const Node = struct {
         random: f32,
         light_mapping: [*]const u32,
         set: anytype,
-        variant: u32,
     ) Pick {
         const num_lights = self.num_lights;
         const light = self.meta.children_or_light;
@@ -111,8 +111,8 @@ pub const Node = struct {
         var front = light;
         var back = light + num_lights - 1;
 
-        var w_front = lightWeight(p, n, total_sphere, light_mapping[front], set, variant);
-        var w_back = lightWeight(p, n, total_sphere, light_mapping[back], set, variant);
+        var w_front = lightWeight(p, n, total_sphere, light_mapping[front], set);
+        var w_back = lightWeight(p, n, total_sphere, light_mapping[back], set);
 
         var w_sum_front = w_front;
         var w_sum_back = w_back;
@@ -123,7 +123,7 @@ pub const Node = struct {
             if (w_sum_front <= random * w_sum) {
                 front += 1;
                 if (front != back) {
-                    w_front = lightWeight(p, n, total_sphere, light_mapping[front], set, variant);
+                    w_front = lightWeight(p, n, total_sphere, light_mapping[front], set);
                     w_sum_front += w_front;
                 } else {
                     w_front = w_back;
@@ -131,7 +131,7 @@ pub const Node = struct {
             } else {
                 back -= 1;
                 if (front != back) {
-                    w_back = lightWeight(p, n, total_sphere, light_mapping[back], set, variant);
+                    w_back = lightWeight(p, n, total_sphere, light_mapping[back], set);
                     w_sum_back += w_back;
                 }
             }
@@ -152,7 +152,6 @@ pub const Node = struct {
         id: u32,
         light_mapping: [*]const u32,
         set: anytype,
-        variant: u32,
     ) f32 {
         const num_lights = self.num_lights;
 
@@ -168,7 +167,7 @@ pub const Node = struct {
 
         var i = light;
         while (i < end) : (i += 1) {
-            const lw = lightWeight(p, n, total_sphere, light_mapping[i], set, variant);
+            const lw = lightWeight(p, n, total_sphere, light_mapping[i], set);
             sum += lw;
 
             if (id == i) {
@@ -237,8 +236,8 @@ fn clampedSinSub(cos_a: f32, cos_b: f32, sin_a: f32, sin_b: f32) f32 {
     return if (cos_a > cos_b) 0.0 else angle;
 }
 
-fn lightWeight(p: Vec4f, n: Vec4f, total_sphere: bool, light: u32, set: anytype, variant: u32) f32 {
-    const props = set.lightProperties(light, variant);
+fn lightWeight(p: Vec4f, n: Vec4f, total_sphere: bool, light: u32, set: anytype) f32 {
+    const props = set.lightProperties(light);
     const center = props.sphere;
     const radius = center[3];
 
@@ -419,7 +418,7 @@ pub const Tree = struct {
                     }
                 }
             } else {
-                const pick = node.randomLight(p, n, total_sphere, t.random, self.light_mapping, scene, 0);
+                const pick = node.randomLight(p, n, total_sphere, t.random, self.light_mapping, scene);
                 if (pick.pdf > 0.0) {
                     buffer[current_light] = .{ .offset = pick.offset, .pdf = pick.pdf * t.pdf };
                     current_light += 1;
@@ -497,7 +496,7 @@ pub const Tree = struct {
                     }
                 }
             } else {
-                return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, scene, 0);
+                return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, scene);
             }
         }
     }
@@ -559,8 +558,7 @@ pub const PrimitiveTree = struct {
         total_sphere: bool,
         random: f32,
         split_threshold: f32,
-        part: *const Part,
-        variant: u32,
+        shape_samppler: *const MeshSampler,
         buffer: *Samples,
     ) []Pick {
         var current_light: u32 = 0;
@@ -618,7 +616,7 @@ pub const PrimitiveTree = struct {
                     }
                 }
             } else {
-                const pick = node.randomLight(p, n, total_sphere, t.random, self.light_mapping, part, variant);
+                const pick = node.randomLight(p, n, total_sphere, t.random, self.light_mapping, shape_samppler);
                 if (pick.pdf > 0.0) {
                     buffer[current_light] = .{ .offset = pick.offset, .pdf = pick.pdf * t.pdf };
                     current_light += 1;
@@ -638,8 +636,7 @@ pub const PrimitiveTree = struct {
         total_sphere: bool,
         split_threshold: f32,
         id: u32,
-        part: *const Part,
-        variant: u32,
+        shape_sampler: *const MeshSampler,
     ) f32 {
         const lo = self.light_orders[id];
 
@@ -688,7 +685,7 @@ pub const PrimitiveTree = struct {
                     }
                 }
             } else {
-                return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, part, variant);
+                return pd * node.pdf(p, n, total_sphere, lo, self.light_mapping, shape_sampler);
             }
         }
     }
