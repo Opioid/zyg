@@ -112,9 +112,8 @@ pub const Model = struct {
         return spectrum.aces.XYZtoAP1(radiance.XYZ());
     }
 
-    pub fn evaluateSun(self: Self, wi: Vec4f, rng: *RNG) Vec4f {
-        const wi_dot_z = math.clamp(wi[1], -1.0, 1.0);
-        const theta = std.math.acos(wi_dot_z);
+    pub fn evaluateSun(self: Self, wi_dot_z: f32, rng: *RNG) Vec4f {
+        const theta = std.math.acos(math.saturate(wi_dot_z));
 
         var samples: [24]f32 = undefined;
         const num_samples: f32 = @floatFromInt(samples.len);

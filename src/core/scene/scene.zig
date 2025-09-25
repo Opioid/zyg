@@ -230,9 +230,9 @@ pub const Scene = struct {
         const frames_start = time - (time % TickDuration);
         self.frame_start = frames_start;
 
-        self.calculateWorldBounds(camera_pos);
-
         try self.sky.compile(alloc, time, self, threads, fs);
+
+        self.calculateWorldBounds(camera_pos);
 
         try self.bvh_builder.build(alloc, &self.solid_bvh, self.finite_props.items, self.prop_space.aabbs.items, threads);
 

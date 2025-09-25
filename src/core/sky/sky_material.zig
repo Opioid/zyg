@@ -62,7 +62,7 @@ pub const Material = struct {
         self.super.properties.emission_image_map = self.emission_map.isImage();
     }
 
-    pub fn setSunRadiance(self: *Material, rotation: Mat3x3, image: img.Float3) void {
+    pub fn setSunRadiance(self: *Material, sun_elevation: f32, image: img.Float3) void {
         for (self.sun_radiance.samples, 0..) |*s, i| {
             s.* = math.vec3fTo4f(image.pixels[i]);
         }
@@ -74,12 +74,12 @@ pub const Material = struct {
             const s1 = self.sun_radiance.samples[i + 1];
 
             const v = (@as(f32, @floatFromInt(i)) + 0.5) / @as(f32, @floatFromInt(self.sun_radiance.samples.len));
-            const wi = Sky.sunWi(rotation, v);
+            const wi_dot_z = Sky.sunWiDotZ(sun_elevation, v);
 
             const w = @sin(v);
             tw += w;
 
-            if (wi[1] >= 0.0) {
+            if (wi_dot_z >= 0.0) {
                 total += (s0 + s1) * @as(Vec4f, @splat(0.5 * w));
             }
         }
