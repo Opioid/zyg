@@ -84,7 +84,7 @@ pub const SplitCandidate = struct {
 
     pub fn init(split_axis: u8, p: Vec4f, spatial: bool) SplitCandidate {
         return .{
-            .d = p[split_axis],
+            .d = @as([4]f32, p)[split_axis],
             .axis = split_axis,
             .spatial = spatial,
         };
@@ -193,6 +193,6 @@ pub const SplitCandidate = struct {
     }
 
     pub fn behind(self: *const Self, point: Vec4f) bool {
-        return point[self.axis] < self.d;
+        return @as([4]f32, point)[self.axis] < self.d;
     }
 };

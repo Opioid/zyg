@@ -189,9 +189,9 @@ const Kernel = struct {
             const min = aabb.bounds[0];
 
             const la = math.indexMaxComponent3(extent);
-            const step = extent[la] / @as(f32, @floatFromInt(self.settings.num_slices));
+            const step = @as([4]f32, extent)[la] / @as(f32, @floatFromInt(self.settings.num_slices));
 
-            for (0..3) |a| {
+            inline for (0..3) |a| {
                 const a8: u8 = @intCast(a);
                 const extent_a = extent[a];
                 const num_steps = @max(1, @as(u32, @intFromFloat(@ceil(extent_a / step))));

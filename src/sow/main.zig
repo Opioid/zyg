@@ -247,7 +247,7 @@ fn scatter(
     project: *const Project,
     context: Context,
     world_up: Up,
-    max_prototype_extent: Vec4f,
+    max_prototype_extent: [4]f32,
     instances: *List(prj.Instance),
 ) !void {
     const camera_trafo = Transformation{
@@ -259,7 +259,7 @@ fn scatter(
     context.scene.prop_space.setWorldTransformation(context.camera.super().entity, camera_trafo);
 
     const region = context.scene.aabb();
-    const extent = region.extent();
+    const extent: [4]f32 = region.extent();
 
     const world_axis = world_up.worldAxis();
     const world_extent = Vec2f{ extent[world_axis[0]], extent[world_axis[1]] };
@@ -325,8 +325,9 @@ fn scatter(
 
             const pos_jitter = @as(Vec2f, @splat(0.5)) * prototype.position_jitter;
 
-            const x_pos = region.bounds[0][world_axis[0]] + (@as(f32, @floatFromInt(x)) + 0.5 + pos_jitter[0] * x_r) * (world_extent[0] / fgrid[0]);
-            const y_pos = region.bounds[0][world_axis[1]] + (@as(f32, @floatFromInt(y)) + 0.5 + pos_jitter[1] * z_r) * (world_extent[1] / fgrid[1]);
+            const region_bounds0: [4]f32 = region.bounds[0];
+            const x_pos = region_bounds0[world_axis[0]] + (@as(f32, @floatFromInt(x)) + 0.5 + pos_jitter[0] * x_r) * (world_extent[0] / fgrid[0]);
+            const y_pos = region_bounds0[world_axis[1]] + (@as(f32, @floatFromInt(y)) + 0.5 + pos_jitter[1] * z_r) * (world_extent[1] / fgrid[1]);
 
             vertex.probe = Probe.init(world_up.ray(region, x_pos, y_pos), 0);
 
@@ -370,27 +371,27 @@ fn scatter(
 
             try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = trafo.toMat4x4() });
 
-            if (project.tileable) {
-                if (0 == y) {
-                    var tile_trafo = trafo;
-                    tile_trafo.position[world_axis[1]] += world_extent[1];
-                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
-                } else if (grid[1] - 1 == y) {
-                    var tile_trafo = trafo;
-                    tile_trafo.position[world_axis[1]] -= world_extent[1];
-                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
-                }
+            // if (project.tileable) {
+            //     if (0 == y) {
+            //         var tile_trafo = trafo;
+            //         tile_trafo.position[world_axis[1]] += world_extent[1];
+            //         try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+            //     } else if (grid[1] - 1 == y) {
+            //         var tile_trafo = trafo;
+            //         tile_trafo.position[world_axis[1]] -= world_extent[1];
+            //         try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+            //     }
 
-                if (0 == x) {
-                    var tile_trafo = trafo;
-                    tile_trafo.position[world_axis[0]] += world_extent[0];
-                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
-                } else if (grid[0] - 1 == x) {
-                    var tile_trafo = trafo;
-                    tile_trafo.position[world_axis[0]] -= world_extent[0];
-                    try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
-                }
-            }
+            //     if (0 == x) {
+            //         var tile_trafo = trafo;
+            //         tile_trafo.position[world_axis[0]] += world_extent[0];
+            //         try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+            //     } else if (grid[0] - 1 == x) {
+            //         var tile_trafo = trafo;
+            //         tile_trafo.position[world_axis[0]] -= world_extent[0];
+            //         try instances.append(alloc, .{ .prototype = selected_prototype_id, .transformation = tile_trafo.toMat4x4() });
+            //     }
+            // }
         }
     }
 }

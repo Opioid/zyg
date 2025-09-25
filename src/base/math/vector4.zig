@@ -63,6 +63,13 @@ pub inline fn reciprocal3(v: Vec4f) Vec4f {
     return @as(Vec4f, @splat(1.0)) / v;
 }
 
+// pub inline fn differenceOfProducts(a: Vec4f, b: Vec4f, c: Vec4f, d: Vec4f) Vec4f {
+//     const cd = c * d;
+//     const err = @mulAdd(Vec4f, -c, d, cd);
+//     const dop = @mulAdd(Vec4f, a, b, -cd);
+//     return dop + err;
+// }
+
 pub inline fn cross3(a: Vec4f, b: Vec4f) Vec4f {
     // return .{
     //     a[1] * b[2] - a[2] * b[1],
@@ -78,6 +85,11 @@ pub inline fn cross3(a: Vec4f, b: Vec4f) Vec4f {
     tmp1 = tmp1 * b;
 
     const tmp2 = tmp0 - tmp1;
+
+    // const tmp0 = @shuffle(f32, b, undefined, [_]i32{ 1, 2, 0, 3 });
+    // const tmp1 = @shuffle(f32, a, undefined, [_]i32{ 1, 2, 0, 3 });
+
+    // const tmp2 = differenceOfProducts(tmp0, a, tmp1, b);
 
     return @shuffle(f32, tmp2, undefined, [_]i32{ 1, 2, 0, 3 });
 }

@@ -123,7 +123,7 @@ pub const Options = struct {
         } else if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
             try help();
         } else if (std.mem.eql(u8, "max-value", command)) {
-            var value: Vec4f = @splat(0.0);
+            var value: [4]f32 = @splat(0.0);
 
             var ci: u32 = 0;
             var si = std.mem.splitAny(u8, parameter, " ");

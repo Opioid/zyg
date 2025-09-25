@@ -158,7 +158,7 @@ pub const Integrator = struct {
                 channel_id = 1;
             }
 
-            const free_path = -@log(math.max(1.0 - r3[1], 1e-10)) / mu_t[channel_id];
+            const free_path = -@log(math.max(1.0 - r3[1], 1e-10)) / @as([4]f32, mu_t)[channel_id];
 
             // Calculate the visibility of the sample point for each channel
             const exp_free_path_sigma_t = @exp(@as(Vec4f, @splat(-free_path)) * mu_t);

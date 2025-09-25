@@ -84,7 +84,7 @@ const SplitCandidate = struct {
     const Self = @This();
 
     pub fn configure(self: *Self, p: Vec4f, axis: u32) void {
-        self.condition = .{ .Axis = .{ .d = p[axis], .axis = axis } };
+        self.condition = .{ .Axis = .{ .d = @as([4]f32, p)[axis], .axis = axis } };
     }
 
     pub fn configureAngle(self: *Self, n: Vec4f) void {
@@ -98,7 +98,7 @@ const SplitCandidate = struct {
 
     pub fn leftSide(self: *const Self, comptime T: type, l: u32, set: *const T) bool {
         return switch (self.condition) {
-            .Axis => |axis| set.lightAabb(l).bounds[1][axis.axis] < axis.d,
+            .Axis => |axis| @as([4]f32, set.lightAabb(l).bounds[1])[axis.axis] < axis.d,
             .Angle => |n| math.dot3(n, set.lightCone(l)) < 0.0,
             .Partition => |part| {
                 for (0..part.num) |i| {
@@ -115,7 +115,7 @@ const SplitCandidate = struct {
         const maxe = math.hmax3(extent);
 
         return switch (self.condition) {
-            .Axis => |axis| maxe / extent[axis.axis],
+            .Axis => |axis| maxe / @as([4]f32, @bitCast(extent))[axis.axis],
             else => maxe / math.hmin3(extent),
         };
     }
@@ -709,10 +709,9 @@ pub const Builder = struct {
                 const min = bounds.bounds[0];
 
                 const la = math.indexMaxComponent3(extent);
-                const step = extent[la] / @as(f32, @floatFromInt(Num_slices));
+                const step = @as([4]f32, extent)[la] / @as(f32, @floatFromInt(Num_slices));
 
-                var a: u32 = 0;
-                while (a < 3) : (a += 1) {
+                inline for (0..3) |a| {
                     const extent_a = extent[a];
                     const num_steps: u32 = @intFromFloat(@ceil(extent_a / step));
                     const step_a = extent_a / @as(f32, @floatFromInt(num_steps));
@@ -724,7 +723,7 @@ pub const Builder = struct {
                         var slice = position;
                         slice[a] = min[a] + fi * step_a;
 
-                        candidates[num_candidates].configure(slice, a);
+                        candidates[num_candidates].configure(slice, @intCast(a));
                         num_candidates += 1;
                     }
                 }
