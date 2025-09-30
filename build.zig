@@ -49,10 +49,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    cli.addIncludePath(b.path("thirdparty/include"));
     cli.addIncludePath(b.path("src/cli"));
-    capi.addIncludePath(b.path("thirdparty/include"));
-    it.addIncludePath(b.path("thirdparty/include"));
 
     const cflags = [_][]const u8{
         "-std=c99",
