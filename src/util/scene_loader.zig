@@ -91,17 +91,7 @@ pub const Loader = struct {
 
     const Null = Resources.Null;
 
-    const LocalMaterials = struct {
-        materials: std.StringHashMap(*std.json.Value),
-
-        pub fn init(alloc: Allocator) LocalMaterials {
-            return .{ .materials = std.StringHashMap(*std.json.Value).init(alloc) };
-        }
-
-        pub fn deinit(self: *LocalMaterials) void {
-            self.materials.deinit();
-        }
-    };
+    const LocalMaterials = std.StringHashMapUnmanaged(*std.json.Value);
 
     pub fn init(alloc: Allocator, resources: *Resources, fallback_material: Material) Loader {
         return .{
@@ -175,11 +165,11 @@ pub const Loader = struct {
             return;
         }
 
-        var local_materials = LocalMaterials.init(alloc);
-        defer local_materials.deinit();
+        var local_materials: LocalMaterials = .{};
+        defer local_materials.deinit(alloc);
 
         if (root.object.get("materials")) |materials_node| {
-            try readMaterials(materials_node, &local_materials);
+            try readMaterials(alloc, materials_node, &local_materials);
         }
 
         if (root.object.get("entities")) |entities_node| {
@@ -193,11 +183,11 @@ pub const Loader = struct {
         }
     }
 
-    fn readMaterials(value: std.json.Value, local_materials: *LocalMaterials) !void {
+    fn readMaterials(alloc: Allocator, value: std.json.Value, local_materials: *LocalMaterials) !void {
         for (value.array.items) |*m| {
             const name_node = m.object.get("name") orelse continue;
 
-            try local_materials.materials.put(name_node.string, m);
+            try local_materials.put(alloc, name_node.string, m);
         }
     }
 
@@ -522,11 +512,11 @@ pub const Loader = struct {
         try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
         defer fs.popMount(alloc);
 
-        var local_materials = LocalMaterials.init(alloc);
-        defer local_materials.deinit();
+        var local_materials: LocalMaterials = .{};
+        defer local_materials.deinit(alloc);
 
         if (root.object.get("materials")) |materials_node| {
-            try readMaterials(materials_node, &local_materials);
+            try readMaterials(alloc, materials_node, &local_materials);
         }
 
         const entity_id = try self.loadInstancer(alloc, root, parent, local_materials, graph, prototype);
@@ -667,7 +657,7 @@ pub const Loader = struct {
         }
 
         // Otherwise, see if it is among the locally defined materials.
-        if (local_materials.materials.get(name)) |material_node| {
+        if (local_materials.get(name)) |material_node| {
             const material = self.resources.loadData(Material, alloc, Null, material_node, .{}) catch Null;
             if (Null != material) {
                 self.resources.associate(Material, alloc, material, name, .{}) catch {};
