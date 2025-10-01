@@ -162,34 +162,38 @@ pub const Graph = struct {
         self.prop_properties.items[entity].local_animation = local_animation;
     }
 
-    pub const TrafoResult = struct {
+    pub const Node = struct {
         graph_id: u32,
         animated: bool,
         world_trafo: math.Transformation,
+
+        pub const empty = Node{
+            .graph_id = Null,
+            .animated = false,
+            .world_trafo = .identity,
+        };
     };
 
     pub fn propSetTransformation(
         self: *Self,
         alloc: Allocator,
         entity_id: u32,
-        parent_id: u32,
         trafo: math.Transformation,
-        parent_trafo: math.Transformation,
+        parent: Node,
         animation_value: ?std.json.Value,
-        animated: bool,
-    ) !TrafoResult {
+    ) !Node {
         const animation = if (animation_value) |animation|
-            try AnimationLoader.load(alloc, animation, trafo, if (Null == parent_id) parent_trafo else null, self)
+            try AnimationLoader.load(alloc, animation, trafo, if (Null == parent.graph_id) parent.world_trafo else null, self)
         else
             Null;
 
         const local_animation = Null != animation;
-        const world_animation = animated or local_animation;
+        const world_animation = parent.animated or local_animation;
 
-        var result: TrafoResult = .{
+        var result: Node = .{
             .graph_id = Null,
             .animated = world_animation,
-            .world_trafo = parent_trafo.transform(trafo),
+            .world_trafo = parent.world_trafo.transform(trafo),
         };
 
         if (world_animation) {
@@ -201,8 +205,8 @@ pub const Graph = struct {
                 self.animationSetEntity(animation, result.graph_id);
             }
 
-            if (Null != parent_id) {
-                self.propSerializeChild(parent_id, result.graph_id);
+            if (Null != parent.graph_id) {
+                self.propSerializeChild(parent.graph_id, result.graph_id);
             }
         }
 

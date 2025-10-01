@@ -90,8 +90,6 @@ pub fn load(alloc: Allocator, stream: ReadStream, graph: *Graph, resources: *Res
 }
 
 fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources: *Resources) !void {
-    const parent_trafo: Transformation = .identity;
-
     var cam_value_ptr: ?*std.json.Value = null;
 
     var cam_iter = value.object.iterator();
@@ -141,15 +139,7 @@ fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources:
             json.readTransformation(trafo_value, &trafo);
         }
 
-        _ = try graph.propSetTransformation(
-            alloc,
-            entity_id,
-            Prop.Null,
-            trafo,
-            parent_trafo,
-            cam_value.object.get("animation"),
-            false,
-        );
+        _ = try graph.propSetTransformation(alloc, entity_id, trafo, .empty, cam_value.object.get("animation"));
 
         const resolution = json.readVec2iMember(cam_value.*, "resolution", .{ 0, 0 });
         const crop = json.readVec4iMember(cam_value.*, "crop", .{ 0, 0, resolution[0], resolution[1] });
