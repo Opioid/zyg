@@ -93,7 +93,7 @@ const SplitCandidate = struct {
 
     pub fn configurePartition(self: *Self, left: []const u32) void {
         self.condition = .{ .Partition = .{ .num = @intCast(left.len), .left = undefined } };
-        @memcpy(&self.condition.Partition.left, left);
+        @memcpy(self.condition.Partition.left[0..left.len], left);
     }
 
     pub fn leftSide(self: *const Self, comptime T: type, l: u32, set: *const T) bool {
@@ -465,29 +465,16 @@ pub const Builder = struct {
         var node = &self.build_nodes[node_id];
 
         if (1 == len or (2 == len and depth > Tree.MaxSplitDepth)) {
-            var node_two_sided = false;
-
-            for (lights) |l| {
-                tree.light_orders[l] = self.light_order;
-                self.light_order += 1;
-                node_two_sided = node_two_sided or scene.lightTwoSided(l);
-            }
-
-            node.bounds = bounds;
-            node.cone = cone;
-            node.power = total_power;
-            node.variance = variance(Scene, lights, scene);
-            node.middle = 0;
-            node.children_or_light = begin;
-            node.num_lights = len;
-            node.two_sided = node_two_sided;
-
-            return begin + len;
+            return self.assign(node, tree, begin, end, bounds, cone, total_power, scene);
         }
 
         const child0 = self.current_node;
 
         const sc = evaluateSplits(Scene, lights, bounds, cone, two_sided, Scene_sweep_threshold, self.candidates, scene, threads);
+
+        if (sc.exhausted) {
+            return self.assign(node, tree, begin, end, bounds, cone, total_power, scene);
+        }
 
         const predicate = Predicate(Scene){ .sc = &sc, .set = scene };
         const split_node = begin + @as(u32, @intCast(base.memory.partition(u32, lights, predicate, Predicate(Scene).f)));
@@ -569,6 +556,40 @@ pub const Builder = struct {
                 return self.sc.leftSide(T, l, self.set);
             }
         };
+    }
+
+    fn assign(
+        self: *Builder,
+        node: *BuildNode,
+        tree: *Tree,
+        begin: u32,
+        end: u32,
+        bounds: AABB,
+        cone: Vec4f,
+        total_power: f32,
+        scene: *const Scene,
+    ) u32 {
+        const lights = tree.light_mapping[begin..end];
+        const len = end - begin;
+
+        var node_two_sided = false;
+
+        for (lights) |l| {
+            tree.light_orders[l] = self.light_order;
+            self.light_order += 1;
+            node_two_sided = node_two_sided or scene.lightTwoSided(l);
+        }
+
+        node.bounds = bounds;
+        node.cone = cone;
+        node.power = total_power;
+        node.variance = variance(Scene, lights, scene);
+        node.middle = 0;
+        node.children_or_light = begin;
+        node.num_lights = len;
+        node.two_sided = node_two_sided;
+
+        return begin + len;
     }
 
     fn assignPrimitive(
