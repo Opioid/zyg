@@ -93,6 +93,13 @@ pub const Loader = struct {
 
     const LocalMaterials = std.StringHashMapUnmanaged(*std.json.Value);
 
+    const Node = struct {
+        entity_id: u32,
+        graph: Graph.Node,
+        children_ptr: ?*std.json.Value,
+        is_scatterer: bool,
+    };
+
     pub fn init(alloc: Allocator, resources: *Resources, fallback_material: Material) Loader {
         return .{
             .resources = resources,
@@ -208,33 +215,19 @@ pub const Loader = struct {
                 continue;
             }
 
-            const leaf = self.loadLeafEntity(
-                alloc,
-                entity_value,
-                parent,
-                local_materials,
-                graph,
-                false,
-            ) catch continue;
+            const node = self.loadEntity(alloc, entity_value, parent, local_materials, graph, false) catch continue;
 
-            if (leaf.children_ptr) |children| {
-                try self.loadEntities(alloc, children.*, leaf.graph, local_materials, graph);
+            if (node.children_ptr) |children| {
+                try self.loadEntities(alloc, children.*, node.graph, local_materials, graph);
             }
 
-            if (leaf.is_scatterer) {
-                try self.loadScatterer(alloc, entity_value, leaf.graph, local_materials, graph);
+            if (node.is_scatterer) {
+                try self.loadScatterer(alloc, entity_value, node.graph, local_materials, graph);
             }
         }
     }
 
-    const Leaf = struct {
-        entity_id: u32,
-        graph: Graph.Node,
-        children_ptr: ?*std.json.Value,
-        is_scatterer: bool,
-    };
-
-    fn loadLeafEntity(
+    fn loadEntity(
         self: *Loader,
         alloc: Allocator,
         value: std.json.Value,
@@ -242,7 +235,7 @@ pub const Loader = struct {
         local_materials: LocalMaterials,
         graph: *Graph,
         prototype: bool,
-    ) !Leaf {
+    ) !Node {
         const type_node = value.object.get("type") orelse return Error.UndefinedType;
         const type_name = type_node.string;
 
@@ -319,7 +312,7 @@ pub const Loader = struct {
             try scene.createLight(alloc, entity_id);
         }
 
-        return Leaf{
+        return Node{
             .entity_id = entity_id,
             .graph = graph_node,
             .children_ptr = value.object.getPtr("entities"),
@@ -394,7 +387,7 @@ pub const Loader = struct {
             prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
 
             for (proto_array.items) |proto_value| {
-                const proto = self.loadLeafEntity(alloc, proto_value, parent, local_materials, graph, true) catch continue;
+                const proto = self.loadEntity(alloc, proto_value, parent, local_materials, graph, true) catch continue;
 
                 prototypes.appendAssumeCapacity(proto.entity_id);
             }
@@ -545,7 +538,7 @@ pub const Loader = struct {
             prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
 
             for (proto_array.items) |proto_value| {
-                const proto = self.loadLeafEntity(alloc, proto_value, parent, local_materials, graph, true) catch continue;
+                const proto = self.loadEntity(alloc, proto_value, parent, local_materials, graph, true) catch continue;
 
                 prototypes.appendAssumeCapacity(proto.entity_id);
             }

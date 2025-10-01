@@ -216,6 +216,8 @@ pub const Provider = struct {
                 resources.threads,
             );
 
+            handler.deinit(alloc);
+
             resources.commitAsync();
 
             return .{ .data = .{ .PointMotionCloud = cloud } };
@@ -306,22 +308,20 @@ pub const Provider = struct {
     fn buildAsync(context: ThreadContext) void {
         const self: *Provider = @ptrCast(@alignCast(context));
 
-        const handler = self.handler;
-
         const vertices = tvb.Buffer{ .Separate = tvb.Separate.init(
-            handler.positions,
-            handler.normals,
-            handler.uvs,
+            self.handler.positions,
+            self.handler.normals,
+            self.handler.uvs,
         ) };
 
-        if (handler.positions.len > 1) {
+        if (self.handler.positions.len > 1) {
             buildMotionBVH(
                 self.alloc,
                 &self.triangle_motion_tree,
                 self.handler.triangles,
                 vertices,
-                handler.frame_duration,
-                handler.start_frame,
+                self.handler.frame_duration,
+                self.handler.start_frame,
                 self.threads,
             ) catch {};
         } else {

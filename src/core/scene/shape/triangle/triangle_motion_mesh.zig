@@ -37,7 +37,7 @@ pub const MotionMesh = struct {
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.parts[0..self.num_parts]);
+        alloc.free(self.part_materials[0..self.num_parts]);
         self.tree.deinit(alloc);
     }
 

@@ -57,7 +57,7 @@ pub const Shape = union(enum) {
 
     pub fn deinit(self: *Shape, alloc: Allocator) void {
         switch (self.*) {
-            inline .CurveMesh, .PointMotionCloud, .TriangleMesh => |*m| m.deinit(alloc),
+            inline .CurveMesh, .PointMotionCloud, .TriangleMesh, .TriangleMotionMesh => |*m| m.deinit(alloc),
             else => {},
         }
     }
