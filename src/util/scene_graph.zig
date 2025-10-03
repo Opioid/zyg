@@ -53,11 +53,11 @@ pub const Graph = struct {
     pub fn init(alloc: Allocator) !Self {
         return Graph{
             .scene = try Scene.init(alloc),
-            .prop_props = try List(u32).initCapacity(alloc, Scene.Num_reserved_props),
-            .prop_properties = try List(Properties).initCapacity(alloc, Scene.Num_reserved_props),
-            .prop_frames = try List(u32).initCapacity(alloc, Scene.Num_reserved_props),
-            .prop_topology = try List(Topology).initCapacity(alloc, Scene.Num_reserved_props),
-            .keyframes = try List(math.Transformation).initCapacity(alloc, Scene.Num_reserved_props),
+            .prop_props = try List(u32).initCapacity(alloc, Scene.NumReservedProps),
+            .prop_properties = try List(Properties).initCapacity(alloc, Scene.NumReservedProps),
+            .prop_frames = try List(u32).initCapacity(alloc, Scene.NumReservedProps),
+            .prop_topology = try List(Topology).initCapacity(alloc, Scene.NumReservedProps),
+            .keyframes = try List(math.Transformation).initCapacity(alloc, Scene.NumReservedProps),
         };
     }
 

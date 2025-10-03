@@ -22,7 +22,7 @@ const Ray = math.Ray;
 
 const std = @import("std");
 
-pub const InfiniteSphere = struct {
+pub const Dome = struct {
     pub fn intersect(ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         if (ray.max_t >= ro.RayMaxT) {
             isec.t = ro.RayMaxT;

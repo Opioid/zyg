@@ -234,7 +234,7 @@ pub const Loader = struct {
         parent: Graph.Node,
         local_materials: LocalMaterials,
         graph: *Graph,
-        prototype: bool,
+        is_prototype: bool,
     ) !Node {
         const type_node = value.object.get("type") orelse return Error.UndefinedType;
         const type_name = type_node.string;
@@ -244,12 +244,12 @@ pub const Loader = struct {
         var is_scatterer = false;
 
         if (std.mem.eql(u8, "Light", type_name)) {
-            entity_id = try self.loadProp(alloc, value, local_materials, graph, false, true, prototype);
+            entity_id = try self.loadProp(alloc, value, local_materials, graph, false, true, is_prototype);
             is_light = true;
         } else if (std.mem.eql(u8, "Prop", type_name)) {
-            entity_id = try self.loadProp(alloc, value, local_materials, graph, true, false, prototype);
+            entity_id = try self.loadProp(alloc, value, local_materials, graph, true, false, is_prototype);
         } else if (std.mem.eql(u8, "Instancer", type_name)) {
-            entity_id = try self.loadInstancer(alloc, value, parent, local_materials, graph, prototype);
+            entity_id = try self.loadInstancer(alloc, value, parent, local_materials, graph, is_prototype);
         } else if (std.mem.eql(u8, "Sky", type_name)) {
             entity_id = try loadSky(alloc, value, graph);
         } else if (std.mem.eql(u8, "Scatterer", type_name)) {
@@ -328,7 +328,7 @@ pub const Loader = struct {
         graph: *Graph,
         instancing: bool,
         unoccluding_default: bool,
-        prototype: bool,
+        is_prototype: bool,
     ) !u32 {
         const shape = if (value.object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
 
@@ -346,19 +346,19 @@ pub const Loader = struct {
             graph.materials.appendAssumeCapacity(self.fallback_material);
         }
 
-        if (instancing and !prototype) {
+        if (instancing and !is_prototype) {
             const key = Key{ .shape = shape, .materials = graph.materials.items };
 
             if (self.instances.get(key)) |instance| {
                 return scene.createPropInstance(alloc, instance);
             }
 
-            const entity = try scene.createPropShape(alloc, shape, graph.materials.items, false, prototype);
+            const entity = try scene.createPropShape(alloc, shape, graph.materials.items, false, is_prototype);
             try self.instances.put(alloc, try key.clone(alloc), entity);
             return entity;
         } else {
             const unoccluding = !json.readBoolMember(value, "occluding", !unoccluding_default);
-            return scene.createPropShape(alloc, shape, graph.materials.items, unoccluding, prototype);
+            return scene.createPropShape(alloc, shape, graph.materials.items, unoccluding, is_prototype);
         }
     }
 
@@ -369,11 +369,11 @@ pub const Loader = struct {
         parent: Graph.Node,
         local_materials: LocalMaterials,
         graph: *Graph,
-        prototype: bool,
+        is_prototype: bool,
     ) Error!u32 {
         if (value.object.get("source")) |file_node| {
             const filename = file_node.string;
-            return self.loadInstancerFile(alloc, filename, parent, graph, prototype) catch |e| {
+            return self.loadInstancerFile(alloc, filename, parent, graph, is_prototype) catch |e| {
                 log.err("Loading instancer file \"{s}\": {}", .{ filename, e });
                 return Scene.Null;
             };
@@ -465,7 +465,7 @@ pub const Loader = struct {
 
             const shape = try self.resources.instancers.store(alloc, Scene.Null, instancer);
 
-            return graph.scene.createPropInstancer(alloc, shape, prototype);
+            return graph.scene.createPropInstancer(alloc, shape, is_prototype);
         }
 
         return Scene.Null;
@@ -477,10 +477,10 @@ pub const Loader = struct {
         filename: []const u8,
         parent: Graph.Node,
         graph: *Graph,
-        prototype: bool,
+        is_prototype: bool,
     ) !u32 {
         if (self.resources.instancers.getByName(filename, .{})) |shape_id| {
-            return graph.scene.createPropInstancer(alloc, shape_id, prototype);
+            return graph.scene.createPropInstancer(alloc, shape_id, is_prototype);
         }
 
         const fs = &self.resources.fs;
@@ -512,7 +512,7 @@ pub const Loader = struct {
             try readMaterials(alloc, materials_node, &local_materials);
         }
 
-        const entity_id = try self.loadInstancer(alloc, root, parent, local_materials, graph, prototype);
+        const entity_id = try self.loadInstancer(alloc, root, parent, local_materials, graph, is_prototype);
 
         if (Scene.Null != entity_id) {
             const shape_id = graph.scene.prop(entity_id).resource;
@@ -611,10 +611,10 @@ pub const Loader = struct {
             return @intFromEnum(Scene.ShapeID.Cube);
         } else if (std.mem.eql(u8, "Disk", type_name)) {
             return @intFromEnum(Scene.ShapeID.Disk);
-        } else if (std.mem.eql(u8, "DistantSphere", type_name)) {
-            return @intFromEnum(Scene.ShapeID.DistantSphere);
-        } else if (std.mem.eql(u8, "InfiniteSphere", type_name)) {
-            return @intFromEnum(Scene.ShapeID.InfiniteSphere);
+        } else if (std.mem.eql(u8, "Distant", type_name)) {
+            return @intFromEnum(Scene.ShapeID.Distant);
+        } else if (std.mem.eql(u8, "Dome", type_name)) {
+            return @intFromEnum(Scene.ShapeID.Dome);
         } else if (std.mem.eql(u8, "Rectangle", type_name)) {
             return @intFromEnum(Scene.ShapeID.Rectangle);
         } else if (std.mem.eql(u8, "Sphere", type_name)) {
@@ -627,19 +627,16 @@ pub const Loader = struct {
     }
 
     fn loadMaterials(
-        self: *Loader,
+        self: *const Loader,
         alloc: Allocator,
         value: std.json.Value,
         materials: *List(u32),
         num_materials: usize,
         local_materials: LocalMaterials,
     ) void {
-        for (value.array.items, 0..) |m, i| {
+        const len = @min(value.array.items.len, num_materials);
+        for (value.array.items[0..len]) |m| {
             materials.appendAssumeCapacity(self.loadMaterial(alloc, m.string, local_materials));
-
-            if (i == num_materials - 1) {
-                return;
-            }
         }
     }
 

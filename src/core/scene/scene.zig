@@ -49,8 +49,8 @@ pub const Scene = struct {
     pub const SamplesTo = Shape.SamplesTo;
     pub const UnitsPerSecond = Space.UnitsPerSecond;
     pub const TickDuration = Space.TickDuration;
-    const Num_steps = 4;
-    const Interval = 1.0 / @as(f32, @floatFromInt(Num_steps));
+    const NumSteps = 4;
+    const Interval = 1.0 / @as(f32, @floatFromInt(NumSteps));
 
     pub fn absoluteTime(dtime: f64) u64 {
         return @intFromFloat(@round(@as(f64, @floatFromInt(UnitsPerSecond)) * dtime));
@@ -60,7 +60,7 @@ pub const Scene = struct {
         return @floatCast(@as(f64, @floatFromInt(time - time_start)) / @as(f64, @floatFromInt(UnitsPerSecond)));
     }
 
-    pub const Num_reserved_props = 32;
+    pub const NumReservedProps = 32;
 
     pub const Null = Prop.Null;
 
@@ -68,8 +68,8 @@ pub const Scene = struct {
         Canopy,
         Cube,
         Disk,
-        DistantSphere,
-        InfiniteSphere,
+        Distant,
+        Dome,
         Rectangle,
         Sphere,
     };
@@ -123,8 +123,8 @@ pub const Scene = struct {
         try shapes.append(alloc, .{ .Canopy = .{} });
         try shapes.append(alloc, .{ .Cube = .{} });
         try shapes.append(alloc, .{ .Disk = .{} });
-        try shapes.append(alloc, .{ .DistantSphere = .{} });
-        try shapes.append(alloc, .{ .InfiniteSphere = .{} });
+        try shapes.append(alloc, .{ .Distant = .{} });
+        try shapes.append(alloc, .{ .Dome = .{} });
         try shapes.append(alloc, .{ .Rectangle = .{} });
         try shapes.append(alloc, .{ .Sphere = .{} });
 
@@ -132,19 +132,19 @@ pub const Scene = struct {
             .shapes = shapes,
             .instancers = try List(Instancer).initCapacity(alloc, 4),
             .bvh_builder = try PropBvhBuilder.init(alloc),
-            .props = try List(Prop).initCapacity(alloc, Num_reserved_props),
-            .prop_space = try Space.init(alloc, Num_reserved_props),
-            .prop_parts = try List(u32).initCapacity(alloc, Num_reserved_props),
-            .lights = try List(Light).initCapacity(alloc, Num_reserved_props),
-            .light_aabbs = try List(AABB).initCapacity(alloc, Num_reserved_props),
-            .light_cones = try List(Vec4f).initCapacity(alloc, Num_reserved_props),
-            .material_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
-            .light_ids = try List(u32).initCapacity(alloc, Num_reserved_props),
-            .light_temp_powers = try alloc.alloc(f32, Num_reserved_props),
-            .finite_props = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .props = try List(Prop).initCapacity(alloc, NumReservedProps),
+            .prop_space = try Space.init(alloc, NumReservedProps),
+            .prop_parts = try List(u32).initCapacity(alloc, NumReservedProps),
+            .lights = try List(Light).initCapacity(alloc, NumReservedProps),
+            .light_aabbs = try List(AABB).initCapacity(alloc, NumReservedProps),
+            .light_cones = try List(Vec4f).initCapacity(alloc, NumReservedProps),
+            .material_ids = try List(u32).initCapacity(alloc, NumReservedProps),
+            .light_ids = try List(u32).initCapacity(alloc, NumReservedProps),
+            .light_temp_powers = try alloc.alloc(f32, NumReservedProps),
+            .finite_props = try List(u32).initCapacity(alloc, NumReservedProps),
             .infinite_props = try List(u32).initCapacity(alloc, 2),
-            .unoccluding_props = try List(u32).initCapacity(alloc, Num_reserved_props),
-            .volume_props = try List(u32).initCapacity(alloc, Num_reserved_props),
+            .unoccluding_props = try List(u32).initCapacity(alloc, NumReservedProps),
+            .volume_props = try List(u32).initCapacity(alloc, NumReservedProps),
         };
     }
 
@@ -307,12 +307,12 @@ pub const Scene = struct {
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configureShape(@intFromEnum(ShapeID.DistantSphere), &.{}, false, self);
+        self.props.items[p].configureShape(@intFromEnum(ShapeID.Distant), &.{}, false, self);
 
         return p;
     }
 
-    pub fn createPropShape(self: *Scene, alloc: Allocator, shape_id: u32, materials: []const u32, unoccluding: bool, prototype: bool) !u32 {
+    pub fn createPropShape(self: *Scene, alloc: Allocator, shape_id: u32, materials: []const u32, unoccluding: bool, is_prototype: bool) !u32 {
         const p = try self.allocateProp(alloc);
 
         self.props.items[p].configureShape(shape_id, materials, unoccluding, self);
@@ -330,21 +330,21 @@ pub const Scene = struct {
             try self.light_ids.append(alloc, Null);
         }
 
-        if (!prototype) {
+        if (!is_prototype) {
             try self.classifyProp(alloc, p);
         }
 
         return p;
     }
 
-    pub fn createPropInstancer(self: *Scene, alloc: Allocator, shape_id: u32, prototype: bool) !u32 {
+    pub fn createPropInstancer(self: *Scene, alloc: Allocator, shape_id: u32, is_prototype: bool) !u32 {
         const p = try self.allocateProp(alloc);
 
         const instancer_inst = self.instancer(shape_id);
 
         self.props.items[p].configureIntancer(shape_id, instancer_inst.solid(), instancer_inst.volume());
 
-        if (!prototype) {
+        if (!is_prototype) {
             try self.classifyProp(alloc, p);
         }
 
@@ -510,7 +510,7 @@ pub const Scene = struct {
                 const b = frames[i + 1];
 
                 var t = Interval;
-                var j: u32 = Num_steps - 1;
+                var j: u32 = NumSteps - 1;
                 while (j > 0) : (j -= 1) {
                     const inter = a.lerp(b, t);
 
