@@ -59,10 +59,6 @@ pub const Light = struct {
         };
     }
 
-    pub fn shadowCatcherLight(self: Light) bool {
-        return self.shadow_catcher_light;
-    }
-
     pub fn power(self: Light, normalized_emission: Vec4f, scene_bb: AABB, scene: *const Scene) Vec4f {
         if (scene.propShape(self.prop).finite() or scene_bb.equal(.empty)) {
             return normalized_emission;

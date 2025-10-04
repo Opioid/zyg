@@ -277,7 +277,7 @@ pub const PathtracerMIS = struct {
             occluded += tr * unocc;
         }
 
-        if (shadow_catcher and light.shadowCatcherLight()) {
+        if (shadow_catcher and light.shadow_catcher_light) {
             return .{ .emission = @splat(0.0), .occluded = occluded, .unoccluded = unoccluded };
         }
 
