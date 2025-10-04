@@ -164,7 +164,7 @@ pub const Vertex = struct {
         return m.sample(wo, rs, sampler, context);
     }
 
-    pub fn evaluateRadiance(self: *const Self, frag: *const Fragment, sampler: *Sampler, context: Context) ?Vec4f {
+    pub fn evaluateRadiance(self: *const Self, frag: *const Fragment, sampler: *Sampler, context: Context) Vec4f {
         const volume = frag.event;
         if (.Absorb == volume) {
             return frag.vol_li;
@@ -174,7 +174,7 @@ pub const Vertex = struct {
 
         const m = frag.material(context.scene);
         if (!m.emissive() or (!m.twoSided() and !frag.sameHemisphere(wo)) or .Pass != volume) {
-            return null;
+            return @splat(0.0);
         }
 
         var rs: Renderstate = undefined;
@@ -188,7 +188,11 @@ pub const Vertex = struct {
 
         const in_camera = 0 == self.depth.total();
 
-        return m.evaluateRadiance(wo, rs, in_camera, sampler, context);
+        const energy = m.evaluateRadiance(wo, rs, in_camera, sampler, context);
+
+        const weight: Vec4f = @splat(context.scene.lightPdf(self, frag));
+
+        return weight * energy;
     }
 };
 

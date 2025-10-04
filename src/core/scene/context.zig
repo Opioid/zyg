@@ -72,16 +72,6 @@ pub const Context = struct {
         return self.scene.unoccluding_bvh.emission(vertex, frag, sampler, self);
     }
 
-    pub fn evaluateRadiance(self: Self, vertex: *const Vertex, frag: *const Fragment, sampler: *Sampler) Vec4f {
-        if (vertex.evaluateRadiance(frag, sampler, self)) |energy| {
-            const weight: Vec4f = @splat(self.scene.lightPdf(vertex, frag));
-
-            return weight * energy;
-        }
-
-        return @splat(0.0);
-    }
-
     pub fn propTransmittance(
         self: Self,
         ray: Ray,

@@ -275,7 +275,7 @@ pub const Sphere = struct {
 
         fragment(vertex.probe.ray, frag);
 
-        return context.evaluateRadiance(vertex, frag, sampler);
+        return vertex.evaluateRadiance(frag, sampler, context);
     }
 
     pub fn scatter(

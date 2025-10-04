@@ -191,7 +191,7 @@ pub const Rectangle = struct {
 
         fragment(vertex.probe.ray, frag);
 
-        return context.evaluateRadiance(vertex, frag, sampler);
+        return vertex.evaluateRadiance(frag, sampler, context);
     }
 
     // C. Ureña & M. Fajardo & A. King / An Area-Preserving Parametrization for Spherical Rectangles

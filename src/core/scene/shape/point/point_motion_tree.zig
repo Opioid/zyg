@@ -223,7 +223,7 @@ pub const Tree = struct {
                         frag.geo_n = math.normalize3(p - origin_w);
                         frag.uvw = @splat(0.0);
 
-                        energy += context.evaluateRadiance(vertex, frag, sampler);
+                        energy += vertex.evaluateRadiance(frag, sampler, context);
                     }
                 }
 

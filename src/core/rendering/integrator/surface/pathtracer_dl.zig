@@ -190,7 +190,7 @@ pub const PathtracerDL = struct {
 
         if (frag.hit()) {
             if (vertex.state.singular or !Light.isLight(frag.lightId(context.scene))) {
-                energy = context.evaluateRadiance(vertex, frag, sampler);
+                energy = vertex.evaluateRadiance(frag, sampler, context);
             }
         }
 
@@ -198,7 +198,7 @@ pub const PathtracerDL = struct {
         light_frag.event = .Pass;
 
         if (vertex.state.singular) {
-            energy += context.emission(vertex, &light_frag, sampler);
+            energy += vertex.evaluateRadiance(&light_frag, sampler, context);
         }
 
         for (context.scene.infinite_props.items) |prop| {
@@ -209,7 +209,7 @@ pub const PathtracerDL = struct {
             if (vertex.state.singular or !Light.isLight(light_frag.lightId(context.scene))) {
                 context.propInterpolateFragment(prop, vertex.probe, &light_frag);
 
-                energy += context.evaluateRadiance(vertex, &light_frag, sampler);
+                energy += vertex.evaluateRadiance(&light_frag, sampler, context);
             }
         }
 
