@@ -430,7 +430,13 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn sampleVolumeFromUvw(self: *const Shape, part: u32, uvw: Vec4f, trafo: Trafo, importance_uv: Vec2f) ?SampleFrom {
+    pub fn sampleVolumeFromUvw(
+        self: *const Shape,
+        part: u32,
+        uvw: Vec4f,
+        trafo: Trafo,
+        importance_uv: Vec2f,
+    ) ?SampleFrom {
         _ = part;
 
         return switch (self.*) {
@@ -441,15 +447,16 @@ pub const Shape = union(enum) {
 
     pub fn pdf(
         self: *const Shape,
-        dir: Vec4f,
-        p: Vec4f,
-        n: Vec4f,
+        vertex: *const Vertex,
         frag: *const Fragment,
-        time: u64,
-        total_sphere: bool,
-        split_threshold: f32,
         shape_sampler: *const ShapeSampler,
     ) f32 {
+        const dir = vertex.probe.ray.direction;
+        const p = vertex.origin;
+        const n = vertex.geo_n;
+        const time = vertex.probe.time;
+        const total_sphere = vertex.state.translucent;
+        const split_threshold = vertex.light_split_threshold;
         return switch (self.*) {
             .Canopy => 1.0 / (2.0 * std.math.pi),
             .Disk => Disk.pdf(dir, p, frag, split_threshold, shape_sampler),
@@ -465,12 +472,13 @@ pub const Shape = union(enum) {
 
     pub fn materialPdf(
         self: *const Shape,
-        dir: Vec4f,
-        p: Vec4f,
+        vertex: *const Vertex,
         frag: *const Fragment,
-        split_threshold: f32,
         shape_sampler: *const ShapeSampler,
     ) f32 {
+        const dir = vertex.probe.ray.direction;
+        const p = vertex.origin;
+        const split_threshold = vertex.light_split_threshold;
         return switch (self.*) {
             .Canopy => shape_sampler.impl.pdf(frag.uvw) / (2.0 * std.math.pi),
             .Disk => Disk.materialPdf(dir, p, frag, split_threshold, shape_sampler),

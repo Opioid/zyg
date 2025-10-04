@@ -327,29 +327,13 @@ pub const Light = struct {
     }
 
     fn propPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
-        const total_sphere = vertex.state.translucent;
         const shape_sampler = scene.shapeSampler(self.sampler);
-        return scene.propShape(self.prop).pdf(
-            vertex.probe.ray.direction,
-            vertex.origin,
-            vertex.geo_n,
-            frag,
-            vertex.probe.time,
-            total_sphere,
-            vertex.light_split_threshold,
-            shape_sampler,
-        );
+        return scene.propShape(self.prop).pdf(vertex, frag, shape_sampler);
     }
 
     fn propMaterialPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
         const shape_sampler = scene.shapeSampler(self.sampler);
-        return scene.propShape(self.prop).materialPdf(
-            vertex.probe.ray.direction,
-            vertex.origin,
-            frag,
-            vertex.light_split_threshold,
-            shape_sampler,
-        );
+        return scene.propShape(self.prop).materialPdf(vertex, frag, shape_sampler);
     }
 
     fn volumeImagePdf(self: Light, p: Vec4f, frag: *const Fragment, scene: *const Scene) f32 {
