@@ -191,11 +191,7 @@ pub const Rectangle = struct {
 
         fragment(vertex.probe.ray, frag);
 
-        const energy = vertex.evaluateRadiance(frag, sampler, context) orelse return @splat(0.0);
-
-        const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
-
-        return energy * weight;
+        return context.evaluateRadiance(vertex, frag, split_threshold, sampler);
     }
 
     // C. Ureña & M. Fajardo & A. King / An Area-Preserving Parametrization for Spherical Rectangles

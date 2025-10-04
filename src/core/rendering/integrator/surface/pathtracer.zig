@@ -123,15 +123,15 @@ pub const Pathtracer = struct {
             return @splat(0.0);
         }
 
-        var energy: Vec4f = @splat(0.0);
-
-        if (frag.hit()) {
-            energy += vertex.evaluateRadiance(frag, sampler, context) orelse @splat(0.0);
-        }
-
         // Do this to avoid MIS calculation, which this integrator doesn't need
         const singular = vertex.state.singular;
         vertex.state.singular = true;
+
+        var energy: Vec4f = @splat(0.0);
+
+        if (frag.hit()) {
+            energy = context.evaluateRadiance(vertex, frag, 0.0, sampler);
+        }
 
         var light_frag: Fragment = undefined;
         light_frag.event = .Pass;
@@ -148,7 +148,7 @@ pub const Pathtracer = struct {
 
             context.propInterpolateFragment(prop, vertex.probe, &inf_frag);
 
-            energy += vertex.evaluateRadiance(&inf_frag, sampler, context) orelse continue;
+            energy += context.evaluateRadiance(vertex, &inf_frag, 0.0, sampler);
         }
 
         vertex.state.singular = singular;

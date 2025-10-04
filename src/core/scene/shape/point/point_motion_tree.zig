@@ -224,10 +224,7 @@ pub const Tree = struct {
                         frag.geo_n = math.normalize3(p - origin_w);
                         frag.uvw = @splat(0.0);
 
-                        if (vertex.evaluateRadiance(frag, sampler, context)) |local_energy| {
-                            const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
-                            energy += weight * local_energy;
-                        }
+                        energy += context.evaluateRadiance(vertex, frag, split_threshold, sampler);
                     }
                 }
 

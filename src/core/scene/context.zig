@@ -68,8 +68,30 @@ pub const Context = struct {
         self.scene.scatter(&vertex.probe, frag, &vertex.throughput, sampler, self);
     }
 
-    pub fn emission(self: Self, vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler) Vec4f {
+    pub fn emission(
+        self: Self,
+        vertex: *const Vertex,
+        frag: *Fragment,
+        split_threshold: f32,
+        sampler: *Sampler,
+    ) Vec4f {
         return self.scene.unoccluding_bvh.emission(vertex, frag, split_threshold, sampler, self);
+    }
+
+    pub fn evaluateRadiance(
+        self: Self,
+        vertex: *const Vertex,
+        frag: *const Fragment,
+        split_threshold: f32,
+        sampler: *Sampler,
+    ) Vec4f {
+        if (vertex.evaluateRadiance(frag, sampler, self)) |energy| {
+            const weight: Vec4f = @splat(self.scene.lightPdf(vertex, frag, split_threshold));
+
+            return weight * energy;
+        }
+
+        return @splat(0.0);
     }
 
     pub fn propTransmittance(
@@ -99,7 +121,15 @@ pub const Context = struct {
     }
 
     pub fn propIntersect(self: Self, entity: u32, probe: Probe, sampler: *Sampler, frag: *Fragment) bool {
-        if (self.scene.prop(entity).intersect(entity, entity, probe, sampler, self.scene, &self.scene.prop_space, &frag.isec)) {
+        if (self.scene.prop(entity).intersect(
+            entity,
+            entity,
+            probe,
+            sampler,
+            self.scene,
+            &self.scene.prop_space,
+            &frag.isec,
+        )) {
             frag.prop = entity;
             return true;
         }

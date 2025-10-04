@@ -455,10 +455,7 @@ pub const Tree = struct {
                         const uv = self.data.interpolateUv(itri, hit.u, hit.v);
                         frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                        if (vertex.evaluateRadiance(frag, sampler, context)) |local_energy| {
-                            const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
-                            energy += weight * local_energy;
-                        }
+                        energy += context.evaluateRadiance(vertex, frag, split_threshold, sampler);
                     }
                 }
 
