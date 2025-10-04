@@ -380,12 +380,11 @@ pub const Mesh = struct {
         self: *const Mesh,
         vertex: *const Vertex,
         frag: *Fragment,
-        split_threshold: f32,
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
         const local_ray = frag.isec.trafo.worldToObjectRay(vertex.probe.ray);
-        return self.tree.emission(local_ray, vertex, frag, split_threshold, sampler, context);
+        return self.tree.emission(local_ray, vertex, frag, sampler, context);
     }
 
     //Gram-Schmidt method

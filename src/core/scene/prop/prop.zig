@@ -240,7 +240,6 @@ pub const Prop = struct {
         entity: u32,
         vertex: *const Vertex,
         frag: *Fragment,
-        split_threshold: f32,
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
@@ -260,7 +259,7 @@ pub const Prop = struct {
         frag.isec.trafo = trafo;
         frag.prop = entity;
 
-        return scene.shape(self.resource).emission(vertex, frag, split_threshold, sampler, context);
+        return scene.shape(self.resource).emission(vertex, frag, sampler, context);
     }
 
     pub fn scatter(

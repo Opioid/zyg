@@ -407,7 +407,6 @@ pub const Tree = struct {
         ray: Ray,
         vertex: *const Vertex,
         frag: *Fragment,
-        split_threshold: f32,
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
@@ -445,7 +444,7 @@ pub const Tree = struct {
                         const uv = self.data.interpolateUv(itri, hit.u, hit.v);
                         frag.uvw = .{ uv[0], uv[1], 0.0, 0.0 };
 
-                        energy += context.evaluateRadiance(vertex, frag, split_threshold, sampler);
+                        energy += context.evaluateRadiance(vertex, frag, sampler);
                     }
                 }
 

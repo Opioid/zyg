@@ -130,13 +130,13 @@ pub const Pathtracer = struct {
         var energy: Vec4f = @splat(0.0);
 
         if (frag.hit()) {
-            energy = context.evaluateRadiance(vertex, frag, 0.0, sampler);
+            energy = context.evaluateRadiance(vertex, frag, sampler);
         }
 
         var light_frag: Fragment = undefined;
         light_frag.event = .Pass;
 
-        energy += context.emission(vertex, &light_frag, 0.0, sampler);
+        energy += context.emission(vertex, &light_frag, sampler);
 
         var inf_frag: Fragment = undefined;
         inf_frag.event = .Pass;
@@ -148,7 +148,7 @@ pub const Pathtracer = struct {
 
             context.propInterpolateFragment(prop, vertex.probe, &inf_frag);
 
-            energy += context.evaluateRadiance(vertex, &inf_frag, 0.0, sampler);
+            energy += context.evaluateRadiance(vertex, &inf_frag, sampler);
         }
 
         vertex.state.singular = singular;

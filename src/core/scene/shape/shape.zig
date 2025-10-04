@@ -283,17 +283,16 @@ pub const Shape = union(enum) {
         self: *const Shape,
         vertex: *const Vertex,
         frag: *Fragment,
-        split_threshold: f32,
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
         return switch (self.*) {
-            .Disk => Disk.emission(vertex, frag, split_threshold, sampler, context),
-            .PointMotionCloud => |c| c.emission(vertex, frag, split_threshold, sampler, context),
-            .Rectangle => Rectangle.emission(vertex, frag, split_threshold, sampler, context),
-            .Sphere => Sphere.emission(vertex, frag, split_threshold, sampler, context),
-            .TriangleMesh => |m| m.emission(vertex, frag, split_threshold, sampler, context),
-            .TriangleMotionMesh => |m| m.emission(vertex, frag, split_threshold, sampler, context),
+            .Disk => Disk.emission(vertex, frag, sampler, context),
+            .PointMotionCloud => |c| c.emission(vertex, frag, sampler, context),
+            .Rectangle => Rectangle.emission(vertex, frag, sampler, context),
+            .Sphere => Sphere.emission(vertex, frag, sampler, context),
+            .TriangleMesh => |m| m.emission(vertex, frag, sampler, context),
+            .TriangleMotionMesh => |m| m.emission(vertex, frag, sampler, context),
             else => @splat(0.0),
         };
     }

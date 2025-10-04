@@ -302,7 +302,6 @@ pub const Tree = struct {
         self: Tree,
         vertex: *const Vertex,
         frag: *Fragment,
-        split_threshold: f32,
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
@@ -324,7 +323,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (instances[start..end]) |p| {
-                    energy += props[p].emission(p, vertex, frag, split_threshold, sampler, context);
+                    energy += props[p].emission(p, vertex, frag, sampler, context);
                 }
 
                 n = stack.pop();

@@ -68,25 +68,13 @@ pub const Context = struct {
         self.scene.scatter(&vertex.probe, frag, &vertex.throughput, sampler, self);
     }
 
-    pub fn emission(
-        self: Self,
-        vertex: *const Vertex,
-        frag: *Fragment,
-        split_threshold: f32,
-        sampler: *Sampler,
-    ) Vec4f {
-        return self.scene.unoccluding_bvh.emission(vertex, frag, split_threshold, sampler, self);
+    pub fn emission(self: Self, vertex: *const Vertex, frag: *Fragment, sampler: *Sampler) Vec4f {
+        return self.scene.unoccluding_bvh.emission(vertex, frag, sampler, self);
     }
 
-    pub fn evaluateRadiance(
-        self: Self,
-        vertex: *const Vertex,
-        frag: *const Fragment,
-        split_threshold: f32,
-        sampler: *Sampler,
-    ) Vec4f {
+    pub fn evaluateRadiance(self: Self, vertex: *const Vertex, frag: *const Fragment, sampler: *Sampler) Vec4f {
         if (vertex.evaluateRadiance(frag, sampler, self)) |energy| {
-            const weight: Vec4f = @splat(self.scene.lightPdf(vertex, frag, split_threshold));
+            const weight: Vec4f = @splat(self.scene.lightPdf(vertex, frag));
 
             return weight * energy;
         }

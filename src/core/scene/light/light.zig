@@ -139,10 +139,10 @@ pub const Light = struct {
         return material.evaluateRadiance(-sample.dir, rs, false, sampler, context);
     }
 
-    pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {
+    pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
         return switch (self.class) {
-            .Prop => self.propPdf(vertex, frag, split_threshold, scene),
-            .PropImage => self.propMaterialPdf(vertex, frag, split_threshold, scene),
+            .Prop => self.propPdf(vertex, frag, scene),
+            .PropImage => self.propMaterialPdf(vertex, frag, scene),
             .Volume => scene.propShape(self.prop).volumePdf(vertex.origin, frag),
             .VolumeImage => self.volumeImagePdf(vertex.origin, frag, scene),
         };
@@ -326,7 +326,7 @@ pub const Light = struct {
         return result;
     }
 
-    fn propPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {
+    fn propPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
         const total_sphere = vertex.state.translucent;
         const shape_sampler = scene.shapeSampler(self.sampler);
         return scene.propShape(self.prop).pdf(
@@ -336,18 +336,18 @@ pub const Light = struct {
             frag,
             vertex.probe.time,
             total_sphere,
-            split_threshold,
+            vertex.light_split_threshold,
             shape_sampler,
         );
     }
 
-    fn propMaterialPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32, scene: *const Scene) f32 {
+    fn propMaterialPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
         const shape_sampler = scene.shapeSampler(self.sampler);
         return scene.propShape(self.prop).materialPdf(
             vertex.probe.ray.direction,
             vertex.origin,
             frag,
-            split_threshold,
+            vertex.light_split_threshold,
             shape_sampler,
         );
     }

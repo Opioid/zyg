@@ -34,6 +34,7 @@ pub const Vertex = struct {
     bxdf_pdf: f32,
     reg_alpha: f32,
     split_weight: f32,
+    light_split_threshold: f32,
     path_count: u32,
 
     throughput: Vec4f,
@@ -55,6 +56,7 @@ pub const Vertex = struct {
             .bxdf_pdf = 0.0,
             .reg_alpha = 0.0,
             .split_weight = 1.0,
+            .light_split_threshold = 0.0,
             .path_count = 1,
             .throughput = @splat(1.0),
             .shadow_catcher_occluded = undefined,

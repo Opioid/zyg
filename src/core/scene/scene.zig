@@ -652,7 +652,7 @@ pub const Scene = struct {
         return self.light_tree.randomLight(p, n, total_sphere, random, split_threshold, self, buffer);
     }
 
-    pub fn lightPdfSpatial(self: *const Scene, id: u32, vertex: *const Vertex, split_threshold: f32) f32 {
+    pub fn lightPdfSpatial(self: *const Scene, id: u32, vertex: *const Vertex) f32 {
         // _ = p;
         // _ = n;
         // _ = total_sphere;
@@ -661,18 +661,18 @@ pub const Scene = struct {
         // const pdf = self.light_distribution.pdfI(id);
         // return .{ .offset = id, .pdf = pdf };
 
-        return self.light_tree.pdf(vertex.origin, vertex.geo_n, vertex.state.translucent, split_threshold, id, self);
+        return self.light_tree.pdf(vertex.origin, vertex.geo_n, vertex.state.translucent, vertex.light_split_threshold, id, self);
     }
 
-    pub fn lightPdf(self: *const Scene, vertex: *const Vertex, frag: *const Fragment, split_threshold: f32) f32 {
+    pub fn lightPdf(self: *const Scene, vertex: *const Vertex, frag: *const Fragment) f32 {
         const light_id = frag.lightId(self);
 
         if (vertex.state.singular or !Light.isLight(light_id)) {
             return 1.0;
         }
 
-        const select_pdf = self.lightPdfSpatial(light_id, vertex, split_threshold);
-        const sample_pdf = self.light(light_id).pdf(vertex, frag, split_threshold, self);
+        const select_pdf = self.lightPdfSpatial(light_id, vertex);
+        const sample_pdf = self.light(light_id).pdf(vertex, frag, self);
         return hlp.powerHeuristic(vertex.bxdf_pdf, sample_pdf * select_pdf);
     }
 

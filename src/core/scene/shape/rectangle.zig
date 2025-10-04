@@ -184,14 +184,14 @@ pub const Rectangle = struct {
         return true;
     }
 
-    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, context: Context) Vec4f {
+    pub fn emission(vertex: *const Vertex, frag: *Fragment, sampler: *Sampler, context: Context) Vec4f {
         if (!intersect(vertex.probe.ray, frag.isec.trafo, &frag.isec)) {
             return @splat(0.0);
         }
 
         fragment(vertex.probe.ray, frag);
 
-        return context.evaluateRadiance(vertex, frag, split_threshold, sampler);
+        return context.evaluateRadiance(vertex, frag, sampler);
     }
 
     // C. Ureña & M. Fajardo & A. King / An Area-Preserving Parametrization for Spherical Rectangles
