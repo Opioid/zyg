@@ -162,6 +162,7 @@ pub fn build(b: *std.Build) void {
             //"takes/intel_sponza.take",
             //"takes/intel_sponza_night.take",
             //"takes/sss.take",
+            //"takes/sunsky.take",
             //"scenes/island/shot_cam.take",
             //"takes/shadow_catcher.take",
             //"scenes/bamboo/bamboo.take",
