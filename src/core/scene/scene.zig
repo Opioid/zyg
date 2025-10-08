@@ -537,12 +537,8 @@ pub const Scene = struct {
         }
 
         const mat = self.material(material_id);
-
-        const total_emission = mat.totalEmission(average_radiance, extent);
-
-        self.light_aabbs.items[light_id].bounds[0][3] = math.hmax3(
-            self.lights.items[light_id].power(total_emission, self.aabb(), self),
-        );
+        const light_power = l.power(mat.totalEmission(average_radiance, extent), self.aabb(), self);
+        self.light_aabbs.items[light_id].bounds[0][3] = math.hmax3(light_power);
     }
 
     pub fn propAabbIntersect(self: *const Scene, entity: u32, ray: math.Ray) bool {
