@@ -158,6 +158,11 @@ pub inline fn hmin3(v: Vec4f) f32 {
 
 pub inline fn hmax3(v: Vec4f) f32 {
     return math.max(v[0], math.max(v[1], v[2]));
+
+    // return switch (builtin.target.cpu.arch) {
+    //     .aarch64, .aarch64_be => @reduce(.Max, @shuffle(f32, v, @as(Vec4f, @splat(-std.math.floatMax(f32))), [_]i32{ 0, 1, 2, -1 })),
+    //     inline else => math.max(v[0], math.max(v[1], v[2])),
+    // };
 }
 
 pub inline fn hmin4(v: Vec4f) f32 {
