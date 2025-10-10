@@ -198,7 +198,7 @@ pub const PathtracerDL = struct {
         light_frag.event = .Pass;
 
         if (vertex.state.singular) {
-            energy += vertex.evaluateRadiance(&light_frag, sampler, context);
+            energy += context.emission(vertex, &light_frag, sampler);
         }
 
         for (context.scene.infinite_props.items) |prop| {
