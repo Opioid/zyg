@@ -19,9 +19,7 @@ const spectrum = base.spectrum;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const mz = @cImport({
-    @cInclude("miniz/miniz.h");
-});
+const mz = @import("miniz");
 
 pub const Reader = struct {
     const Error = error{

@@ -15,9 +15,7 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
 
-const mz = @cImport({
-    @cInclude("miniz/miniz.h");
-});
+const mz = @import("miniz");
 
 pub const Writer = struct {
     srgb: Srgb,

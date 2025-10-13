@@ -57,20 +57,27 @@ pub fn build(b: *std.Build) void {
         "-fno-sanitize=undefined",
     };
 
-    const csources = [_][]const u8{
-        "thirdparty/include/miniz/miniz.c",
-        "thirdparty/include/arpraguesky/ArPragueSkyModelGround.c",
-    };
-
-    for (csources) |source| {
-        cli.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
-        capi.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
-        sow.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
-    }
-
     cli.addCSourceFile(.{ .file = b.path("src/cli/any_key.c"), .flags = &cflags });
 
-    it.addCSourceFile(.{ .file = b.path(csources[0]), .flags = &cflags });
+    const miniz_translate = b.addTranslateC(.{
+        .root_source_file = b.path("thirdparty/miniz/miniz.h"),
+        .optimize = optimize,
+        .target = target,
+        .link_libc = true,
+    });
+
+    const miniz = miniz_translate.createModule();
+    miniz.addCSourceFile(.{ .file = b.path("thirdparty/miniz/miniz.c"), .flags = &cflags });
+
+    const arp_sky_translate = b.addTranslateC(.{
+        .root_source_file = b.path("thirdparty/arpraguesky/ArPragueSkyModelGround.h"),
+        .optimize = optimize,
+        .target = target,
+        .link_libc = true,
+    });
+
+    const arp_sky = arp_sky_translate.createModule();
+    miniz.addCSourceFile(.{ .file = b.path("thirdparty/arpraguesky/ArPragueSkyModelGround.c"), .flags = &cflags });
 
     const base = b.createModule(.{
         .root_source_file = b.path("src/base/base.zig"),
@@ -78,10 +85,12 @@ pub fn build(b: *std.Build) void {
 
     const core = b.createModule(.{
         .root_source_file = b.path("src/core/core.zig"),
-        .imports = &.{.{ .name = "base", .module = base }},
+        .imports = &.{
+            .{ .name = "base", .module = base },
+            .{ .name = "miniz", .module = miniz },
+            .{ .name = "arp_sky", .module = arp_sky },
+        },
     });
-
-    core.addIncludePath(b.path("thirdparty/include"));
 
     const util = b.createModule(.{
         .root_source_file = b.path("src/util/util.zig"),

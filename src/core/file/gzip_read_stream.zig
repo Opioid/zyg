@@ -3,9 +3,7 @@ const ReadStream = @import("read_stream.zig").ReadStream;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const mz = @cImport({
-    @cInclude("miniz/miniz.h");
-});
+const mz = @import("miniz");
 
 pub const GzipReadStream = struct {
     const ReadError = error{

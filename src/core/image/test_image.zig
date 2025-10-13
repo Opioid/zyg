@@ -7,9 +7,7 @@ const Vec4f = math.Vec4f;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const c = @cImport({
-    @cInclude("miniz/miniz.h");
-});
+const mz = @import("miniz");
 
 pub fn write_reference_normal_map(alloc: Allocator, name: []const u8) !void {
     const dim = 1024;
@@ -56,7 +54,7 @@ pub fn write_reference_normal_map(alloc: Allocator, name: []const u8) !void {
     }
 
     var buffer_len: usize = 0;
-    const png = c.tdefl_write_image_to_png_file_in_memory(
+    const png = mz.tdefl_write_image_to_png_file_in_memory(
         @as(*const anyopaque, @ptrCast(buffer.ptr)),
         dim,
         dim,
