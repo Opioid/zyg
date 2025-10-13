@@ -49,15 +49,11 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    cli.addIncludePath(b.path("src/cli"));
-
     const cflags = [_][]const u8{
         "-std=c99",
         "-Wall",
         "-fno-sanitize=undefined",
     };
-
-    cli.addCSourceFile(.{ .file = b.path("src/cli/any_key.c"), .flags = &cflags });
 
     const miniz_translate = b.addTranslateC(.{
         .root_source_file = b.path("thirdparty/miniz/miniz.h"),

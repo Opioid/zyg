@@ -18,10 +18,6 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const c = @cImport({
-    @cInclude("any_key.h");
-});
-
 pub fn main() !void {
     // core.size_test.testSize();
 
@@ -79,66 +75,54 @@ pub fn main() !void {
     var driver = try rendering.Driver.init(alloc, &threads, &resources.fs, .{ .StdOut = undefined });
     defer driver.deinit(alloc);
 
-    while (true) {
-        graph.clear(alloc, true);
+    // graph.clear(alloc, true);
 
-        log.info("Loading...", .{});
+    log.info("Loading...", .{});
 
-        const loading_start = std.time.milliTimestamp();
+    const loading_start = std.time.milliTimestamp();
 
-        if (try loadTakeAndScene(
-            alloc,
-            options.take,
-            options.start_frame,
-            &graph,
-            &scene_loader,
-            &resources,
-        )) {
-            log.info("Loading time {d:.2} s", .{chrono.secondsSince(loading_start)});
+    if (try loadTakeAndScene(
+        alloc,
+        options.take,
+        options.start_frame,
+        &graph,
+        &scene_loader,
+        &resources,
+    )) {
+        log.info("Loading time {d:.2} s", .{chrono.secondsSince(loading_start)});
 
-            if (options.stats) {
-                printStats(&graph.scene);
-            }
-
-            log.info("Rendering...", .{});
-
-            const rendering_start = std.time.milliTimestamp();
-
-            try driver.configure(alloc, &graph.take.view, &graph.scene);
-
-            var i = options.start_frame;
-            const end = i + options.num_frames;
-            while (i < end) : (i += 1) {
-                reloadFrameDependant(
-                    alloc,
-                    i,
-                    &graph,
-                    &scene_loader,
-                    &resources,
-                ) catch continue;
-
-                for (graph.take.view.cameras.items, 0..) |*camera, cid| {
-                    const start = @as(u64, i) * camera.super().frame_step;
-                    graph.simulate(start, start + camera.super().frame_duration);
-
-                    const camera_id: u32 = @intCast(cid);
-                    try driver.render(alloc, camera_id, i, options.sample, options.num_samples);
-                    try driver.exportFrame(alloc, camera_id, i, graph.take.exporters.items);
-                }
-            }
-
-            log.info("Total render time {d:.2} s", .{chrono.secondsSince(rendering_start)});
+        if (options.stats) {
+            printStats(&graph.scene);
         }
 
-        if (options.iter) {
-            std.debug.print("Press 'q' to quit, or any other key to render again.\n", .{});
-            const key = c.read_key();
-            if ('q' != key) {
-                continue;
+        log.info("Rendering...", .{});
+
+        const rendering_start = std.time.milliTimestamp();
+
+        try driver.configure(alloc, &graph.take.view, &graph.scene);
+
+        var i = options.start_frame;
+        const end = i + options.num_frames;
+        while (i < end) : (i += 1) {
+            reloadFrameDependant(
+                alloc,
+                i,
+                &graph,
+                &scene_loader,
+                &resources,
+            ) catch continue;
+
+            for (graph.take.view.cameras.items, 0..) |*camera, cid| {
+                const start = @as(u64, i) * camera.super().frame_step;
+                graph.simulate(start, start + camera.super().frame_duration);
+
+                const camera_id: u32 = @intCast(cid);
+                try driver.render(alloc, camera_id, i, options.sample, options.num_samples);
+                try driver.exportFrame(alloc, camera_id, i, graph.take.exporters.items);
             }
         }
 
-        break;
+        log.info("Total render time {d:.2} s", .{chrono.secondsSince(rendering_start)});
     }
 }
 

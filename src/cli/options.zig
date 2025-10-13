@@ -17,7 +17,6 @@ pub const Options = struct {
     no_tex_dwim: bool = false,
     debug_material: bool = false,
     stats: bool = false,
-    iter: bool = false,
 
     pub fn deinit(self: *Options, alloc: Allocator) void {
         for (self.mounts.items) |mount| {
@@ -102,8 +101,6 @@ pub const Options = struct {
             self.debug_material = true;
         } else if (std.mem.eql(u8, "stats", command)) {
             self.stats = true;
-        } else if (std.mem.eql(u8, "iter", command)) {
-            self.iter = true;
         }
     }
 
@@ -155,8 +152,6 @@ pub const Options = struct {
             \\      --no-tex                    Disables loading of all textures.
             \\
             \\      --debug-mat                 Force all materials to debug material type.
-            \\
-            \\      --iter                      Prompt to render again, retaining loaded assets.
         ;
 
         var file_buffer: [4096]u8 = undefined;
