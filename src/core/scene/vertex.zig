@@ -186,7 +186,7 @@ pub const Vertex = struct {
         rs.prop = frag.prop;
         rs.part = frag.part;
 
-        const in_camera = 0 == self.depth.total();
+        const in_camera = 0 == self.probe.depth.total();
 
         const energy = m.evaluateRadiance(wo, rs, in_camera, sampler, context);
 
