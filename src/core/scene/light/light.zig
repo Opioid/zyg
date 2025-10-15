@@ -43,6 +43,7 @@ pub const Light = struct {
     class: Class,
     two_sided: bool,
     shadow_catcher_light: bool,
+    prototype: bool,
 
     pub fn isLight(id: u32) bool {
         return Prop.Null != id;
@@ -60,6 +61,10 @@ pub const Light = struct {
     }
 
     pub fn power(self: Light, normalized_emission: Vec4f, scene_bb: AABB, scene: *const Scene) Vec4f {
+        if (self.prototype) {
+            return @splat(0.0);
+        }
+
         if (scene.propShape(self.prop).finite() or scene_bb.equal(.empty)) {
             return normalized_emission;
         }
@@ -92,7 +97,7 @@ pub const Light = struct {
     ) []SampleTo {
         return switch (self.class) {
             .Prop => self.propSampleTo(p, n, trafo, time, total_sphere, split_threshold, sampler, scene, buffer),
-            .PropImage => self.propSampleMaterialTo(p, n, trafo, total_sphere, split_threshold, sampler, scene, buffer),
+            .PropImage => self.propSampleMaterialTo(p, n, trafo, time, total_sphere, split_threshold, sampler, scene, buffer),
             .Volume => self.volumeSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
             .VolumeImage => self.volumeImageSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
         };
@@ -176,6 +181,7 @@ pub const Light = struct {
             split_threshold,
             shape_sampler,
             sampler,
+            scene,
             buffer,
         );
     }
@@ -185,6 +191,7 @@ pub const Light = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
+        time: u64,
         total_sphere: bool,
         split_threshold: f32,
         sampler: *Sampler,
@@ -193,15 +200,17 @@ pub const Light = struct {
     ) []SampleTo {
         const shape_sampler = scene.shapeSampler(self.sampler);
         return scene.propShape(self.prop).sampleMaterialTo(
-            self.part,
             p,
             n,
             trafo,
+            time,
+            self.part,
             self.two_sided,
             total_sphere,
             split_threshold,
             shape_sampler,
             sampler,
+            scene,
             buffer,
         );
     }
@@ -228,6 +237,7 @@ pub const Light = struct {
             sampler,
             bounds,
             false,
+            scene,
         );
     }
 
@@ -257,6 +267,7 @@ pub const Light = struct {
             sampler,
             bounds,
             true,
+            scene,
         ) orelse return null;
 
         result.mulAssignPdf(rs.pdf());

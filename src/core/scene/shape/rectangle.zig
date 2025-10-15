@@ -305,11 +305,13 @@ pub const Rectangle = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
+        time: u64,
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
         shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
+        scene: *const Scene,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         const num_samples = shape_sampler.numSamples(split_threshold);
@@ -343,11 +345,13 @@ pub const Rectangle = struct {
                     continue;
                 }
 
+                const uvw = shape_sampler.impl.portalUvw(.{ uv[0], uv[1], 0.0, 0.0 }, dir, time, scene);
+
                 buffer[current_sample] = SampleTo.init(
                     ws,
                     wn,
                     dir,
-                    .{ uv[0], uv[1], 0.0, 0.0 },
+                    uvw,
                     sample_pdf,
                 );
                 current_sample += 1;
@@ -399,11 +403,13 @@ pub const Rectangle = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
+        time: u64,
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
         shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
+        scene: *const Scene,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         const num_samples = shape_sampler.numSamples(split_threshold);
@@ -441,11 +447,13 @@ pub const Rectangle = struct {
                 continue;
             }
 
+            const uvw = shape_sampler.impl.portalUvw(.{ uv[0], uv[1], 0.0, 0.0 }, dir, time, scene);
+
             buffer[current_sample] = SampleTo.init(
                 ws,
                 wn,
                 dir,
-                .{ uv[0], uv[1], 0.0, 0.0 },
+                uvw,
                 (nsf * rs.pdf() * sl) / (c * area),
             );
             current_sample += 1;
@@ -454,7 +462,16 @@ pub const Rectangle = struct {
         return buffer[0..current_sample];
     }
 
-    pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, two_sided: bool, sampler: *Sampler) SampleFrom {
+    pub fn sampleFrom(
+        trafo: Trafo,
+        uv: Vec2f,
+        importance_uv: Vec2f,
+        time: u64,
+        two_sided: bool,
+        shape_sampler: *const ShapeSampler,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) SampleFrom {
         const uv2 = @as(Vec2f, @splat(-1.0)) * uv + @as(Vec2f, @splat(0.5));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
         const ws = trafo.objectToWorldPoint(ls);
@@ -473,11 +490,13 @@ pub const Rectangle = struct {
         const scale = trafo.scale();
         const area = @as(f32, if (two_sided) 4.0 else 1.0) * (scale[0] * scale[1]);
 
+        const uvw = shape_sampler.impl.portalUvw(.{ uv[0], uv[1], 0.0, 0.0 }, -dir, time, scene);
+
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
             wn,
             dir,
-            .{ uv[0], uv[1], 0.0, 0.0 },
+            uvw,
             importance_uv,
             trafo,
             1.0 / (std.math.pi * area),

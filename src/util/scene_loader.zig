@@ -81,6 +81,7 @@ pub const Loader = struct {
     const Error = error{
         UndefinedType,
         UndefinedShape,
+        UndefinedLight,
     } || Allocator.Error;
 
     resources: *Resources,
@@ -240,11 +241,15 @@ pub const Loader = struct {
         const type_name = type_node.string;
 
         var entity_id: u32 = Prop.Null;
+        var light_link_id: u32 = Prop.Null;
         var is_light = false;
         var is_scatterer = false;
 
         if (std.mem.eql(u8, "Light", type_name)) {
             entity_id = try self.loadProp(alloc, value, local_materials, graph, false, true, is_prototype);
+            is_light = true;
+        } else if (std.mem.eql(u8, "Portal", type_name)) {
+            entity_id = try self.loadPortal(alloc, value, graph, &light_link_id);
             is_light = true;
         } else if (std.mem.eql(u8, "Prop", type_name)) {
             entity_id = try self.loadProp(alloc, value, local_materials, graph, true, false, is_prototype);
@@ -309,7 +314,7 @@ pub const Loader = struct {
         }
 
         if (is_light and scene.prop(entity_id).visibleInReflection()) {
-            try scene.createLight(alloc, entity_id);
+            try scene.createLight(alloc, entity_id, light_link_id);
         }
 
         return Node{
@@ -360,6 +365,37 @@ pub const Loader = struct {
             const unoccluding = !json.readBoolMember(value, "occluding", !unoccluding_default);
             return scene.createPropShape(alloc, shape, graph.materials.items, unoccluding, is_prototype);
         }
+    }
+
+    fn loadPortal(self: *Loader, alloc: Allocator, value: std.json.Value, graph: *Graph, light_link_id: *u32) !u32 {
+        const shape = if (value.object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
+
+        const scene = &graph.scene;
+        const num_materials = scene.shape(shape).numMaterials();
+
+        try graph.materials.ensureTotalCapacity(alloc, num_materials);
+        graph.materials.clearRetainingCapacity();
+
+        const light_id = json.readUIntMember(value, "light", 0);
+
+        if (light_id >= scene.numLights()) {
+            return Error.UndefinedLight;
+        }
+
+        const light = scene.light(light_id);
+
+        scene.propSetVisibility(light.prop, false, false, false);
+        scene.lightSetPrototype(light_id);
+
+        const material_id = scene.propMaterialId(light.prop, light.part);
+
+        while (graph.materials.items.len < num_materials) {
+            graph.materials.appendAssumeCapacity(material_id);
+        }
+
+        light_link_id.* = light_id;
+
+        return scene.createPropShape(alloc, shape, graph.materials.items, true, false);
     }
 
     fn loadInstancer(

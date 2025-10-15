@@ -66,8 +66,8 @@ pub const Sky = struct {
         self.sky = sky_prop;
         self.sun = sun_prop;
 
-        try scene.createLight(alloc, sun_prop);
-        try scene.createLight(alloc, sky_prop);
+        try scene.createLight(alloc, sun_prop, Prop.Null);
+        try scene.createLight(alloc, sky_prop, Prop.Null);
     }
 
     pub fn setParameters(self: *Self, value: std.json.Value) void {

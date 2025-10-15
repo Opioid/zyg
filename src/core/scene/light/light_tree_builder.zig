@@ -278,14 +278,9 @@ pub const Builder = struct {
         alloc.free(self.build_nodes);
     }
 
-    pub fn build(
-        self: *Builder,
-        alloc: Allocator,
-        tree: *Tree,
-        scene: *const Scene,
-        threads: *Threads,
-    ) !void {
-        const num_lights = scene.numLights();
+    pub fn build(self: *Builder, alloc: Allocator, tree: *Tree, scene: *const Scene, threads: *Threads) !void {
+        const num_all_lights = scene.numLights();
+        const num_lights = scene.numSampleableLights();
 
         try tree.allocateLightMapping(alloc, num_lights);
 
@@ -294,8 +289,9 @@ pub const Builder = struct {
         var lm: u32 = 0;
         {
             var l: u32 = 0;
-            while (l < num_lights) : (l += 1) {
-                if (!scene.light(l).finite(scene)) {
+            while (l < num_all_lights) : (l += 1) {
+                const light = scene.light(l);
+                if (!light.finite(scene) and !light.prototype) {
                     tree.light_mapping[lm] = l;
                     lm += 1;
                 }
@@ -306,8 +302,9 @@ pub const Builder = struct {
 
         {
             var l: u32 = 0;
-            while (l < num_lights) : (l += 1) {
-                if (scene.light(l).finite(scene)) {
+            while (l < num_all_lights) : (l += 1) {
+                const light = scene.light(l);
+                if (light.finite(scene) and !light.prototype) {
                     tree.light_mapping[lm] = l;
                     lm += 1;
                 }

@@ -469,7 +469,7 @@ export fn su_light_create(prop: u32) i32 {
             return -1;
         }
 
-        e.scene.createLight(e.alloc, prop) catch return -1;
+        e.scene.createLight(e.alloc, prop, Prop.Null) catch return -1;
 
         return 0;
     }

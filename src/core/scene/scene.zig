@@ -101,6 +101,7 @@ pub const Scene = struct {
     lights: List(Light),
     light_aabbs: List(AABB),
     light_cones: List(Vec4f),
+    light_links: List(u32),
 
     material_ids: List(u32),
     light_ids: List(u32),
@@ -138,6 +139,7 @@ pub const Scene = struct {
             .lights = try List(Light).initCapacity(alloc, NumReservedProps),
             .light_aabbs = try List(AABB).initCapacity(alloc, NumReservedProps),
             .light_cones = try List(Vec4f).initCapacity(alloc, NumReservedProps),
+            .light_links = try List(u32).initCapacity(alloc, NumReservedProps),
             .material_ids = try List(u32).initCapacity(alloc, NumReservedProps),
             .light_ids = try List(u32).initCapacity(alloc, NumReservedProps),
             .light_temp_powers = try alloc.alloc(f32, NumReservedProps),
@@ -174,6 +176,7 @@ pub const Scene = struct {
 
         self.light_ids.deinit(alloc);
         self.material_ids.deinit(alloc);
+        self.light_links.deinit(alloc);
         self.light_cones.deinit(alloc);
         self.light_aabbs.deinit(alloc);
         self.lights.deinit(alloc);
@@ -199,6 +202,7 @@ pub const Scene = struct {
         self.finite_props.clearRetainingCapacity();
         self.light_ids.clearRetainingCapacity();
         self.material_ids.clearRetainingCapacity();
+        self.light_links.clearRetainingCapacity();
         self.light_cones.clearRetainingCapacity();
         self.light_aabbs.clearRetainingCapacity();
         self.lights.clearRetainingCapacity();
@@ -246,7 +250,7 @@ pub const Scene = struct {
         }
 
         for (0..num_lights) |i| {
-            try self.propPrepareSampling(alloc, i, time, threads);
+            try self.propPrepareSampling(alloc, @intCast(i), time, threads);
             self.light_temp_powers[i] = self.lightPower(i);
         }
 
@@ -389,7 +393,7 @@ pub const Scene = struct {
         }
     }
 
-    pub fn createLight(self: *Scene, alloc: Allocator, entity: u32) !void {
+    pub fn createLight(self: *Scene, alloc: Allocator, entity: u32, light_link: u32) !void {
         const shape_inst = self.propShape(entity);
         const num_parts = shape_inst.numParts();
         const shadow_catcher_light = self.propIsShadowCatcherLight(entity);
@@ -403,17 +407,17 @@ pub const Scene = struct {
 
             if (mat.scatteringVolume()) {
                 if (shape_inst.analytical() and mat.emissionImageMapped()) {
-                    try self.allocateLight(alloc, .VolumeImage, false, shadow_catcher_light, entity, i);
+                    try self.allocateLight(alloc, .VolumeImage, false, shadow_catcher_light, entity, i, light_link);
                 } else {
-                    try self.allocateLight(alloc, .Volume, false, shadow_catcher_light, entity, i);
+                    try self.allocateLight(alloc, .Volume, false, shadow_catcher_light, entity, i, light_link);
                 }
             } else {
                 const two_sided = mat.twoSided();
 
-                if (shape_inst.analytical() and mat.emissionImageMapped()) {
-                    try self.allocateLight(alloc, .PropImage, two_sided, shadow_catcher_light, entity, i);
+                if (shape_inst.analytical() and mat.emissionImageMapped() and Null == light_link) {
+                    try self.allocateLight(alloc, .PropImage, two_sided, shadow_catcher_light, entity, i, light_link);
                 } else {
-                    try self.allocateLight(alloc, .Prop, two_sided, shadow_catcher_light, entity, i);
+                    try self.allocateLight(alloc, .Prop, two_sided, shadow_catcher_light, entity, i, light_link);
                 }
             }
         }
@@ -447,7 +451,7 @@ pub const Scene = struct {
         self.props.items[entity].setShadowCatcher();
     }
 
-    fn propPrepareSampling(self: *Scene, alloc: Allocator, light_id: usize, time: u64, threads: *Threads) !void {
+    fn propPrepareSampling(self: *Scene, alloc: Allocator, light_id: u32, time: u64, threads: *Threads) !void {
         var l = &self.lights.items[light_id];
 
         const entity = l.prop;
@@ -457,7 +461,7 @@ pub const Scene = struct {
 
         const p = self.prop_parts.items[entity] + part;
 
-        self.light_ids.items[p] = @intCast(light_id);
+        self.light_ids.items[p] = light_id;
 
         const shape_id = self.propShapeId(entity);
         const material_id = self.material_ids.items[p];
@@ -471,6 +475,7 @@ pub const Scene = struct {
             shape_id,
             part,
             material_id,
+            light_id,
             self,
             threads,
         );
@@ -588,6 +593,10 @@ pub const Scene = struct {
         return self.light_ids.items[p];
     }
 
+    pub fn lightSetPrototype(self: *Scene, light_id: u32) void {
+        self.lights.items[light_id].prototype = true;
+    }
+
     pub fn image(self: *const Scene, image_id: u32) Image {
         return self.images.items[image_id];
     }
@@ -614,6 +623,16 @@ pub const Scene = struct {
 
     pub fn numLights(self: *const Scene) u32 {
         return @intCast(self.lights.items.len);
+    }
+
+    pub fn numSampleableLights(self: *const Scene) u32 {
+        var n: u32 = 0;
+        for (self.lights.items) |l| {
+            if (!l.prototype) {
+                n += 1;
+            }
+        }
+        return n;
     }
 
     pub fn light(self: *const Scene, id: u32) Light {
@@ -672,6 +691,20 @@ pub const Scene = struct {
         return hlp.powerHeuristic(vertex.bxdf_pdf, sample_pdf * select_pdf);
     }
 
+    pub fn lightPortalUvw(self: *const Scene, vertex: *const Vertex, frag: *const Fragment) Vec4f {
+        const light_id = frag.lightId(self);
+
+        if (!Light.isLight(light_id) or Null == self.light_links.items[light_id]) {
+            return frag.uvw;
+        }
+
+        const light_inst = self.lights.items[light_id];
+
+        const shape_sampler = self.shapeSampler(light_inst.sampler);
+
+        return shape_sampler.impl.portalUvw(frag.uvw, vertex.probe.ray.direction, vertex.probe.time, self);
+    }
+
     pub fn lightTwoSided(self: *const Scene, light_id: u32) bool {
         return self.lights.items[light_id].two_sided;
     }
@@ -716,17 +749,20 @@ pub const Scene = struct {
         shadow_catcher_light: bool,
         entity: u32,
         part: u32,
+        light_link: u32,
     ) !void {
         try self.lights.append(alloc, .{
             .class = class,
             .two_sided = two_sided,
             .shadow_catcher_light = shadow_catcher_light,
+            .prototype = false,
             .prop = entity,
             .part = part,
             .sampler = undefined,
         });
         try self.light_aabbs.append(alloc, AABB.init(@splat(0.0), @splat(0.0)));
         try self.light_cones.append(alloc, .{ 0.0, 0.0, 0.0, -1.0 });
+        try self.light_links.append(alloc, light_link);
     }
 
     pub fn createSky(self: *Scene, alloc: Allocator) !*Sky {

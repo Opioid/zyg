@@ -16,6 +16,7 @@ const Key = struct {
     material: u32,
     shape: u32,
     part: u32,
+    light_link: u32,
     shape_sampler: bool,
     emission_map: bool,
     two_sided: bool,
@@ -41,6 +42,7 @@ const KeyContext = struct {
 
             if (k.emission_map) {
                 hasher.update(std.mem.asBytes(&k.shape));
+                hasher.update(std.mem.asBytes(&k.light_link));
             }
         }
 
@@ -82,6 +84,10 @@ const KeyContext = struct {
             if (a.shape != b.shape) {
                 return false;
             }
+
+            if (a.light_link != b.light_link) {
+                return false;
+            }
         }
 
         return true;
@@ -113,15 +119,19 @@ pub const Cache = struct {
         shape_id: u32,
         part: u32,
         material_id: u32,
+        light_id: u32,
         scene: *Scene,
         threads: *Threads,
     ) !u32 {
         const material = scene.material(material_id);
 
+        const light_link = scene.light_links.items[light_id];
+
         const key = Key{
             .material = material_id,
             .shape = shape_id,
             .part = part,
+            .light_link = light_link,
             .shape_sampler = shape.hasShapeSampler(),
             .emission_map = material.emissionImageMapped(),
             .two_sided = material.twoSided(),
@@ -132,7 +142,10 @@ pub const Cache = struct {
             return entry;
         }
 
-        const shape_sampler = try shape.prepareSampling(alloc, part, material_id, &scene.light_tree_builder, scene, threads) orelse
+        const shape_sampler = if (Scene.Null != light_link) Sampler{
+            .impl = .{ .Portal = .{ .light_link = light_link } },
+            .average_emission = @splat(1.0),
+        } else try shape.prepareSampling(alloc, part, material_id, &scene.light_tree_builder, scene, threads) orelse
             try material.prepareSampling(alloc, shape, scene, threads);
 
         try self.resources.append(alloc, shape_sampler);

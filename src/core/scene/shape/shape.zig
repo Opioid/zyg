@@ -309,6 +309,7 @@ pub const Shape = union(enum) {
         split_threshold: f32,
         shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
+        scene: *const Scene,
         buffer: *SamplesTo,
     ) []SampleTo {
         return switch (self.*) {
@@ -317,7 +318,7 @@ pub const Shape = union(enum) {
             .Distant => Distant.sampleTo(n, trafo, total_sphere, sampler, buffer),
             .Dome => Dome.sampleTo(n, trafo, total_sphere, sampler, buffer),
             .PointMotionCloud => |c| c.sampleTo(p, n, trafo, time, total_sphere, split_threshold, shape_sampler, sampler, buffer),
-            .Rectangle => Rectangle.sampleTo(p, n, trafo, two_sided, total_sphere, split_threshold, shape_sampler, sampler, buffer),
+            .Rectangle => Rectangle.sampleTo(p, n, trafo, time, two_sided, total_sphere, split_threshold, shape_sampler, sampler, scene, buffer),
             .Sphere => Sphere.sampleTo(p, n, trafo, total_sphere, split_threshold, shape_sampler, sampler, buffer),
             .TriangleMesh => |m| m.sampleTo(
                 part,
@@ -346,15 +347,17 @@ pub const Shape = union(enum) {
 
     pub fn sampleMaterialTo(
         self: *const Shape,
-        part: u32,
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
+        time: u64,
+        part: u32,
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
         shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
+        scene: *const Scene,
         buffer: *SamplesTo,
     ) []SampleTo {
         _ = part;
@@ -363,7 +366,7 @@ pub const Shape = union(enum) {
             .Canopy => Canopy.sampleMaterialTo(n, trafo, total_sphere, shape_sampler, sampler, buffer),
             .Disk => Disk.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, split_threshold, shape_sampler, sampler, buffer),
             .Dome => Dome.sampleMaterialTo(n, trafo, total_sphere, split_threshold, shape_sampler, sampler, buffer),
-            .Rectangle => Rectangle.sampleMaterialTo(p, n, trafo, two_sided, total_sphere, split_threshold, shape_sampler, sampler, buffer),
+            .Rectangle => Rectangle.sampleMaterialTo(p, n, trafo, time, two_sided, total_sphere, split_threshold, shape_sampler, sampler, scene, buffer),
             .Sphere => Sphere.sampleMaterialTo(p, n, trafo, total_sphere, shape_sampler, sampler, buffer),
             else => buffer[0..0],
         };
@@ -408,6 +411,7 @@ pub const Shape = union(enum) {
         sampler: *Sampler,
         bounds: AABB,
         from_image: bool,
+        scene: *const Scene,
     ) ?SampleFrom {
         return switch (self.*) {
             .Canopy => Canopy.sampleFrom(trafo, uv, importance_uv, bounds),
@@ -415,7 +419,7 @@ pub const Shape = union(enum) {
             .Distant => Distant.sampleFrom(trafo, uv, importance_uv, bounds),
             .Dome => Dome.sampleFrom(trafo, uv, importance_uv, bounds, from_image),
             .PointMotionCloud => |c| c.sampleFrom(trafo, time, uv, importance_uv, sampler),
-            .Rectangle => Rectangle.sampleFrom(trafo, uv, importance_uv, two_sided, sampler),
+            .Rectangle => Rectangle.sampleFrom(trafo, uv, importance_uv, time, two_sided, shape_sampler, sampler, scene),
             .Sphere => Sphere.sampleFrom(trafo, uv, importance_uv),
             .TriangleMesh => |m| m.sampleFrom(
                 trafo,
