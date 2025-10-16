@@ -256,6 +256,8 @@ pub const Sky = struct {
                 .Color,
                 threads,
             );
+
+            try writer.end();
         }
 
         {
@@ -272,6 +274,8 @@ pub const Sky = struct {
                 .Color,
                 threads,
             );
+
+            try writer.end();
         }
     }
 
