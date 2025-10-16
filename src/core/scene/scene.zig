@@ -466,7 +466,7 @@ pub const Scene = struct {
         const shape_id = self.propShapeId(entity);
         const material_id = self.material_ids.items[p];
 
-        const trafo = self.prop_space.transformationAt(entity, time, self.frame_start);
+        const trafo = self.propTransformationAt(entity, time);
         const extent = if (l.volumetric()) shape_inst.volume(trafo.scale()) else shape_inst.area(part, trafo.scale());
 
         const sampler_id = try self.samplers.prepareSampling(

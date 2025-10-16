@@ -107,7 +107,7 @@ pub const Sky = struct {
         const scale: Vec4f = if (under_horizon) @splat(0.0) else Vec4f{ Radius, Radius, Radius, 1.0 };
 
         if (scene.prop_space.hasAnimatedFrames(self.sun)) {
-            self.sun_rotation = scene.prop_space.transformationAt(self.sun, time, scene.frame_start).rotation;
+            self.sun_rotation = scene.propTransformationAt(self.sun, time).rotation;
             scene.prop_space.setFramesScale(self.sun, scale, scene.num_interpolation_frames);
         } else {
             const trafo = Transformation{

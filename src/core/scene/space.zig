@@ -100,11 +100,6 @@ pub const Space = struct {
         return self.aabbs.items[entity].intersect(ray);
     }
 
-    pub fn transformationAt(self: *const Self, entity: u32, time: u64, frame_start: u64) Transformation {
-        const f = self.frames.items[entity];
-        return self.transformationAtMaybeStatic(entity, time, frame_start, Prop.Null == f);
-    }
-
     pub fn transformationAtMaybeStatic(self: *const Self, entity: u32, time: u64, frame_start: u64, static: bool) Transformation {
         if (static) {
             var trafo = self.world_transformations.items[entity];
