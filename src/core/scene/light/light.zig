@@ -31,6 +31,7 @@ pub const Properties = struct {
 
 pub const Light = struct {
     pub const Class = enum(u8) {
+        PortalImage,
         Prop,
         PropImage,
         Volume,
@@ -78,7 +79,7 @@ pub const Light = struct {
                 .TriangleMesh => Shape.MaxSamples,
                 else => 1,
             },
-            .PropImage => scene.shapeSampler(self.sampler).numSamples(std.math.floatMax(f32)),
+            .PortalImage, .PropImage => scene.shapeSampler(self.sampler).numSamples(std.math.floatMax(f32)),
             .Volume, .VolumeImage => 1,
         };
     }
@@ -96,8 +97,9 @@ pub const Light = struct {
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         return switch (self.class) {
+            .PortalImage => self.propSamplePortalTo(p, n, trafo, time, total_sphere, split_threshold, sampler, scene, buffer),
             .Prop => self.propSampleTo(p, n, trafo, time, total_sphere, split_threshold, sampler, scene, buffer),
-            .PropImage => self.propSampleMaterialTo(p, n, trafo, time, total_sphere, split_threshold, sampler, scene, buffer),
+            .PropImage => self.propSampleMaterialTo(p, n, trafo, total_sphere, split_threshold, sampler, scene, buffer),
             .Volume => self.volumeSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
             .VolumeImage => self.volumeImageSampleTo(p, n, trafo, total_sphere, sampler, scene, buffer),
         };
@@ -107,7 +109,7 @@ pub const Light = struct {
         const trafo = scene.propTransformationAt(self.prop, time);
 
         return switch (self.class) {
-            .Prop => self.propSampleFrom(trafo, time, sampler, bounds, scene),
+            .PortalImage, .Prop => self.propSampleFrom(trafo, time, sampler, bounds, scene),
             .PropImage => self.propImageSampleFrom(trafo, time, sampler, bounds, scene),
             .VolumeImage => self.volumeImageSampleFrom(trafo, sampler, scene),
             else => null,
@@ -146,7 +148,7 @@ pub const Light = struct {
 
     pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
         return switch (self.class) {
-            .Prop => self.propPdf(vertex, frag, scene),
+            .PortalImage, .Prop => self.propPdf(vertex, frag, scene),
             .PropImage => self.propMaterialPdf(vertex, frag, scene),
             .Volume => scene.propShape(self.prop).volumePdf(vertex.origin, frag),
             .VolumeImage => self.volumeImagePdf(vertex.origin, frag, scene),
@@ -181,12 +183,37 @@ pub const Light = struct {
             split_threshold,
             shape_sampler,
             sampler,
-            scene,
             buffer,
         );
     }
 
     fn propSampleMaterialTo(
+        self: Light,
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        total_sphere: bool,
+        split_threshold: f32,
+        sampler: *Sampler,
+        scene: *const Scene,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
+        const shape_sampler = scene.shapeSampler(self.sampler);
+        return scene.propShape(self.prop).sampleMaterialTo(
+            p,
+            n,
+            trafo,
+            self.part,
+            self.two_sided,
+            total_sphere,
+            split_threshold,
+            shape_sampler,
+            sampler,
+            buffer,
+        );
+    }
+
+    fn propSamplePortalTo(
         self: Light,
         p: Vec4f,
         n: Vec4f,
@@ -199,13 +226,11 @@ pub const Light = struct {
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         const shape_sampler = scene.shapeSampler(self.sampler);
-        return scene.propShape(self.prop).sampleMaterialTo(
+        return scene.propShape(self.prop).samplePortalTo(
             p,
             n,
             trafo,
             time,
-            self.part,
-            self.two_sided,
             total_sphere,
             split_threshold,
             shape_sampler,

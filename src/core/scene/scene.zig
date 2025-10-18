@@ -405,21 +405,20 @@ pub const Scene = struct {
                 continue;
             }
 
-            if (mat.scatteringVolume()) {
-                if (shape_inst.analytical() and mat.emissionImageMapped()) {
-                    try self.allocateLight(alloc, .VolumeImage, false, shadow_catcher_light, entity, i, light_link);
-                } else {
-                    try self.allocateLight(alloc, .Volume, false, shadow_catcher_light, entity, i, light_link);
-                }
-            } else {
-                const two_sided = mat.twoSided();
+            const analytical_emission = shape_inst.analytical() and mat.emissionImageMapped();
 
-                if (shape_inst.analytical() and mat.emissionImageMapped() and Null == light_link) {
-                    try self.allocateLight(alloc, .PropImage, two_sided, shadow_catcher_light, entity, i, light_link);
+            var light_class: Light.Class = undefined;
+            if (mat.scatteringVolume()) {
+                light_class = if (analytical_emission) .VolumeImage else .Volume;
+            } else {
+                if (analytical_emission) {
+                    light_class = if (Null == light_link) .PropImage else .PortalImage;
                 } else {
-                    try self.allocateLight(alloc, .Prop, two_sided, shadow_catcher_light, entity, i, light_link);
+                    light_class = .Prop;
                 }
             }
+
+            try self.allocateLight(alloc, light_class, mat.twoSided(), shadow_catcher_light, entity, i, light_link);
         }
     }
 

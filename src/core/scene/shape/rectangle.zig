@@ -305,13 +305,11 @@ pub const Rectangle = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
-        time: u64,
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
         shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
-        scene: *const Scene,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         const num_samples = shape_sampler.numSamples(split_threshold);
@@ -345,13 +343,11 @@ pub const Rectangle = struct {
                     continue;
                 }
 
-                const uvw = shape_sampler.impl.portalUvw(.{ uv[0], uv[1], 0.0, 0.0 }, dir, time, scene);
-
                 buffer[current_sample] = SampleTo.init(
                     ws,
                     wn,
                     dir,
-                    uvw,
+                    .{ uv[0], uv[1], 0.0, 0.0 },
                     sample_pdf,
                 );
                 current_sample += 1;
@@ -403,13 +399,11 @@ pub const Rectangle = struct {
         p: Vec4f,
         n: Vec4f,
         trafo: Trafo,
-        time: u64,
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
         shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
-        scene: *const Scene,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         const num_samples = shape_sampler.numSamples(split_threshold);
@@ -447,19 +441,107 @@ pub const Rectangle = struct {
                 continue;
             }
 
-            const uvw = shape_sampler.impl.portalUvw(.{ uv[0], uv[1], 0.0, 0.0 }, dir, time, scene);
-
             buffer[current_sample] = SampleTo.init(
                 ws,
                 wn,
                 dir,
-                uvw,
+                .{ uv[0], uv[1], 0.0, 0.0 },
                 (nsf * rs.pdf() * sl) / (c * area),
             );
             current_sample += 1;
         }
 
         return buffer[0..current_sample];
+    }
+
+    pub fn samplePortalTo(
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        time: u64,
+        total_sphere: bool,
+        split_threshold: f32,
+        shape_sampler: *const ShapeSampler,
+        sampler: *Sampler,
+        scene: *const Scene,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
+        const num_samples = shape_sampler.numSamples(split_threshold);
+        const nsf: f32 = @floatFromInt(num_samples);
+
+        const scale = trafo.scale();
+
+        if (UseSphericalSampling) {
+            const lp = trafo.worldToFramePoint(p);
+
+            const squad = SphQuad.init(scale, lp);
+
+            const sample_pdf = nsf * squad.pdf(scale);
+
+            var current_sample: u32 = 0;
+            for (0..num_samples) |_| {
+                const uv = sampler.sample2D();
+
+                const ls = squad.sample(uv);
+                const ws = trafo.frameToWorldPoint(ls);
+                const dir = math.normalize3(ws - p);
+
+                const wn = trafo.rotation.r[2];
+
+                if (-math.dot3(wn, dir) < math.safe.DotMin or 0.0 == squad.S or
+                    (math.dot3(dir, n) <= 0.0 and !total_sphere))
+                {
+                    continue;
+                }
+
+                const uvw = shape_sampler.impl.Portal.portalUvw(dir, time, scene);
+
+                buffer[current_sample] = SampleTo.init(
+                    ws,
+                    wn,
+                    dir,
+                    uvw,
+                    sample_pdf,
+                );
+                current_sample += 1;
+            }
+
+            return buffer[0..current_sample];
+        } else {
+            const area = scale[0] * scale[1];
+
+            var current_sample: u32 = 0;
+            for (0..num_samples) |_| {
+                const uv = sampler.sample2D();
+
+                const uv2 = @as(Vec2f, @splat(-1.0)) * uv + @as(Vec2f, @splat(0.5));
+                const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
+                const ws = trafo.objectToWorldPoint(ls);
+                const axis = ws - p;
+
+                const wn = trafo.rotation.r[2];
+
+                const sl = math.squaredLength3(axis);
+                const t = @sqrt(sl);
+                const dir = axis / @as(Vec4f, @splat(t));
+                const c = -math.dot3(wn, dir);
+
+                if (c < math.safe.DotMin or (math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+                    continue;
+                }
+
+                buffer[current_sample] = SampleTo.init(
+                    ws,
+                    wn,
+                    dir,
+                    .{ uv[0], uv[1], 0.0, 0.0 },
+                    (nsf * sl) / (c * area),
+                );
+                current_sample += 1;
+            }
+
+            return buffer[0..current_sample];
+        }
     }
 
     pub fn sampleFrom(
