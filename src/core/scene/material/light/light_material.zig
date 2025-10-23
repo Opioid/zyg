@@ -336,26 +336,38 @@ const PortalLuminanceContext = struct {
         const dome_trafo = self.dome_trafo;
 
         const dim: u32 = @intCast(self.texture.dimensions(self.scene)[1]);
-
         const idf = 1.0 / @as(f32, @floatFromInt(dim));
+
+        const subsamples = 4;
+        const nsf: f32 = @floatFromInt(subsamples);
+        const so = 0.5 / nsf;
 
         var y = begin;
         while (y < end) : (y += 1) {
-            const v = idf * (@as(f32, @floatFromInt(y)) + 0.5);
-
             const row = y * dim;
+
             var x: u32 = 0;
             while (x < dim) : (x += 1) {
-                const u = idf * (@as(f32, @floatFromInt(x)) + 0.5);
+                var luminance: f32 = 0.0;
 
-                const ps = Portal.imageToWorld(.{ u, v }, portal_trafo);
-                const dir = -ps.dir;
+                for (0..subsamples) |yy| {
+                    const v = idf * (@as(f32, @floatFromInt(y)) + so + @as(f32, @floatFromInt(yy)) / nsf);
 
-                const dome_uv = Dome.worldToImage(dir, dome_trafo);
+                    for (0..subsamples) |xx| {
+                        const u = idf * (@as(f32, @floatFromInt(x)) + so + @as(f32, @floatFromInt(xx)) / nsf);
 
-                const radiance = ts.sampleImage2D_3(self.texture, dome_uv, 0.5, self.scene);
+                        const ps = Portal.imageToWorld(.{ u, v }, portal_trafo);
+                        const dir = -ps.dir;
 
-                self.luminance[row + x] = math.hmax3(radiance) * ps.weight;
+                        const dome_uv = Dome.worldToImage(dir, dome_trafo);
+
+                        const radiance = ts.sampleImage2D_3(self.texture, dome_uv, 0.5, self.scene);
+
+                        luminance += math.hmax3(radiance) * ps.weight;
+                    }
+                }
+
+                self.luminance[row + x] = luminance / @as(f32, @floatFromInt(subsamples * subsamples));
             }
         }
     }
