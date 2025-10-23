@@ -490,6 +490,21 @@ pub const Shape = union(enum) {
         };
     }
 
+    pub fn portalPdf(
+        self: *const Shape,
+        vertex: *const Vertex,
+        frag: *const Fragment,
+        shape_sampler: *const ShapeSampler,
+    ) f32 {
+        const dir = vertex.probe.ray.direction;
+        const p = vertex.origin;
+        const split_threshold = vertex.light_split_threshold;
+        return switch (self.*) {
+            .Rectangle => Rectangle.portalPdf(dir, p, frag, split_threshold, shape_sampler),
+            else => 0.0,
+        };
+    }
+
     pub fn materialPdf(
         self: *const Shape,
         vertex: *const Vertex,

@@ -1,6 +1,8 @@
-const Scene = @import("../scene.zig").Scene;
 const Shape = @import("shape.zig").Shape;
+const Portal = @import("portal.zig").Portal;
 const Probe = @import("probe.zig").Probe;
+const Scene = @import("../scene.zig").Scene;
+const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Material = @import("../material/material.zig").Material;
 const SamplerMode = @import("../../texture/sampler_mode.zig").Mode;
 const LowThreshold = @import("../../rendering/integrator/helper.zig").LightSampling.LowThreshold;
@@ -17,6 +19,7 @@ const AABB = math.AABB;
 const Distribution1D = math.Distribution1D;
 const Distribution2D = math.Distribution2D;
 const Distribution3D = math.Distribution3D;
+const WindowedDistribution2D = math.WindowedDistribution2D;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
@@ -71,15 +74,15 @@ const Impl = union(enum) {
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
         switch (self.*) {
-            .Uniform, .Portal => {},
+            .Uniform => {},
             inline else => |*i| i.deinit(alloc),
         }
     }
 
-    pub fn radianceSample(self: *const Self, r3: Vec4f) RadianceSample {
+    pub fn sample(self: *const Self, r3: Vec4f) RadianceSample {
         return switch (self.*) {
-            .Image => |*i| i.radianceSample(r3),
-            .Volume => |*i| i.radianceSample(r3),
+            .Image => |*i| i.sample(r3),
+            .Volume => |*i| i.sample(r3),
             else => RadianceSample.init3(r3, 1.0),
         };
     }
@@ -125,7 +128,7 @@ const ImageImpl = struct {
         self.distribution.deinit(alloc);
     }
 
-    pub fn radianceSample(self: *const Self, r3: Vec4f) RadianceSample {
+    pub fn sample(self: *const Self, r3: Vec4f) RadianceSample {
         const result = self.distribution.sampleContinuous(.{ r3[0], r3[1] });
 
         return RadianceSample.init2(result.uv, result.pdf * self.total_weight);
@@ -240,11 +243,18 @@ pub const MeshImpl = struct {
 };
 
 const PortalImpl = struct {
+    distribution: WindowedDistribution2D,
+
     light_link: u32,
 
-    pub fn portalUvw(self: *const PortalImpl, dir: Vec4f, time: u64, scene: *const Scene) Vec4f {
-        const light = scene.light(self.light_link);
+    const Self = @This();
 
+    pub fn deinit(self: *Self, alloc: Allocator) void {
+        self.distribution.deinit(alloc);
+    }
+
+    pub fn portalUvw(self: *const Self, dir: Vec4f, time: u64, scene: *const Scene) Vec4f {
+        const light = scene.light(self.light_link);
         const trafo = scene.propTransformationAt(light.prop, time);
 
         const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(dir));
@@ -255,6 +265,20 @@ const PortalImpl = struct {
             0.0,
             0.0,
         };
+    }
+
+    pub fn sample(self: *const Self, p: Vec4f, r2: Vec2f, trafo: Trafo) RadianceSample {
+        const b = Portal.imageBounds(p, trafo) orelse return .init2(undefined, 0.0);
+
+        const rs = self.distribution.sampleContinuous(r2, b);
+
+        return .init2(rs.uv, rs.pdf);
+    }
+
+    pub fn pdf(self: *const Self, p: Vec4f, uv: Vec2f, trafo: Trafo) f32 {
+        const b = Portal.imageBounds(p, trafo) orelse return 0.0;
+
+        return self.distribution.pdf(uv, b);
     }
 };
 
@@ -269,7 +293,7 @@ const VolumeImpl = struct {
         self.distribution.deinit(alloc);
     }
 
-    pub fn radianceSample(self: *const Self, r3: Vec4f) RadianceSample {
+    pub fn sample(self: *const Self, r3: Vec4f) RadianceSample {
         const result = self.distribution.sampleContinuous(r3);
 
         return RadianceSample.init3(result, result[3] * self.pdf_factor);

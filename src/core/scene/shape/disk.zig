@@ -379,7 +379,7 @@ pub const Disk = struct {
 
         for (0..num_samples) |_| {
             const r2 = sampler.sample2D();
-            const rs = shape_sampler.impl.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+            const rs = shape_sampler.impl.sample(.{ r2[0], r2[1], 0.0, 0.0 });
             if (0.0 == rs.pdf()) {
                 continue;
             }

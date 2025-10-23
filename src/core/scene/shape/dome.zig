@@ -56,6 +56,29 @@ pub const Dome = struct {
         frag.part = 0;
     }
 
+    pub fn worldToImage(v: Vec4f, trafo: Trafo) Vec2f {
+        const xyz = math.normalize3(trafo.rotation.transformVectorTransposed(v));
+
+        return .{
+            std.math.atan2(xyz[0], xyz[2]) * (math.pi_inv * 0.5) + 0.5,
+            std.math.acos(xyz[1]) * math.pi_inv,
+        };
+    }
+
+    pub fn imageToWorld(uv: Vec2f, trafo: Trafo) Vec4f {
+        const phi = (uv[0] - 0.5) * (2.0 * std.math.pi);
+        const theta = uv[1] * std.math.pi;
+
+        const sin_phi = @sin(phi);
+        const cos_phi = @cos(phi);
+
+        const sin_theta = @sin(theta);
+        const cos_theta = @cos(theta);
+
+        const ldir = Vec4f{ sin_phi * sin_theta, cos_theta, cos_phi * sin_theta, 0.0 };
+        return trafo.rotation.transformVector(ldir);
+    }
+
     pub fn sampleTo(n: Vec4f, trafo: Trafo, total_sphere: bool, sampler: *Sampler, buffer: *Scene.SamplesTo) []SampleTo {
         const uv = sampler.sample2D();
 
@@ -111,7 +134,7 @@ pub const Dome = struct {
 
         for (0..num_samples) |_| {
             const r2 = sampler.sample2D();
-            const rs = shape_sampler.impl.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+            const rs = shape_sampler.impl.sample(.{ r2[0], r2[1], 0.0, 0.0 });
             if (0.0 == rs.pdf()) {
                 continue;
             }

@@ -148,7 +148,8 @@ pub const Light = struct {
 
     pub fn pdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
         return switch (self.class) {
-            .PortalImage, .Prop => self.propPdf(vertex, frag, scene),
+            .PortalImage => self.propPortalPdf(vertex, frag, scene),
+            .Prop => self.propPdf(vertex, frag, scene),
             .PropImage => self.propMaterialPdf(vertex, frag, scene),
             .Volume => scene.propShape(self.prop).volumePdf(vertex.origin, frag),
             .VolumeImage => self.volumeImagePdf(vertex.origin, frag, scene),
@@ -270,7 +271,7 @@ pub const Light = struct {
         const s4 = sampler.sample4D();
 
         const shape_sampler = scene.shapeSampler(self.sampler);
-        const rs = shape_sampler.impl.radianceSample(.{ s4[0], s4[1], 0.0, 0.0 });
+        const rs = shape_sampler.impl.sample(.{ s4[0], s4[1], 0.0, 0.0 });
         if (0.0 == rs.pdf()) {
             return null;
         }
@@ -331,7 +332,7 @@ pub const Light = struct {
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         const shape_sampler = scene.shapeSampler(self.sampler);
-        const rs = shape_sampler.impl.radianceSample(sampler.sample3D());
+        const rs = shape_sampler.impl.sample(sampler.sample3D());
         if (0.0 == rs.pdf()) {
             return buffer[0..0];
         }
@@ -349,7 +350,7 @@ pub const Light = struct {
 
     fn volumeImageSampleFrom(self: Light, trafo: Trafo, sampler: *Sampler, scene: *const Scene) ?SampleFrom {
         const shape_sampler = scene.shapeSampler(self.sampler);
-        const rs = shape_sampler.impl.radianceSample(sampler.sample3D());
+        const rs = shape_sampler.impl.sample(sampler.sample3D());
         if (0.0 == rs.pdf()) {
             return null;
         }
@@ -370,6 +371,11 @@ pub const Light = struct {
     fn propMaterialPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
         const shape_sampler = scene.shapeSampler(self.sampler);
         return scene.propShape(self.prop).materialPdf(vertex, frag, shape_sampler);
+    }
+
+    fn propPortalPdf(self: Light, vertex: *const Vertex, frag: *const Fragment, scene: *const Scene) f32 {
+        const shape_sampler = scene.shapeSampler(self.sampler);
+        return scene.propShape(self.prop).portalPdf(vertex, frag, shape_sampler);
     }
 
     fn volumeImagePdf(self: Light, p: Vec4f, frag: *const Fragment, scene: *const Scene) f32 {

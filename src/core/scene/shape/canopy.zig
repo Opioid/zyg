@@ -100,7 +100,7 @@ pub const Canopy = struct {
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         const r2 = sampler.sample2D();
-        const rs = shape_sampler.impl.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+        const rs = shape_sampler.impl.sample(.{ r2[0], r2[1], 0.0, 0.0 });
         if (0.0 == rs.pdf()) {
             return buffer[0..0];
         }

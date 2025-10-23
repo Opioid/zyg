@@ -1,4 +1,4 @@
-const math = @import("minmax.zig");
+const math = @import("util.zig");
 const v2 = @import("vector2.zig");
 const Vec2f = v2.Vec2f;
 const v3 = @import("vector3.zig");

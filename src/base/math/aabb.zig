@@ -1,6 +1,6 @@
 const math = @import("vector4.zig");
 const Vec4f = math.Vec4f;
-const mima = @import("minmax.zig");
+const util = @import("util.zig");
 const Mat3x3 = @import("matrix3x3.zig").Mat3x3;
 const Mat4x4 = @import("matrix4x4.zig").Mat4x4;
 const Ray = @import("ray.zig").Ray;
@@ -69,11 +69,11 @@ pub const AABB = struct {
         const tmins = Vec4f{ t0[0], t0[1], t0[2], ray.min_t };
         const tmaxs = Vec4f{ t1[0], t1[1], t1[2], ray.max_t };
 
-        const imin = mima.max(mima.max(tmins[0], tmins[1]), tmins[2]);
-        const imax = mima.min(mima.min(tmaxs[0], tmaxs[1]), tmaxs[2]);
+        const imin = util.max(util.max(tmins[0], tmins[1]), tmins[2]);
+        const imax = util.min(util.min(tmaxs[0], tmaxs[1]), tmaxs[2]);
 
-        const tboxmin = mima.max(imin, tmins[3]);
-        const tboxmax = mima.min(imax, tmaxs[3]);
+        const tboxmin = util.max(imin, tmins[3]);
+        const tboxmax = util.min(imax, tmaxs[3]);
 
         if (tboxmin <= tboxmax) {
             return if (imin < ray.min_t) imax else imin;
@@ -206,7 +206,7 @@ pub const AABB = struct {
         // self.bounds[0] = bounds0;
 
         var bounds0: [*]f32 = @as([*]f32, @ptrCast(&self.bounds[0]));
-        bounds0[axis] = mima.max(d, bounds0[axis]);
+        bounds0[axis] = util.max(d, bounds0[axis]);
         self.bounds[0] = bounds0[0..4].*;
 
         // This is how it used to work
@@ -219,7 +219,7 @@ pub const AABB = struct {
         // self.bounds[1] = bounds1;
 
         var bounds1: [*]f32 = @as([*]f32, @ptrCast(&self.bounds[1]));
-        bounds1[axis] = mima.min(d, bounds1[axis]);
+        bounds1[axis] = util.min(d, bounds1[axis]);
         self.bounds[1] = bounds1[0..4].*;
 
         // self.bounds[1][axis] = mima.min(d, self.bounds[1][axis]);

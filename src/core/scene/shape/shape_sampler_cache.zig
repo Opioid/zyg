@@ -5,6 +5,8 @@ const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const Material = @import("../material/material.zig").Material;
 
 const base = @import("base");
+const math = base.math;
+const Mat3x3 = math.Mat3x3;
 const Threads = base.thread.Pool;
 
 const std = @import("std");
@@ -17,6 +19,7 @@ const Key = struct {
     shape: u32,
     part: u32,
     light_link: u32,
+    rotation: Mat3x3,
     shape_sampler: bool,
     emission_map: bool,
     two_sided: bool,
@@ -43,6 +46,10 @@ const KeyContext = struct {
             if (k.emission_map) {
                 hasher.update(std.mem.asBytes(&k.shape));
                 hasher.update(std.mem.asBytes(&k.light_link));
+
+                if (Scene.Null != k.light_link) {
+                    hasher.update(std.mem.asBytes(&k.rotation));
+                }
             }
         }
 
@@ -88,6 +95,15 @@ const KeyContext = struct {
             if (a.light_link != b.light_link) {
                 return false;
             }
+
+            if (Scene.Null != a.light_link) {
+                if (!math.equal(a.rotation.r[0], b.rotation.r[0]) or
+                    !math.equal(a.rotation.r[1], b.rotation.r[1]) or
+                    !math.equal(a.rotation.r[2], b.rotation.r[2]))
+                {
+                    return false;
+                }
+            }
         }
 
         return true;
@@ -115,6 +131,8 @@ pub const Cache = struct {
     pub fn prepareSampling(
         self: *Self,
         alloc: Allocator,
+        trafo: Trafo,
+        time: u64,
         shape: *Shape,
         shape_id: u32,
         part: u32,
@@ -132,6 +150,7 @@ pub const Cache = struct {
             .shape = shape_id,
             .part = part,
             .light_link = light_link,
+            .rotation = trafo.rotation,
             .shape_sampler = shape.hasShapeSampler(),
             .emission_map = material.emissionImageMapped(),
             .two_sided = material.twoSided(),
@@ -142,11 +161,8 @@ pub const Cache = struct {
             return entry;
         }
 
-        const shape_sampler = if (Scene.Null != light_link) Sampler{
-            .impl = .{ .Portal = .{ .light_link = light_link } },
-            .average_emission = @splat(1.0),
-        } else try shape.prepareSampling(alloc, part, material_id, &scene.light_tree_builder, scene, threads) orelse
-            try material.prepareSampling(alloc, shape, scene, threads);
+        const shape_sampler = try shape.prepareSampling(alloc, part, material_id, &scene.light_tree_builder, scene, threads) orelse
+            try material.prepareSampling(alloc, trafo, time, shape, light_link, scene, threads);
 
         try self.resources.append(alloc, shape_sampler);
 

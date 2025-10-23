@@ -466,10 +466,11 @@ pub const Scene = struct {
         const material_id = self.material_ids.items[p];
 
         const trafo = self.propTransformationAt(entity, time);
-        const extent = if (l.volumetric()) shape_inst.volume(trafo.scale()) else shape_inst.area(part, trafo.scale());
 
         const sampler_id = try self.samplers.prepareSampling(
             alloc,
+            trafo,
+            time,
             shape_inst,
             shape_id,
             part,
@@ -539,6 +540,8 @@ pub const Scene = struct {
             self.light_aabbs.items[light_id] = bb;
             self.light_cones.items[light_id] = cone;
         }
+
+        const extent = if (l.volumetric()) shape_inst.volume(trafo.scale()) else shape_inst.area(part, trafo.scale());
 
         const mat = self.material(material_id);
         const light_power = l.power(mat.totalEmission(average_radiance, extent), self.aabb(), self);
