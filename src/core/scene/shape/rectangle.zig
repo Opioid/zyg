@@ -479,16 +479,14 @@ pub const Rectangle = struct {
             }
 
             const uv = Vec2f{ rs.uvw[0], rs.uvw[1] };
-
             const ps = Portal.imageToWorld(uv, trafo);
-
             const dir = -ps.dir;
 
-            const wn = trafo.rotation.r[2];
-
-            if ((math.dot3(dir, n) <= 0.0 and !total_sphere)) {
+            if ((math.dot3(dir, n) <= 0.0 and !total_sphere) or 0.0 == ps.weight) {
                 continue;
             }
+
+            const wn = trafo.rotation.r[2];
 
             const d = math.dot3(wn, trafo.position);
             const hit_t = -(math.dot3(wn, p) - d) / math.dot3(wn, dir);
