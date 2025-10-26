@@ -1,7 +1,7 @@
 const Vec2f = @import("vector2.zig").Vec2f;
 const math = @import("vector4.zig");
 const Vec4f = math.Vec4f;
-const mima = @import("minmax.zig");
+const util = @import("util.zig");
 
 const std = @import("std");
 
@@ -48,14 +48,14 @@ pub fn triangleUniform(uv: Vec2f) Vec2f {
 
 pub fn hemisphereCosine(uv: Vec2f) Vec4f {
     const xy = diskConcentric(uv);
-    const z = @sqrt(mima.max(0.0, 1.0 - xy[0] * xy[0] - xy[1] * xy[1]));
+    const z = @sqrt(util.max(0.0, 1.0 - xy[0] * xy[0] - xy[1] * xy[1]));
 
     return .{ xy[0], xy[1], z, 0.0 };
 }
 
 pub fn hemisphereUniform(uv: Vec2f) Vec4f {
     const z = 1.0 - uv[0];
-    const r = @sqrt(mima.max(0.0, 1.0 - z * z));
+    const r = @sqrt(util.max(0.0, 1.0 - z * z));
 
     const phi = uv[1] * (2.0 * std.math.pi);
     const sin_phi = @sin(phi);
@@ -66,7 +66,7 @@ pub fn hemisphereUniform(uv: Vec2f) Vec4f {
 
 pub fn sphereUniform(uv: Vec2f) Vec4f {
     const z = 1.0 - 2.0 * uv[0];
-    const r = @sqrt(mima.max(0.0, 1.0 - z * z));
+    const r = @sqrt(util.max(0.0, 1.0 - z * z));
 
     const phi = uv[1] * (2.0 * std.math.pi);
     const sin_phi = @sin(phi);
@@ -84,7 +84,7 @@ pub fn sphereDirection(sin_theta: f32, cos_theta: f32, phi: f32) Vec4f {
 
 pub fn coneUniform(uv: Vec2f, cos_theta_max: f32) Vec4f {
     const cos_theta = (1.0 - uv[0]) + (uv[0] * cos_theta_max);
-    const sin_theta = @sqrt(mima.max(0.0, 1.0 - cos_theta * cos_theta));
+    const sin_theta = @sqrt(util.max(0.0, 1.0 - cos_theta * cos_theta));
 
     const phi = uv[1] * (2.0 * std.math.pi);
     const sin_phi = @sin(phi);
@@ -95,34 +95,16 @@ pub fn coneUniform(uv: Vec2f, cos_theta_max: f32) Vec4f {
 
 pub fn coneCosine(uv: Vec2f, cos_theta_max: f32) Vec4f {
     const xy = @as(Vec2f, @splat(@sqrt(1.0 - cos_theta_max * cos_theta_max))) * diskConcentric(uv);
-    const za = @sqrt(mima.max(0.0, 1.0 - xy[0] * xy[0] - xy[1] * xy[1]));
+    const za = @sqrt(util.max(0.0, 1.0 - xy[0] * xy[0] - xy[1] * xy[1]));
 
     return .{ xy[0], xy[1], za, 0.0 };
 }
 
 pub fn conePdfUniform(one_minus_cos_theta_max: f32) f32 {
     const eps: f32 = comptime 1.0e-20;
-    return 1.0 / ((2.0 * std.math.pi) * mima.max(one_minus_cos_theta_max, eps));
+    return 1.0 / ((2.0 * std.math.pi) * util.max(one_minus_cos_theta_max, eps));
 }
 
 pub fn conePdfCosine(cos_theta_max: f32) f32 {
     return 1.0 / ((1.0 - (cos_theta_max * cos_theta_max)) * std.math.pi);
-}
-
-pub fn octEncode(v: Vec4f) Vec2f {
-    const inorm: Vec2f = @splat(1.0 / (@abs(v[0]) + @abs(v[1]) + @abs(v[2])));
-    const t: Vec2f = @splat(mima.max(v[2], 0.0));
-    const v2 = Vec2f{ v[0], v[1] };
-    return (v2 + @select(f32, v2 > @as(Vec2f, @splat(0.0)), t, -t)) * inorm;
-}
-
-pub fn octDecode(o: Vec2f) Vec4f {
-    var v = Vec4f{ o[0], o[1], -1.0 + @abs(o[0]) + @abs(o[1]), 0.0 };
-
-    const t = mima.max(v[2], 0.0);
-
-    v[0] += if (v[0] > 0.0) -t else t;
-    v[1] += if (v[1] > 0.0) -t else t;
-
-    return math.normalize3(v);
 }

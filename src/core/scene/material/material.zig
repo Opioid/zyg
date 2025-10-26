@@ -15,12 +15,12 @@ const Context = @import("../context.zig").Context;
 const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
 const Shape = @import("../shape/shape.zig").Shape;
+const ShapeSampler = @import("../shape/shape_sampler.zig").Sampler;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 const image = @import("../../image/image.zig");
 const Texture = @import("../../texture/texture.zig").Texture;
 const ts = @import("../../texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
-const LowThreshold = @import("../../rendering/integrator/helper.zig").LightSampling.LowThreshold;
 
 const base = @import("base");
 const math = base.math;
@@ -42,7 +42,7 @@ pub const Material = union(enum) {
 
     pub fn deinit(self: *Material, alloc: Allocator) void {
         switch (self.*) {
-            inline .Light, .Sky, .Volumetric => |*m| m.deinit(alloc),
+            inline .Sky, .Volumetric => |*m| m.deinit(alloc),
             else => {},
         }
     }
@@ -65,22 +65,26 @@ pub const Material = union(enum) {
     pub fn prepareSampling(
         self: *Material,
         alloc: Allocator,
-        shape: *const Shape,
-        part: u32,
         trafo: Trafo,
-        extent: f32,
+        time: u64,
+        shape: *const Shape,
+        light_link: u32,
         scene: *const Scene,
         threads: *Threads,
-    ) Vec4f {
-        _ = part;
-        _ = trafo;
-
+    ) !ShapeSampler {
         return switch (self.*) {
-            .Light => |*m| m.prepareSampling(alloc, shape, extent, scene, threads),
+            .Light => |*m| m.prepareSampling(alloc, trafo, time, shape, light_link, scene, threads),
             .Sky => |*m| m.prepareSampling(alloc, shape, scene, threads),
-            .Substitute => |*m| m.prepareSampling(extent, scene),
+            .Substitute => |*m| m.prepareSampling(scene),
             .Volumetric => |*m| m.prepareSampling(alloc, scene, threads),
-            else => @splat(0.0),
+            else => .{ .impl = .Uniform, .average_emission = @splat(0.0) },
+        };
+    }
+
+    pub fn totalEmission(self: *const Material, emission: Vec4f, extent: f32) Vec4f {
+        return switch (self.*) {
+            inline .Light, .Substitute => |*m| m.emittance.totalEmission(emission, extent),
+            else => emission * @as(Vec4f, @splat(extent)),
         };
     }
 
@@ -138,17 +142,6 @@ pub const Material = union(enum) {
             inline .Glass, .Hair, .Substitute => |*m| m.ior,
             .Volumetric => 0.0,
             else => 1.0,
-        };
-    }
-
-    pub fn numSamples(self: *const Material, split_threshold: f32) u32 {
-        if (split_threshold <= LowThreshold) {
-            return 1;
-        }
-
-        return switch (self.*) {
-            inline .Light, .Substitute => |*m| m.emittance.num_samples,
-            else => 1,
         };
     }
 
@@ -217,26 +210,17 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn imageRadiance(self: *const Material, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn uniformRadiance(self: *const Material) Vec4f {
         return switch (self.*) {
-            inline .Light, .Substitute => |*m| m.emittance.imageRadiance(uv, sampler, scene),
+            inline .Light, .Substitute => |*m| m.emittance.value,
             else => @splat(0.0),
         };
     }
 
-    pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
+    pub fn imageRadiance(self: *const Material, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
         return switch (self.*) {
-            inline .Light, .Sky, .Volumetric => |*m| m.radianceSample(r3),
-            else => Base.RadianceSample.init3(r3, 1.0),
-        };
-    }
-
-    pub fn emissionPdf(self: *const Material, uvw: Vec4f) f32 {
-        return switch (self.*) {
-            .Light => |*m| m.emissionPdf(.{ uvw[0], uvw[1] }),
-            .Sky => |*m| m.emissionPdf(.{ uvw[0], uvw[1] }),
-            .Volumetric => |*m| m.emissionPdf(uvw),
-            else => 1.0,
+            inline .Light, .Substitute => |*m| m.emittance.imageRadiance(uv, sampler, scene),
+            else => @splat(0.0),
         };
     }
 

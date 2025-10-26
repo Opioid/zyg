@@ -122,6 +122,6 @@ pub const System = struct {
     }
 
     pub fn cloneLastResolvedName(self: *const System, alloc: Allocator) ![]u8 {
-        return try alloc.dupe(u8, self.name_buffer[0..self.resolved_name_len]);
+        return alloc.dupe(u8, self.name_buffer[0..self.resolved_name_len]);
     }
 };

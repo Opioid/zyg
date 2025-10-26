@@ -15,6 +15,7 @@ const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const List = std.ArrayList;
 
 pub const Operator = struct {
     pub const Class = union(enum) {
@@ -33,8 +34,7 @@ pub const Operator = struct {
 
     class: Class,
 
-    textures: std.ArrayList(core.tx.Texture) = .empty,
-    input_ids: std.ArrayList(u32) = .empty,
+    textures: List(core.tx.Texture) = .empty,
     target: img.Float4 = img.Float4.initEmpty(),
     tonemapper: Tonemapper,
     scene: *const scn.Scene,
@@ -58,7 +58,6 @@ pub const Operator = struct {
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        self.input_ids.deinit(alloc);
         self.textures.deinit(alloc);
         self.target.deinit(alloc);
 
@@ -66,6 +65,30 @@ pub const Operator = struct {
             inline .Blur, .Denoise => |*op| op.deinit(alloc),
             else => {},
         }
+    }
+
+    pub fn guessMissingInputs(self: Self, alloc: Allocator, inputs: *List([]u8)) !void {
+        if (.Denoise != self.class) {
+            return;
+        }
+
+        if (inputs.items.len > 1) {
+            return;
+        }
+
+        const first = inputs.items[0];
+
+        const ext_id = std.mem.lastIndexOf(u8, first, ".") orelse return;
+        const extension = first[ext_id..];
+
+        const base_len = std.mem.lastIndexOf(u8, first, "_") orelse ext_id;
+        const base_name = first[0..base_len];
+
+        try inputs.resize(alloc, 4);
+
+        inputs.items[1] = try std.fmt.allocPrint(alloc, "{s}_n{s}", .{ base_name, extension });
+        inputs.items[2] = try std.fmt.allocPrint(alloc, "{s}_albedo{s}", .{ base_name, extension });
+        inputs.items[3] = try std.fmt.allocPrint(alloc, "{s}_depth{s}", .{ base_name, extension });
     }
 
     pub fn iterations(self: Self) u32 {
@@ -81,8 +104,8 @@ pub const Operator = struct {
 
     pub fn baseItemOfIteration(self: Self, iteration: u32) u32 {
         return switch (self.class) {
-            .Anaglyph => self.input_ids.items[iteration / 2],
-            else => self.input_ids.items[iteration],
+            .Anaglyph => iteration / 2,
+            else => iteration,
         };
     }
 

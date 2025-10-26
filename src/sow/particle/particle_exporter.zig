@@ -9,7 +9,7 @@ pub const Exporter = struct {
         name: []const u8,
         particles: *const Particles,
     ) !void {
-        var out: std.io.Writer.Allocating = .init(alloc);
+        var out: std.Io.Writer.Allocating = .init(alloc);
         var stream: std.json.Stringify = .{
             .writer = &out.writer,
             .options = .{ .whitespace = .indent_4 },

@@ -32,7 +32,7 @@ pub const Node = packed struct {
     }
 
     pub fn index(self: Node) u32 {
-        return @as(u32, self.children_or_data);
+        return self.children_or_data;
     }
 
     pub fn isEmpty(self: Node) bool {

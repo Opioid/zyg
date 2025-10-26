@@ -81,6 +81,7 @@ pub const Loader = struct {
     const Error = error{
         UndefinedType,
         UndefinedShape,
+        UndefinedLight,
     } || Allocator.Error;
 
     resources: *Resources,
@@ -91,16 +92,13 @@ pub const Loader = struct {
 
     const Null = Resources.Null;
 
-    const LocalMaterials = struct {
-        materials: std.StringHashMap(*std.json.Value),
+    const LocalMaterials = std.StringHashMapUnmanaged(*std.json.Value);
 
-        pub fn init(alloc: Allocator) LocalMaterials {
-            return .{ .materials = std.StringHashMap(*std.json.Value).init(alloc) };
-        }
-
-        pub fn deinit(self: *LocalMaterials) void {
-            self.materials.deinit();
-        }
+    const Node = struct {
+        entity_id: u32,
+        graph: Graph.Node,
+        children_ptr: ?*std.json.Value,
+        is_scatterer: bool,
     };
 
     pub fn init(alloc: Allocator, resources: *Resources, fallback_material: Material) Loader {
@@ -117,11 +115,9 @@ pub const Loader = struct {
     pub fn load(self: *Loader, alloc: Allocator, graph: *Graph) !void {
         const take_mount_folder = string.parentDirectory(graph.take.resolved_filename);
 
-        const parent_id: u32 = Prop.Null;
+        const parent = Graph.Node.empty;
 
-        const parent_trafo: Transformation = .identity;
-
-        try self.loadFile(alloc, graph.take.scene_filename, take_mount_folder, parent_id, parent_trafo, false, graph);
+        try self.loadFile(alloc, graph.take.scene_filename, take_mount_folder, parent, graph);
 
         var iter = self.instances.keyIterator();
         while (iter.next()) |k| {
@@ -138,9 +134,7 @@ pub const Loader = struct {
         alloc: Allocator,
         filename: []const u8,
         take_mount_folder: []const u8,
-        parent_id: u32,
-        parent_trafo: Transformation,
-        animated: bool,
+        parent: Graph.Node,
         graph: *Graph,
     ) !void {
         const fs = &self.resources.fs;
@@ -174,36 +168,34 @@ pub const Loader = struct {
         defer fs.popMount(alloc);
 
         var gltf_loader = gltf.Loader.init(self.resources, self.fallback_material);
-        if (try gltf_loader.load(alloc, root, parent_trafo, graph)) {
+        if (try gltf_loader.load(alloc, root, parent.world_trafo, graph)) {
             gltf_loader.deinit(alloc);
             return;
         }
 
-        var local_materials = LocalMaterials.init(alloc);
-        defer local_materials.deinit();
+        var local_materials: LocalMaterials = .{};
+        defer local_materials.deinit(alloc);
 
         if (root.object.get("materials")) |materials_node| {
-            try readMaterials(materials_node, &local_materials);
+            try readMaterials(alloc, materials_node, &local_materials);
         }
 
         if (root.object.get("entities")) |entities_node| {
             try self.loadEntities(
                 alloc,
                 entities_node,
-                parent_id,
-                parent_trafo,
-                animated,
+                parent,
                 local_materials,
                 graph,
             );
         }
     }
 
-    fn readMaterials(value: std.json.Value, local_materials: *LocalMaterials) !void {
+    fn readMaterials(alloc: Allocator, value: std.json.Value, local_materials: *LocalMaterials) !void {
         for (value.array.items) |*m| {
             const name_node = m.object.get("name") orelse continue;
 
-            try local_materials.materials.put(name_node.string, m);
+            try local_materials.put(alloc, name_node.string, m);
         }
     }
 
@@ -211,90 +203,58 @@ pub const Loader = struct {
         self: *Loader,
         alloc: Allocator,
         value: std.json.Value,
-        parent_id: u32,
-        parent_trafo: Transformation,
-        animated: bool,
+        parent: Graph.Node,
         local_materials: LocalMaterials,
         graph: *Graph,
     ) Error!void {
         for (value.array.items) |entity_value| {
             if (entity_value.object.get("file")) |file_node| {
                 const filename = file_node.string;
-                self.loadFile(alloc, filename, "", parent_id, parent_trafo, animated, graph) catch |e| {
+                self.loadFile(alloc, filename, "", parent, graph) catch |e| {
                     log.err("Loading scene \"{s}\": {}", .{ filename, e });
                 };
                 continue;
             }
 
-            const leaf = self.loadLeafEntity(
-                alloc,
-                entity_value,
-                parent_id,
-                parent_trafo,
-                animated,
-                local_materials,
-                graph,
-                false,
-            ) catch continue;
+            const node = self.loadEntity(alloc, entity_value, parent, local_materials, graph, false) catch continue;
 
-            if (leaf.children_ptr) |children| {
-                try self.loadEntities(
-                    alloc,
-                    children.*,
-                    leaf.graph.graph_id,
-                    leaf.graph.world_trafo,
-                    leaf.graph.animated,
-                    local_materials,
-                    graph,
-                );
+            if (node.children_ptr) |children| {
+                try self.loadEntities(alloc, children.*, node.graph, local_materials, graph);
             }
 
-            if (leaf.is_scatterer) {
-                try self.loadScatterer(
-                    alloc,
-                    entity_value,
-                    leaf.graph.graph_id,
-                    leaf.graph.world_trafo,
-                    leaf.graph.animated,
-                    local_materials,
-                    graph,
-                );
+            if (node.is_scatterer) {
+                try self.loadScatterer(alloc, entity_value, node.graph, local_materials, graph);
             }
         }
     }
 
-    const Leaf = struct {
-        entity_id: u32,
-        graph: Graph.TrafoResult,
-        children_ptr: ?*std.json.Value,
-        is_scatterer: bool,
-    };
-
-    fn loadLeafEntity(
+    fn loadEntity(
         self: *Loader,
         alloc: Allocator,
         value: std.json.Value,
-        parent_id: u32,
-        parent_trafo: Transformation,
-        animated: bool,
+        parent: Graph.Node,
         local_materials: LocalMaterials,
         graph: *Graph,
-        prototype: bool,
-    ) !Leaf {
+        is_prototype: bool,
+    ) !Node {
         const type_node = value.object.get("type") orelse return Error.UndefinedType;
         const type_name = type_node.string;
 
         var entity_id: u32 = Prop.Null;
+        var light_link_id: u32 = Prop.Null;
         var is_light = false;
         var is_scatterer = false;
 
         if (std.mem.eql(u8, "Light", type_name)) {
-            entity_id = try self.loadProp(alloc, value, local_materials, graph, false, true, prototype);
+            entity_id = try self.loadProp(alloc, value, local_materials, graph, false, true, is_prototype);
+            is_light = true;
+        } else if (std.mem.eql(u8, "Portal", type_name)) {
+            entity_id = try self.loadPortal(alloc, value, graph, &light_link_id);
             is_light = true;
         } else if (std.mem.eql(u8, "Prop", type_name)) {
-            entity_id = try self.loadProp(alloc, value, local_materials, graph, true, false, prototype);
+            entity_id = try self.loadProp(alloc, value, local_materials, graph, true, false, is_prototype);
         } else if (std.mem.eql(u8, "Instancer", type_name)) {
-            entity_id = try self.loadInstancer(alloc, value, parent_id, parent_trafo, local_materials, graph, prototype);
+            entity_id = try self.loadInstancer(alloc, value, parent, local_materials, graph, is_prototype);
         } else if (std.mem.eql(u8, "Sky", type_name)) {
             entity_id = try loadSky(alloc, value, graph);
         } else if (std.mem.eql(u8, "Scatterer", type_name)) {
@@ -343,15 +303,7 @@ pub const Loader = struct {
             }
         }
 
-        const graph_trafo = try graph.propSetTransformation(
-            alloc,
-            entity_id,
-            parent_id,
-            trafo,
-            parent_trafo,
-            value.object.get("animation"),
-            animated,
-        );
+        const graph_node = try graph.propSetTransformation(alloc, entity_id, trafo, parent, value.object.get("animation"));
 
         if (value.object.get("visibility")) |visibility| {
             setVisibility(entity_id, visibility, scene);
@@ -362,12 +314,12 @@ pub const Loader = struct {
         }
 
         if (is_light and scene.prop(entity_id).visibleInReflection()) {
-            try scene.createLight(alloc, entity_id);
+            try scene.createLight(alloc, entity_id, light_link_id);
         }
 
-        return Leaf{
+        return Node{
             .entity_id = entity_id,
-            .graph = graph_trafo,
+            .graph = graph_node,
             .children_ptr = value.object.getPtr("entities"),
             .is_scatterer = is_scatterer,
         };
@@ -381,7 +333,7 @@ pub const Loader = struct {
         graph: *Graph,
         instancing: bool,
         unoccluding_default: bool,
-        prototype: bool,
+        is_prototype: bool,
     ) !u32 {
         const shape = if (value.object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
 
@@ -399,35 +351,65 @@ pub const Loader = struct {
             graph.materials.appendAssumeCapacity(self.fallback_material);
         }
 
-        if (instancing and !prototype) {
+        if (instancing and !is_prototype) {
             const key = Key{ .shape = shape, .materials = graph.materials.items };
 
             if (self.instances.get(key)) |instance| {
-                return try scene.createPropInstance(alloc, instance);
+                return scene.createPropInstance(alloc, instance);
             }
 
-            const entity = try scene.createPropShape(alloc, shape, graph.materials.items, false, prototype);
+            const entity = try scene.createPropShape(alloc, shape, graph.materials.items, false, is_prototype);
             try self.instances.put(alloc, try key.clone(alloc), entity);
             return entity;
         } else {
             const unoccluding = !json.readBoolMember(value, "occluding", !unoccluding_default);
-            return try scene.createPropShape(alloc, shape, graph.materials.items, unoccluding, prototype);
+            return scene.createPropShape(alloc, shape, graph.materials.items, unoccluding, is_prototype);
         }
+    }
+
+    fn loadPortal(self: *Loader, alloc: Allocator, value: std.json.Value, graph: *Graph, light_link_id: *u32) !u32 {
+        const shape = if (value.object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
+
+        const scene = &graph.scene;
+        const num_materials = scene.shape(shape).numMaterials();
+
+        try graph.materials.ensureTotalCapacity(alloc, num_materials);
+        graph.materials.clearRetainingCapacity();
+
+        const light_id = json.readUIntMember(value, "light", 0);
+
+        if (light_id >= scene.numLights()) {
+            return Error.UndefinedLight;
+        }
+
+        const light = scene.light(light_id);
+
+        scene.propSetVisibility(light.prop, false, false, false);
+        scene.lightSetPrototype(light_id);
+
+        const material_id = scene.propMaterialId(light.prop, light.part);
+
+        while (graph.materials.items.len < num_materials) {
+            graph.materials.appendAssumeCapacity(material_id);
+        }
+
+        light_link_id.* = light_id;
+
+        return scene.createPropShape(alloc, shape, graph.materials.items, true, false);
     }
 
     fn loadInstancer(
         self: *Loader,
         alloc: Allocator,
         value: std.json.Value,
-        parent_id: u32,
-        parent_trafo: Transformation,
+        parent: Graph.Node,
         local_materials: LocalMaterials,
         graph: *Graph,
-        prototype: bool,
+        is_prototype: bool,
     ) Error!u32 {
         if (value.object.get("source")) |file_node| {
             const filename = file_node.string;
-            return self.loadInstancerFile(alloc, filename, parent_id, parent_trafo, graph, prototype) catch |e| {
+            return self.loadInstancerFile(alloc, filename, parent, graph, is_prototype) catch |e| {
                 log.err("Loading instancer file \"{s}\": {}", .{ filename, e });
                 return Scene.Null;
             };
@@ -441,17 +423,7 @@ pub const Loader = struct {
             prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
 
             for (proto_array.items) |proto_value| {
-                const proto = self.loadLeafEntity(
-                    alloc,
-                    proto_value,
-                    parent_id,
-                    parent_trafo,
-                    false,
-                    local_materials,
-                    graph,
-                    true,
-                ) catch
-                    continue;
+                const proto = self.loadEntity(alloc, proto_value, parent, local_materials, graph, true) catch continue;
 
                 prototypes.appendAssumeCapacity(proto.entity_id);
             }
@@ -529,7 +501,7 @@ pub const Loader = struct {
 
             const shape = try self.resources.instancers.store(alloc, Scene.Null, instancer);
 
-            return try graph.scene.createPropInstancer(alloc, shape, prototype);
+            return graph.scene.createPropInstancer(alloc, shape, is_prototype);
         }
 
         return Scene.Null;
@@ -539,13 +511,12 @@ pub const Loader = struct {
         self: *Loader,
         alloc: Allocator,
         filename: []const u8,
-        parent_id: u32,
-        parent_trafo: Transformation,
+        parent: Graph.Node,
         graph: *Graph,
-        prototype: bool,
+        is_prototype: bool,
     ) !u32 {
         if (self.resources.instancers.getByName(filename, .{})) |shape_id| {
-            return try graph.scene.createPropInstancer(alloc, shape_id, prototype);
+            return graph.scene.createPropInstancer(alloc, shape_id, is_prototype);
         }
 
         const fs = &self.resources.fs;
@@ -570,14 +541,14 @@ pub const Loader = struct {
         try fs.pushMount(alloc, string.parentDirectory(fs.lastResolvedName()));
         defer fs.popMount(alloc);
 
-        var local_materials = LocalMaterials.init(alloc);
-        defer local_materials.deinit();
+        var local_materials: LocalMaterials = .{};
+        defer local_materials.deinit(alloc);
 
         if (root.object.get("materials")) |materials_node| {
-            try readMaterials(materials_node, &local_materials);
+            try readMaterials(alloc, materials_node, &local_materials);
         }
 
-        const entity_id = try self.loadInstancer(alloc, root, parent_id, parent_trafo, local_materials, graph, prototype);
+        const entity_id = try self.loadInstancer(alloc, root, parent, local_materials, graph, is_prototype);
 
         if (Scene.Null != entity_id) {
             const shape_id = graph.scene.prop(entity_id).resource;
@@ -591,9 +562,7 @@ pub const Loader = struct {
         self: *Loader,
         alloc: Allocator,
         value: std.json.Value,
-        parent_id: u32,
-        parent_trafo: Transformation,
-        animated: bool,
+        parent: Graph.Node,
         local_materials: LocalMaterials,
         graph: *Graph,
     ) !void {
@@ -605,17 +574,7 @@ pub const Loader = struct {
             prototypes = try List(u32).initCapacity(alloc, proto_array.items.len);
 
             for (proto_array.items) |proto_value| {
-                const proto = self.loadLeafEntity(
-                    alloc,
-                    proto_value,
-                    parent_id,
-                    parent_trafo,
-                    animated,
-                    local_materials,
-                    graph,
-                    true,
-                ) catch
-                    continue;
+                const proto = self.loadEntity(alloc, proto_value, parent, local_materials, graph, true) catch continue;
 
                 prototypes.appendAssumeCapacity(proto.entity_id);
             }
@@ -648,15 +607,7 @@ pub const Loader = struct {
 
                 const entity_id = try scene.createPropInstance(alloc, proto_entity_id);
 
-                _ = try graph.propSetTransformation(
-                    alloc,
-                    entity_id,
-                    parent_id,
-                    trafo,
-                    parent_trafo,
-                    null,
-                    animated,
-                );
+                _ = try graph.propSetTransformation(alloc, entity_id, trafo, parent, null);
             }
         }
     }
@@ -696,10 +647,10 @@ pub const Loader = struct {
             return @intFromEnum(Scene.ShapeID.Cube);
         } else if (std.mem.eql(u8, "Disk", type_name)) {
             return @intFromEnum(Scene.ShapeID.Disk);
-        } else if (std.mem.eql(u8, "DistantSphere", type_name)) {
-            return @intFromEnum(Scene.ShapeID.DistantSphere);
-        } else if (std.mem.eql(u8, "InfiniteSphere", type_name)) {
-            return @intFromEnum(Scene.ShapeID.InfiniteSphere);
+        } else if (std.mem.eql(u8, "Distant", type_name)) {
+            return @intFromEnum(Scene.ShapeID.Distant);
+        } else if (std.mem.eql(u8, "Dome", type_name)) {
+            return @intFromEnum(Scene.ShapeID.Dome);
         } else if (std.mem.eql(u8, "Rectangle", type_name)) {
             return @intFromEnum(Scene.ShapeID.Rectangle);
         } else if (std.mem.eql(u8, "Sphere", type_name)) {
@@ -712,19 +663,16 @@ pub const Loader = struct {
     }
 
     fn loadMaterials(
-        self: *Loader,
+        self: *const Loader,
         alloc: Allocator,
         value: std.json.Value,
         materials: *List(u32),
         num_materials: usize,
         local_materials: LocalMaterials,
     ) void {
-        for (value.array.items, 0..) |m, i| {
+        const len = @min(value.array.items.len, num_materials);
+        for (value.array.items[0..len]) |m| {
             materials.appendAssumeCapacity(self.loadMaterial(alloc, m.string, local_materials));
-
-            if (i == num_materials - 1) {
-                return;
-            }
         }
     }
 
@@ -735,7 +683,7 @@ pub const Loader = struct {
         }
 
         // Otherwise, see if it is among the locally defined materials.
-        if (local_materials.materials.get(name)) |material_node| {
+        if (local_materials.get(name)) |material_node| {
             const material = self.resources.loadData(Material, alloc, Null, material_node, .{}) catch Null;
             if (Null != material) {
                 self.resources.associate(Material, alloc, material, name, .{}) catch {};

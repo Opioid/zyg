@@ -3,9 +3,7 @@ const ReadStream = @import("read_stream.zig").ReadStream;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const mz = @cImport({
-    @cInclude("miniz/miniz.h");
-});
+const mz = @import("miniz");
 
 pub const GzipReadStream = struct {
     const ReadError = error{
@@ -35,12 +33,6 @@ pub const GzipReadStream = struct {
     read_buffer: [BufferSize]u8,
 
     const Self = @This();
-
-    const Reader = std.io.GenericReader(*Self, ReadError, read);
-
-    pub fn reader(self: *Self) Reader {
-        return .{ .context = self };
-    }
 
     pub fn close(self: *Self) void {
         _ = mz.mz_inflateEnd(&self.z_stream);
@@ -89,7 +81,7 @@ pub const GzipReadStream = struct {
         self.buffer_head = 0;
         self.buffer_count = 0;
 
-        return try self.initZstream();
+        return self.initZstream();
     }
 
     pub fn read(self: *Self, dest: []u8) !usize {
@@ -116,6 +108,33 @@ pub const GzipReadStream = struct {
         }
 
         return dest_cur;
+    }
+
+    pub fn readAlloc(self: *Self, alloc: Allocator) ![]u8 {
+        var dest_buffer = try std.ArrayList(u8).initCapacity(alloc, BufferSize);
+        defer dest_buffer.deinit(alloc);
+
+        var start_index: usize = 0;
+
+        while (true) {
+            dest_buffer.expandToCapacity();
+
+            const dest_slice = dest_buffer.items[start_index..];
+            const bytes_read = try self.read(dest_slice);
+
+            start_index += bytes_read;
+
+            if (bytes_read < dest_slice.len) {
+                break;
+            }
+
+            // This will trigger ArrayList to expand superlinearly at whatever its growth rate is.
+            try dest_buffer.ensureTotalCapacity(alloc, start_index + 1);
+        }
+
+        dest_buffer.shrinkAndFree(alloc, start_index);
+
+        return dest_buffer.toOwnedSlice(alloc);
     }
 
     pub fn seekTo(self: *Self, pos: u64) SeekError!void {

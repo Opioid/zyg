@@ -1,4 +1,4 @@
-const math = @import("minmax.zig");
+const math = @import("util.zig");
 const v2 = @import("vector2.zig");
 const Vec2f = v2.Vec2f;
 const v3 = @import("vector3.zig");
@@ -63,6 +63,13 @@ pub inline fn reciprocal3(v: Vec4f) Vec4f {
     return @as(Vec4f, @splat(1.0)) / v;
 }
 
+// pub inline fn differenceOfProducts(a: Vec4f, b: Vec4f, c: Vec4f, d: Vec4f) Vec4f {
+//     const cd = c * d;
+//     const err = @mulAdd(Vec4f, -c, d, cd);
+//     const dop = @mulAdd(Vec4f, a, b, -cd);
+//     return dop + err;
+// }
+
 pub inline fn cross3(a: Vec4f, b: Vec4f) Vec4f {
     // return .{
     //     a[1] * b[2] - a[2] * b[1],
@@ -78,6 +85,11 @@ pub inline fn cross3(a: Vec4f, b: Vec4f) Vec4f {
     tmp1 = tmp1 * b;
 
     const tmp2 = tmp0 - tmp1;
+
+    // const tmp0 = @shuffle(f32, b, undefined, [_]i32{ 1, 2, 0, 3 });
+    // const tmp1 = @shuffle(f32, a, undefined, [_]i32{ 1, 2, 0, 3 });
+
+    // const tmp2 = differenceOfProducts(tmp0, a, tmp1, b);
 
     return @shuffle(f32, tmp2, undefined, [_]i32{ 1, 2, 0, 3 });
 }
@@ -146,6 +158,11 @@ pub inline fn hmin3(v: Vec4f) f32 {
 
 pub inline fn hmax3(v: Vec4f) f32 {
     return math.max(v[0], math.max(v[1], v[2]));
+
+    // return switch (builtin.target.cpu.arch) {
+    //     .aarch64, .aarch64_be => @reduce(.Max, @shuffle(f32, v, @as(Vec4f, @splat(-std.math.floatMax(f32))), [_]i32{ 0, 1, 2, -1 })),
+    //     inline else => math.max(v[0], math.max(v[1], v[2])),
+    // };
 }
 
 pub inline fn hmin4(v: Vec4f) f32 {

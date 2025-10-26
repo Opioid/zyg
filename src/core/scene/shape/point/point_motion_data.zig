@@ -72,8 +72,13 @@ pub const MotionData = struct {
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        const num_point_components = self.num_frames + self.num_vertices * 3 + 1;
-        alloc.free(self.positions[0..num_point_components]);
+        const num_point_components = self.num_frames * self.num_vertices * 3;
+        alloc.free(self.positions[0 .. num_point_components + 1]);
+
+        if (self.radii) |radii| {
+            const num_radius_components = self.num_frames * self.num_vertices;
+            alloc.free(radii[0..num_radius_components]);
+        }
     }
 
     pub fn frameAt(self: Self, time: u64) Frame {

@@ -441,7 +441,7 @@ pub const Loader = struct {
 
         self.resources.commitAsync();
 
-        return try graph.scene.createPropShape(alloc, shape_id, graph.materials.items, false, false);
+        return graph.scene.createPropShape(alloc, shape_id, graph.materials.items, false, false);
     }
 
     fn loadIndices(self: *Self, alloc: Allocator, id: u32, buffer: []u32, cur_vertex: u32) !u32 {
@@ -727,7 +727,7 @@ pub const Loader = struct {
             var parsed = try std.json.parseFromTokenSource(std.json.Value, alloc, &json_reader, .{});
             defer parsed.deinit();
 
-            return try self.resources.loadData(scn.Material, alloc, 0xFFFFFFFF, &parsed.value, .{});
+            return self.resources.loadData(scn.Material, alloc, 0xFFFFFFFF, &parsed.value, .{});
         }
 
         return Null;

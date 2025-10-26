@@ -77,11 +77,11 @@ pub const Manager = struct {
         options: Variants,
     ) !u32 {
         if (Image == T) {
-            return try self.images.loadFile(alloc, name, options, self);
+            return self.images.loadFile(alloc, name, options, self);
         } else if (Material == T) {
-            return try self.materials.loadFile(alloc, name, options, self);
+            return self.materials.loadFile(alloc, name, options, self);
         } else if (Shape == T) {
-            return try self.shapes.loadFile(alloc, name, options, self);
+            return self.shapes.loadFile(alloc, name, options, self);
         }
 
         return Error.UnknownResource;
@@ -96,9 +96,9 @@ pub const Manager = struct {
         options: Variants,
     ) !u32 {
         if (Material == T) {
-            return try self.materials.loadData(alloc, id, data, options, self);
+            return self.materials.loadData(alloc, id, data, options, self);
         } else if (Shape == T) {
-            return try self.shapes.loadData(alloc, id, data, options, self);
+            return self.shapes.loadData(alloc, id, data, options, self);
         }
 
         return Error.UnknownResource;

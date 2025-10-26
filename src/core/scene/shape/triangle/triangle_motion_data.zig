@@ -33,9 +33,11 @@ pub const MotionData = struct {
     const Self = @This();
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
+        const num_frame_position_components = self.num_frames * self.num_vertices * 3;
+
         alloc.free(self.uvs[0..self.num_vertices]);
         alloc.free(self.normals[0 .. self.num_vertices * 3 + 1]);
-        alloc.free(self.positions[0 .. self.num_vertices * 3 + 1]);
+        alloc.free(self.positions[0 .. num_frame_position_components + 1]);
         alloc.free(self.triangle_parts[0..self.num_triangles]);
         alloc.free(self.triangles[0..self.num_triangles]);
     }

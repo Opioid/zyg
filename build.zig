@@ -49,31 +49,31 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    cli.addIncludePath(b.path("thirdparty/include"));
-    cli.addIncludePath(b.path("src/cli"));
-    capi.addIncludePath(b.path("thirdparty/include"));
-    it.addIncludePath(b.path("thirdparty/include"));
-
     const cflags = [_][]const u8{
         "-std=c99",
         "-Wall",
         "-fno-sanitize=undefined",
     };
 
-    const csources = [_][]const u8{
-        "thirdparty/include/miniz/miniz.c",
-        "thirdparty/include/arpraguesky/ArPragueSkyModelGround.c",
-    };
+    const miniz_translate = b.addTranslateC(.{
+        .root_source_file = b.path("thirdparty/miniz/miniz.h"),
+        .optimize = optimize,
+        .target = target,
+        .link_libc = true,
+    });
 
-    for (csources) |source| {
-        cli.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
-        capi.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
-        sow.addCSourceFile(.{ .file = b.path(source), .flags = &cflags });
-    }
+    const miniz = miniz_translate.createModule();
+    miniz.addCSourceFile(.{ .file = b.path("thirdparty/miniz/miniz.c"), .flags = &cflags });
 
-    cli.addCSourceFile(.{ .file = b.path("src/cli/any_key.c"), .flags = &cflags });
+    const arp_sky_translate = b.addTranslateC(.{
+        .root_source_file = b.path("thirdparty/arpraguesky/ArPragueSkyModelGround.h"),
+        .optimize = optimize,
+        .target = target,
+        .link_libc = true,
+    });
 
-    it.addCSourceFile(.{ .file = b.path(csources[0]), .flags = &cflags });
+    const arp_sky = arp_sky_translate.createModule();
+    miniz.addCSourceFile(.{ .file = b.path("thirdparty/arpraguesky/ArPragueSkyModelGround.c"), .flags = &cflags });
 
     const base = b.createModule(.{
         .root_source_file = b.path("src/base/base.zig"),
@@ -81,10 +81,12 @@ pub fn build(b: *std.Build) void {
 
     const core = b.createModule(.{
         .root_source_file = b.path("src/core/core.zig"),
-        .imports = &.{.{ .name = "base", .module = base }},
+        .imports = &.{
+            .{ .name = "base", .module = base },
+            .{ .name = "miniz", .module = miniz },
+            .{ .name = "arp_sky", .module = arp_sky },
+        },
     });
-
-    core.addIncludePath(b.path("thirdparty/include"));
 
     const util = b.createModule(.{
         .root_source_file = b.path("src/util/util.zig"),
@@ -143,11 +145,12 @@ pub fn build(b: *std.Build) void {
             //"takes/bistro_day.take",
             //"takes/bistro_night.take",
             //"takes/san_miguel.take",
-            "takes/cornell.take",
-            //"takes/cornell_nd.take",
+            //"takes/cornell.take",
+            //"takes/cornell_portal.take",
             //"takes/curve_test.take",
             //"takes/imrod.take",
             //"takes/instancer.take",
+            "takes/living_room.take",
             //"takes/model_test.take",
             //"takes/nme.take",
             //"takes/furnace_test.take",
@@ -167,6 +170,7 @@ pub fn build(b: *std.Build) void {
             //"takes/intel_sponza.take",
             //"takes/intel_sponza_night.take",
             //"takes/sss.take",
+            //"takes/sunsky.take",
             //"scenes/island/shot_cam.take",
             //"takes/shadow_catcher.take",
             //"scenes/bamboo/bamboo.take",
@@ -196,14 +200,16 @@ pub fn build(b: *std.Build) void {
     // } else {
     //     run_exe.addArgs(&[_][]const u8{
     //         "-i",
-    //         // "image_00_indirect.png",
-    //         // "image_00_n.png",
-    //         // "image_00_albedo.png",
-    //         // "image_00_depth.png",
-    //         // "--denoise",
-    //         // "2.0",
-    //         "leaves_1024.png",
-    //         "--down-sample",
+    //         "candle_indirect.exr",
+    //         // "image_00_000000_n.exr",
+    //         // "image_00_000000_albedo.exr",
+    //         // "image_00_000000_depth.exr",
+    //         "-o",
+    //         "candle_indirect_denoised.exr",
+    //         "--denoise",
+    //         "2.0",
+    //         // "leaves_1024.png",
+    //         // "--down-sample",
     //         "-t",
     //         "-1",
     //     });

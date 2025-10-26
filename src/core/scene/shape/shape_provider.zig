@@ -216,6 +216,8 @@ pub const Provider = struct {
                 resources.threads,
             );
 
+            handler.deinit(alloc);
+
             resources.commitAsync();
 
             return .{ .data = .{ .PointMotionCloud = cloud } };
@@ -306,22 +308,20 @@ pub const Provider = struct {
     fn buildAsync(context: ThreadContext) void {
         const self: *Provider = @ptrCast(@alignCast(context));
 
-        const handler = self.handler;
-
         const vertices = tvb.Buffer{ .Separate = tvb.Separate.init(
-            handler.positions,
-            handler.normals,
-            handler.uvs,
+            self.handler.positions,
+            self.handler.normals,
+            self.handler.uvs,
         ) };
 
-        if (handler.positions.len > 1) {
+        if (self.handler.positions.len > 1) {
             buildMotionBVH(
                 self.alloc,
                 &self.triangle_motion_tree,
                 self.handler.triangles,
                 vertices,
-                handler.frame_duration,
-                handler.start_frame,
+                self.handler.frame_duration,
+                self.handler.start_frame,
                 self.threads,
             ) catch {};
         } else {
@@ -655,8 +655,8 @@ pub const Provider = struct {
         if (0 == num_vertices) {
             // Handle legacy files, that curiously worked because of Gzip_stream bug!
             // (seekg() was not implemented properly)
-            const Sizeof_vertex = 48;
-            num_vertices = @intCast(vertices_size / Sizeof_vertex);
+            const SizeofVertex = 48;
+            num_vertices = @intCast(vertices_size / SizeofVertex);
 
             if (!interleaved_vertex_stream) {
                 const Vertex_unpadded_size = 3 * 4 + 3 * 4 + 3 * 4 + 2 * 4 + 1;
@@ -671,7 +671,7 @@ pub const Provider = struct {
         if (interleaved_vertex_stream) {
             log.err("interleaved", .{});
         } else {
-            const start_frame = @min(resources.frame_start / frame_duration, num_position_frames - 1);
+            const start_frame = @min(if (0 == frame_duration) 0 else resources.frame_start / frame_duration, num_position_frames - 1);
             const counted_frames = motion.countFrames(resources.frame_duration, frame_duration);
             const end_frame = start_frame + @min(start_frame + counted_frames + 1, num_position_frames);
 
@@ -705,7 +705,7 @@ pub const Provider = struct {
                     uvs,
                 ) };
             } else {
-                const start_normal_frame = @min(resources.frame_start / frame_duration, num_normal_frames - 1);
+                const start_normal_frame = @min(if (0 == frame_duration) 0 else resources.frame_start / frame_duration, num_normal_frames - 1);
 
                 if (start_normal_frame > 0) {
                     try stream.discard(@sizeOf(Pack3f) * num_vertices * start_normal_frame);

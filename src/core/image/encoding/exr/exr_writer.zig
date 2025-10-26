@@ -15,9 +15,7 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const mz = @cImport({
-    @cInclude("miniz/miniz.h");
-});
+const mz = @import("miniz");
 
 pub const Writer = struct {
     half: bool,
@@ -33,7 +31,7 @@ pub const Writer = struct {
         encoding: Encoding,
         threads: *Threads,
     ) !void {
-        var header: std.io.Writer.Allocating = .init(alloc);
+        var header: std.Io.Writer.Allocating = .init(alloc);
         var writer = &header.writer;
 
         try writer.writeAll(&exr.Signature);
@@ -221,14 +219,14 @@ pub const Writer = struct {
             var x: i32 = crop[0];
             while (x < x_end) : (x += 1) {
                 const s = image.get2D(x, y).v[channel];
-                const ui = @as(u32, @intFromFloat(s));
+                const ui: u32 = @intFromFloat(s);
                 try writer.writeAll(std.mem.asBytes(&ui));
             }
         } else if (.Half == format) {
             var x: i32 = crop[0];
             while (x < x_end) : (x += 1) {
                 const s = image.get2D(x, y).v[channel];
-                const h = @as(f16, @floatCast(s));
+                const h: f16 = @floatCast(s);
                 try writer.writeAll(std.mem.asBytes(&h));
             }
         } else {
@@ -256,7 +254,7 @@ pub const Writer = struct {
         const dim = zw - xy;
 
         const rows_per_block = compression.numScanlinesPerBlock();
-        const row_blocks = compression.numScanlineBlocks(@as(u32, @intCast(dim[1])));
+        const row_blocks = compression.numScanlineBlocks(@intCast(dim[1]));
 
         const scalar_size = format.byteSize();
 
@@ -449,7 +447,7 @@ pub const Writer = struct {
         }
 
         fn blockUint(comptime T: type, destination: []u8, image: T, num_channels: u32, data_x: u32, data_y: u32, num_x: u32, num_y: u32) void {
-            const data_width = @as(u32, @intCast(image.dimensions[0]));
+            const data_width: u32 = @intCast(image.dimensions[0]);
 
             var uints = std.mem.bytesAsSlice(u32, destination);
 

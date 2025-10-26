@@ -34,6 +34,7 @@ pub const Vertex = struct {
     bxdf_pdf: f32,
     reg_alpha: f32,
     split_weight: f32,
+    light_split_threshold: f32,
     path_count: u32,
 
     throughput: Vec4f,
@@ -55,6 +56,7 @@ pub const Vertex = struct {
             .bxdf_pdf = 0.0,
             .reg_alpha = 0.0,
             .split_weight = 1.0,
+            .light_split_threshold = 0.0,
             .path_count = 1,
             .throughput = @splat(1.0),
             .shadow_catcher_occluded = undefined,
@@ -162,7 +164,7 @@ pub const Vertex = struct {
         return m.sample(wo, rs, sampler, context);
     }
 
-    pub fn evaluateRadiance(self: *const Self, frag: *const Fragment, sampler: *Sampler, context: Context) ?Vec4f {
+    pub fn evaluateRadiance(self: *const Self, frag: *const Fragment, sampler: *Sampler, context: Context) Vec4f {
         const volume = frag.event;
         if (.Absorb == volume) {
             return frag.vol_li;
@@ -172,21 +174,25 @@ pub const Vertex = struct {
 
         const m = frag.material(context.scene);
         if (!m.emissive() or (!m.twoSided() and !frag.sameHemisphere(wo)) or .Pass != volume) {
-            return null;
+            return @splat(0.0);
         }
 
         var rs: Renderstate = undefined;
         rs.trafo = frag.isec.trafo;
         rs.origin = self.origin;
         rs.geo_n = frag.geo_n;
-        rs.uvw = frag.uvw;
+        rs.uvw = context.scene.lightPortalUvw(self, frag);
         rs.stochastic_r = sampler.sample1D();
         rs.prop = frag.prop;
         rs.part = frag.part;
 
-        const in_camera = 0 == self.depth.total();
+        const in_camera = 0 == self.probe.depth.total();
 
-        return m.evaluateRadiance(wo, rs, in_camera, sampler, context);
+        const energy = m.evaluateRadiance(wo, rs, in_camera, sampler, context);
+
+        const weight: Vec4f = @splat(context.scene.lightPdf(self, frag));
+
+        return weight * energy;
     }
 };
 

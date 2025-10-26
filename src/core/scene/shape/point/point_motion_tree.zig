@@ -185,7 +185,6 @@ pub const Tree = struct {
         ray: Ray,
         vertex: *const Vertex,
         frag: *Fragment,
-        split_threshold: f32,
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
@@ -224,10 +223,7 @@ pub const Tree = struct {
                         frag.geo_n = math.normalize3(p - origin_w);
                         frag.uvw = @splat(0.0);
 
-                        if (vertex.evaluateRadiance(frag, sampler, context)) |local_energy| {
-                            const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
-                            energy += weight * local_energy;
-                        }
+                        energy += vertex.evaluateRadiance(frag, sampler, context);
                     }
                 }
 

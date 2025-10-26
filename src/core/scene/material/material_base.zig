@@ -11,27 +11,6 @@ const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
 pub const Base = struct {
-    pub const RadianceResult = struct {
-        emission: Vec4f,
-        num_samples: u32,
-    };
-
-    pub const RadianceSample = struct {
-        uvw: Vec4f,
-
-        pub fn init2(uv: Vec2f, pdf_: f32) RadianceSample {
-            return .{ .uvw = .{ uv[0], uv[1], 0.0, pdf_ } };
-        }
-
-        pub fn init3(uvw: Vec4f, pdf_: f32) RadianceSample {
-            return .{ .uvw = .{ uvw[0], uvw[1], uvw[2], pdf_ } };
-        }
-
-        pub fn pdf(self: RadianceSample) f32 {
-            return self.uvw[3];
-        }
-    };
-
     pub const Properties = packed struct {
         two_sided: bool = false,
         evaluate_visibility: bool = false,

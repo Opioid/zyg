@@ -15,9 +15,7 @@ const Threads = base.thread.Pool;
 const std = @import("std");
 const Allocator = @import("std").mem.Allocator;
 
-const mz = @cImport({
-    @cInclude("miniz/miniz.h");
-});
+const mz = @import("miniz");
 
 pub const Writer = struct {
     srgb: Srgb,
@@ -35,7 +33,7 @@ pub const Writer = struct {
     pub fn write(
         self: *Writer,
         alloc: Allocator,
-        writer: *std.io.Writer,
+        writer: *std.Io.Writer,
         image: Float4,
         crop: Vec4i,
         encoding: Encoding,
@@ -168,7 +166,11 @@ pub const Writer = struct {
         var file = try std.fs.cwd().createFile(name, .{});
         defer file.close();
 
-        try file.deprecatedWriter().writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
+        var file_buffer: [4096]u8 = undefined;
+        var writer = file.writer(&file_buffer);
+
+        _ = try writer.interface.writeAll(@as([*]const u8, @ptrCast(png))[0..buffer_len]);
+        try writer.end();
 
         mz.mz_free(png);
     }

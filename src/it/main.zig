@@ -65,18 +65,26 @@ pub fn main() !void {
     };
     defer operator.deinit(alloc);
 
+    try operator.guessMissingInputs(alloc, &options.inputs);
+
     var bytes_per_channel: u32 = 0;
 
-    for (options.inputs.items, 0..) |input, i| {
+    for (options.inputs.items) |input| {
         log.info("Loading file {s}", .{input});
 
-        const texture = core.tx.Provider.loadFile(alloc, input, image_options, core.tx.Texture.DefaultMode, @splat(1.0), &resources) catch |e| {
+        const texture = core.tx.Provider.loadFile(
+            alloc,
+            input,
+            image_options,
+            core.tx.Texture.DefaultMode,
+            @splat(1.0),
+            &resources,
+        ) catch |e| {
             log.err("Could not load texture \"{s}\": {}", .{ input, e });
             continue;
         };
 
         try operator.textures.append(alloc, texture);
-        try operator.input_ids.append(alloc, @intCast(i));
 
         bytes_per_channel = @max(bytes_per_channel, texture.bytesPerChannel());
     }
@@ -111,8 +119,14 @@ pub fn main() !void {
         operator.current = i;
         operator.run(&threads);
 
-        const name = options.inputs.items[operator.baseItemOfIteration(i)];
-        try write(alloc, name, operator.class, operator.target, &writer, encoding, format, &threads);
+        const index = operator.baseItemOfIteration(i);
+
+        const input_name = options.inputs.items[index];
+
+        const num_outputs: u32 = @intCast(options.outputs.items.len);
+        const output_name = if (num_outputs > 0) options.outputs.items[@min(num_outputs - 1, index)] else null;
+
+        try write(alloc, input_name, output_name, operator.class, operator.target, &writer, encoding, format, &threads);
     }
 
     log.info("Total render time {d:.2} s", .{chrono.secondsSince(loading_start)});
@@ -120,7 +134,8 @@ pub fn main() !void {
 
 fn write(
     alloc: Allocator,
-    name: []const u8,
+    input_name: []const u8,
+    output_name: ?[]const u8,
     operator: Operator.Class,
     target: core.image.Float4,
     image_writer: *core.ImageWriter,
@@ -129,10 +144,10 @@ fn write(
     threads: *Threads,
 ) !void {
     if (.TXT == format) {
-        const output_name = try std.fmt.allocPrint(alloc, "{s}.it.{s}", .{ name, "txt" });
-        defer alloc.free(output_name);
+        const file_name = try buildName(alloc, input_name, output_name, "txt");
+        defer alloc.free(file_name);
 
-        var file = try std.fs.cwd().createFile(output_name, .{});
+        var file = try std.fs.cwd().createFile(file_name, .{});
         defer file.close();
 
         var file_buffer: [4096]u8 = undefined;
@@ -164,9 +179,11 @@ fn write(
         _ = try txt_writer.interface.writeAll("};\n");
 
         try txt_writer.end();
+
+        log.info("Wrote file {s}", .{file_name});
     } else {
-        const output_name = try std.fmt.allocPrint(alloc, "{s}.it.{s}", .{ name, image_writer.fileExtension() });
-        defer alloc.free(output_name);
+        const file_name = try buildName(alloc, input_name, output_name, image_writer.fileExtension());
+        defer alloc.free(file_name);
 
         if (.Diff == operator) {
             var min: f32 = std.math.floatMax(f32);
@@ -193,10 +210,12 @@ fn write(
                 buffer,
                 min,
                 max,
-                output_name,
+                file_name,
             );
+
+            log.info("Wrote file {s}", .{file_name});
         } else {
-            var file = try std.fs.cwd().createFile(output_name, .{});
+            var file = try std.fs.cwd().createFile(file_name, .{});
             defer file.close();
 
             const d = target.dimensions;
@@ -205,6 +224,18 @@ fn write(
             var writer = file.writer(&file_buffer);
             try image_writer.write(alloc, &writer.interface, target, .{ 0, 0, d[0], d[1] }, encoding, threads);
             try writer.end();
+
+            log.info("Wrote file {s}", .{file_name});
         }
+    }
+}
+
+fn buildName(alloc: Allocator, input_name: []const u8, output_name: ?[]const u8, extension: []const u8) ![]const u8 {
+    if (output_name) |name| {
+        const ext_index = std.mem.lastIndexOf(u8, name, ".") orelse name.len;
+
+        return std.fmt.allocPrint(alloc, "{s}.{s}", .{ name[0..ext_index], extension });
+    } else {
+        return std.fmt.allocPrint(alloc, "{s}.it.{s}", .{ input_name, extension });
     }
 }

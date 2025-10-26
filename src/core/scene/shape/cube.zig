@@ -47,7 +47,7 @@ pub const Cube = struct {
         const distance = @abs(@as(Vec4f, @splat(0.5)) - @abs(local_p));
 
         const i = math.indexMinComponent3(distance);
-        const s = std.math.copysign(@as(f32, 1.0), local_p[i]);
+        const s = std.math.copysign(@as(f32, 1.0), @as([4]f32, local_p)[i]);
         const n = @as(Vec4f, @splat(s)) * frag.isec.trafo.rotation.r[i];
 
         frag.part = 0;

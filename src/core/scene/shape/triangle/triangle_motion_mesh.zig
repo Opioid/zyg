@@ -37,7 +37,7 @@ pub const MotionMesh = struct {
     }
 
     pub fn deinit(self: *Self, alloc: Allocator) void {
-        alloc.free(self.parts[0..self.num_parts]);
+        alloc.free(self.part_materials[0..self.num_parts]);
         self.tree.deinit(alloc);
     }
 
@@ -135,12 +135,11 @@ pub const MotionMesh = struct {
         self: *const Self,
         vertex: *const Vertex,
         frag: *Fragment,
-        split_threshold: f32,
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
         const local_ray = frag.isec.trafo.worldToObjectRay(vertex.probe.ray);
-        return self.tree.emission(local_ray, vertex, frag, split_threshold, sampler, context);
+        return self.tree.emission(local_ray, vertex, frag, sampler, context);
     }
 
     pub fn surfaceDifferentials(self: *const Self, primitive: u32, trafo: Trafo, time: u64) DifferentialSurface {

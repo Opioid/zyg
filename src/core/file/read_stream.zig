@@ -39,11 +39,11 @@ pub const ReadStream = union(enum) {
     pub fn readAlloc(self: Self, alloc: Allocator) ![]u8 {
         return switch (self) {
             .File => |s| try s.reader.interface.allocRemaining(alloc, .unlimited),
-            .Gzip => |s| try s.reader().readAllAlloc(alloc, std.math.maxInt(u64)),
+            .Gzip => |s| try s.readAlloc(alloc),
         };
     }
 
-    pub fn streamDelimiter(self: Self, writer: *std.io.Writer, delimiter: u8, limit: std.Io.Limit) !usize {
+    pub fn streamDelimiter(self: Self, writer: *std.Io.Writer, delimiter: u8, limit: std.Io.Limit) !usize {
         return switch (self) {
             .File => |s| {
                 const count = try s.reader.interface.streamDelimiterLimit(writer, delimiter, limit);

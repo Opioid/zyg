@@ -1,4 +1,5 @@
 pub const AABB = @import("aabb.zig").AABB;
+pub const Bounds2f = @import("bounds.zig").Bounds2f;
 pub const cone = @import("cone.zig");
 const dist1D = @import("distribution_1d.zig");
 pub const Distribution1D = dist1D.Distribution1D;
@@ -7,13 +8,16 @@ const dist2D = @import("distribution_2d.zig");
 pub const Distribution2D = dist2D.Distribution2D;
 pub const Distribution2DN = dist2D.Distribution2DN;
 pub const Distribution3D = @import("distribution_3d.zig").Distribution3D;
+pub const SummedAreaTable = @import("summed_area_table.zig").SummedAreaTable;
+pub const WindowedDistribution2D = @import("windowed_distribution_2d.zig").WindowedDistribution2D;
 pub const Frame = @import("frame.zig").Frame;
 pub const ifunc = @import("interpolated_function.zig");
 
-const minmax = @import("minmax.zig");
-pub const min = minmax.min;
-pub const max = minmax.max;
-pub const clamp = minmax.clamp;
+const util = @import("util.zig");
+pub const lerp = util.lerp;
+pub const min = util.min;
+pub const max = util.max;
+pub const clamp = util.clamp;
 
 pub const quaternion = @import("quaternion.zig");
 pub const Quaternion = quaternion.Quaternion;
@@ -118,21 +122,7 @@ pub fn radiansToDegrees(radians: anytype) @TypeOf(radians) {
 }
 
 pub inline fn saturate(x: f32) f32 {
-    return minmax.clamp(x, 0.0, 1.0);
-}
-
-pub inline fn lerp(a: anytype, b: anytype, t: anytype) @TypeOf(a, b, t) {
-    switch (@typeInfo(@TypeOf(a))) {
-        inline .comptime_float, .float => {
-            const u = 1.0 - t;
-            return @mulAdd(f32, u, a, t * b);
-        },
-        .vector => {
-            const u = @as(@TypeOf(a), @splat(1.0)) - t;
-            return @mulAdd(@TypeOf(a), u, a, t * b);
-        },
-        else => comptime unreachable,
-    }
+    return util.clamp(x, 0.0, 1.0);
 }
 
 pub inline fn frac(x: anytype) @TypeOf(x) {

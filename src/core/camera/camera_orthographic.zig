@@ -56,7 +56,7 @@ pub const Orthographic = struct {
         const direction = Vec4f{ 0.0, 0.0, 1.0, 0.0 };
 
         const time = self.super.absoluteTime(frame, sample.time);
-        const trafo = scene.prop_space.transformationAt(self.super.entity, time, scene.frame_start);
+        const trafo = scene.propTransformationAt(self.super.entity, time);
 
         const origin_w = trafo.objectToWorldPoint(origin);
         const direction_w = trafo.objectToWorldVector(math.normalize3(direction));
@@ -65,7 +65,7 @@ pub const Orthographic = struct {
     }
 
     pub fn calculateRayDifferential(self: *const Self, p: Vec4f, time: u64, scene: *const Scene) RayDif {
-        const trafo = scene.prop_space.transformationAt(self.super.entity, time, scene.frame_start);
+        const trafo = scene.propTransformationAt(self.super.entity, time);
 
         const n = trafo.rotation.r[2];
         const d = math.dot3(n, trafo.position);

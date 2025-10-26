@@ -1,6 +1,5 @@
 const math = @import("vector4.zig");
 const Vec4f = math.Vec4f;
-const mima = @import("minmax.zig");
 
 pub const Ray = struct {
     origin: Vec4f,

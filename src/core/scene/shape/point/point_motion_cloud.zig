@@ -12,7 +12,7 @@ const Sampler = @import("../../../sampler/sampler.zig").Sampler;
 const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const Material = @import("../../material/material.zig").Material;
+const ShapeSampler = @import("../shape_sampler.zig").Sampler;
 
 const base = @import("base");
 const math = base.math;
@@ -89,12 +89,11 @@ pub const MotionCloud = struct {
         self: *const Self,
         vertex: *const Vertex,
         frag: *Fragment,
-        split_threshold: f32,
         sampler: *Sampler,
         context: Context,
     ) Vec4f {
         const local_ray = frag.isec.trafo.worldToObjectRay(vertex.probe.ray);
-        return self.tree.emission(local_ray, vertex, frag, split_threshold, sampler, context);
+        return self.tree.emission(local_ray, vertex, frag, sampler, context);
     }
 
     pub fn sampleTo(
@@ -105,12 +104,12 @@ pub const MotionCloud = struct {
         time: u64,
         total_sphere: bool,
         split_threshold: f32,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         _ = split_threshold;
-        _ = material;
+        _ = shape_sampler;
 
         const num_points = self.tree.data.num_vertices;
         const points_back: f32 = @floatFromInt(num_points - 1);

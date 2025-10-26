@@ -12,8 +12,7 @@ pub fn blackbody(temperature: f32) Vec4f {
     const num_steps = @as(u32, @intFromFloat((wl_max - wl_min) / wl_step)) + 1;
 
     var xyz: Vec4f = @splat(0.0);
-    var k: u32 = 0;
-    while (k < num_steps) : (k += 1) {
+    for (0..num_steps) |k| {
         // convert to nanometer
         const wl = (wl_min + @as(f32, @floatFromInt(k)) * wl_step) * 1.0e-9;
         const p = planck(temperature, wl);
@@ -24,7 +23,7 @@ pub fn blackbody(temperature: f32) Vec4f {
     }
 
     // normalize the result
-    xyz /= @as(Vec4f, @splat(math.max(xyz[0], math.max(xyz[1], xyz[2]))));
+    xyz /= @as(Vec4f, @splat(math.hmax4(xyz)));
 
     return math.max4(spectrum.XYZ_to_sRGB(xyz), @splat(0.0));
 }

@@ -5,6 +5,7 @@ const Context = @import("../scene/context.zig").Context;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
 const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
+const ShapeSampler = @import("../scene/shape/shape_sampler.zig").Sampler;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
 const Resources = @import("../resource/manager.zig").Manager;
 
@@ -35,7 +36,6 @@ pub const Material = struct {
     distribution: Distribution2D = .{},
     sun_radiance: math.ifunc.InterpolatedFunction1D(Vec4f) = .{},
     average_emission: Vec4f = @splat(-1.0),
-    total_weight: f32 = undefined,
 
     pub fn initSky(emission_map: Texture) Material {
         return Material{
@@ -62,7 +62,7 @@ pub const Material = struct {
         self.super.properties.emission_image_map = self.emission_map.isImage();
     }
 
-    pub fn setSunRadiance(self: *Material, rotation: Mat3x3, image: img.Float3) void {
+    pub fn setSunRadiance(self: *Material, sun_elevation: f32, image: img.Float3) void {
         for (self.sun_radiance.samples, 0..) |*s, i| {
             s.* = math.vec3fTo4f(image.pixels[i]);
         }
@@ -74,12 +74,12 @@ pub const Material = struct {
             const s1 = self.sun_radiance.samples[i + 1];
 
             const v = (@as(f32, @floatFromInt(i)) + 0.5) / @as(f32, @floatFromInt(self.sun_radiance.samples.len));
-            const wi = Sky.sunWi(rotation, v);
+            const wi_dot_z = Sky.sunWiDotZ(sun_elevation, v);
 
             const w = @sin(v);
             tw += w;
 
-            if (wi[1] >= 0.0) {
+            if (wi_dot_z >= 0.0) {
                 total += (s0 + s1) * @as(Vec4f, @splat(0.5 * w));
             }
         }
@@ -101,14 +101,16 @@ pub const Material = struct {
         shape: *const Shape,
         scene: *const Scene,
         threads: *Threads,
-    ) Vec4f {
-        if (self.average_emission[0] >= 0.0) {
-            // Hacky way to check whether prepare_sampling has been called before
-            // average_emission_ is initialized with negative values...
-            return self.average_emission;
+    ) !ShapeSampler {
+        if (!self.super.properties.emission_image_map) {
+            return .{ .impl = .Uniform, .average_emission = self.average_emission };
         }
 
         var avg: Vec4f = @splat(0.0);
+
+        var image_sampler = ShapeSampler{ .impl = .{
+            .Image = .{ .mode = self.emission_map.mode },
+        } };
 
         {
             const d = self.emission_map.dimensions(scene);
@@ -118,10 +120,8 @@ pub const Material = struct {
                 .shape = shape,
                 .image = scene.imagePtr(self.emission_map.data.image.id),
                 .dimensions = .{ d[0], d[1] },
-                .conditional = self.distribution.allocate(alloc, height) catch
-                    return @splat(0.0),
-                .averages = alloc.alloc(Vec4f, threads.numThreads()) catch
-                    return @splat(0.0),
+                .conditional = try image_sampler.impl.Image.distribution.allocate(alloc, height),
+                .averages = try alloc.alloc(Vec4f, threads.numThreads()),
                 .alloc = alloc,
             };
 
@@ -135,14 +135,12 @@ pub const Material = struct {
 
         const average_emission = avg / @as(Vec4f, @splat(avg[3]));
 
-        self.average_emission = average_emission;
+        image_sampler.average_emission = average_emission;
+        image_sampler.impl.Image.total_weight = avg[3];
 
-        self.total_weight = avg[3];
+        try image_sampler.impl.Image.distribution.configure(alloc);
 
-        self.distribution.configure(alloc) catch
-            return @splat(0.0);
-
-        return average_emission;
+        return image_sampler;
     }
 
     pub fn sample(wo: Vec4f, rs: Renderstate) Sample {
@@ -169,20 +167,6 @@ pub const Material = struct {
         const k = wi - rotation.r[2];
         const c = -math.dot3(rotation.r[1], k) / Sky.Radius;
         return math.max((c + 1.0) * 0.5, 0.0);
-    }
-
-    pub fn radianceSample(self: *const Material, r3: Vec4f) Base.RadianceSample {
-        const result = self.distribution.sampleContinuous(.{ r3[0], r3[1] });
-
-        return Base.RadianceSample.init2(result.uv, result.pdf * self.total_weight);
-    }
-
-    pub fn emissionPdf(self: *const Material, uv: Vec2f) f32 {
-        if (!self.emission_map.isUniform()) {
-            return self.distribution.pdf(self.emission_map.mode.address2(uv)) * self.total_weight;
-        }
-
-        return 1.0;
     }
 };
 

@@ -10,7 +10,7 @@ const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const Material = @import("../material/material.zig").Material;
+const ShapeSampler = @import("shape_sampler.zig").Sampler;
 const Context = @import("../context.zig").Context;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
@@ -268,18 +268,14 @@ pub const Sphere = struct {
         return true;
     }
 
-    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, context: Context) Vec4f {
+    pub fn emission(vertex: *const Vertex, frag: *Fragment, sampler: *Sampler, context: Context) Vec4f {
         if (!intersect(vertex.probe.ray, frag.isec.trafo, &frag.isec)) {
             return @splat(0.0);
         }
 
         fragment(vertex.probe.ray, frag);
 
-        const energy = vertex.evaluateRadiance(frag, sampler, context) orelse return @splat(0.0);
-
-        const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
-
-        return energy * weight;
+        return vertex.evaluateRadiance(frag, sampler, context);
     }
 
     pub fn scatter(
@@ -330,7 +326,7 @@ pub const Sphere = struct {
         trafo: Trafo,
         total_sphere: bool,
         split_threshold: f32,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
@@ -339,13 +335,14 @@ pub const Sphere = struct {
         const r = 0.5 * trafo.scaleX();
 
         if (l <= (r + 0.0000001)) {
+            std.debug.print("a problem \n", .{});
             return buffer[0..0];
         }
 
         const z = @as(Vec4f, @splat(1.0 / l)) * v;
         const frame = Frame.init(z);
 
-        const num_samples = material.numSamples(split_threshold);
+        const num_samples = shape_sampler.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
         var current_sample: u32 = 0;
@@ -400,12 +397,12 @@ pub const Sphere = struct {
         n: Vec4f,
         trafo: Trafo,
         total_sphere: bool,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
         const r2 = sampler.sample2D();
-        const rs = material.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+        const rs = shape_sampler.impl.sample(.{ r2[0], r2[1], 0.0, 0.0 });
         if (0.0 == rs.pdf()) {
             return buffer[0..0];
         }
@@ -472,7 +469,7 @@ pub const Sphere = struct {
         );
     }
 
-    pub fn pdf(p: Vec4f, trafo: Trafo, split_threshold: f32, material: *const Material) f32 {
+    pub fn pdf(p: Vec4f, trafo: Trafo, split_threshold: f32, shape_sampler: *const ShapeSampler) f32 {
         const v = trafo.position - p;
         const l2 = math.squaredLength3(v);
         const r = 0.5 * trafo.scaleX();
@@ -483,13 +480,13 @@ pub const Sphere = struct {
         else
             1.0 - @sqrt(math.max(1.0 - sin2_theta_max, 0.0));
 
-        const num_samples = material.numSamples(split_threshold);
+        const num_samples = shape_sampler.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
         return nsf * math.smpl.conePdfUniform(one_minus_cos_theta_max);
     }
 
-    pub fn materialPdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, material: *const Material) f32 {
+    pub fn materialPdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, shape_sampler: *const ShapeSampler) f32 {
         // avoid singularity at poles
         const sin_theta = math.max(@sin(frag.uvw[1] * std.math.pi), 0.00001);
 
@@ -499,7 +496,7 @@ pub const Sphere = struct {
         const r = 0.5 * frag.isec.trafo.scaleX();
         const area = (4.0 * std.math.pi) * (r * r);
 
-        const material_pdf = material.emissionPdf(frag.uvw);
+        const material_pdf = shape_sampler.impl.pdf(frag.uvw);
 
         return (material_pdf * sl) / (c * area * sin_theta);
     }

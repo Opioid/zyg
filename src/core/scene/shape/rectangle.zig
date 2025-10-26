@@ -7,10 +7,11 @@ const Fragment = int.Fragment;
 const DifferentialSurface = int.DifferentialSurface;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Context = @import("../context.zig").Context;
+const Portal = @import("portal.zig").Portal;
 const smpl = @import("sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
-const Material = @import("../material/material.zig").Material;
+const ShapeSampler = @import("shape_sampler.zig").Sampler;
 const Scene = @import("../scene.zig").Scene;
 const ro = @import("../ray_offset.zig");
 
@@ -184,18 +185,14 @@ pub const Rectangle = struct {
         return true;
     }
 
-    pub fn emission(vertex: *const Vertex, frag: *Fragment, split_threshold: f32, sampler: *Sampler, context: Context) Vec4f {
+    pub fn emission(vertex: *const Vertex, frag: *Fragment, sampler: *Sampler, context: Context) Vec4f {
         if (!intersect(vertex.probe.ray, frag.isec.trafo, &frag.isec)) {
             return @splat(0.0);
         }
 
         fragment(vertex.probe.ray, frag);
 
-        const energy = vertex.evaluateRadiance(frag, sampler, context) orelse return @splat(0.0);
-
-        const weight: Vec4f = @splat(context.scene.lightPdf(vertex, frag, split_threshold));
-
-        return energy * weight;
+        return vertex.evaluateRadiance(frag, sampler, context);
     }
 
     // C. Ureña & M. Fajardo & A. King / An Area-Preserving Parametrization for Spherical Rectangles
@@ -312,11 +309,11 @@ pub const Rectangle = struct {
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
-        const num_samples = material.numSamples(split_threshold);
+        const num_samples = shape_sampler.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
         const scale = trafo.scale();
@@ -406,11 +403,11 @@ pub const Rectangle = struct {
         two_sided: bool,
         total_sphere: bool,
         split_threshold: f32,
-        material: *const Material,
+        shape_sampler: *const ShapeSampler,
         sampler: *Sampler,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
-        const num_samples = material.numSamples(split_threshold);
+        const num_samples = shape_sampler.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
         const scale = trafo.scale();
@@ -419,7 +416,7 @@ pub const Rectangle = struct {
         var current_sample: u32 = 0;
         for (0..num_samples) |_| {
             const r2 = sampler.sample2D();
-            const rs = material.radianceSample(.{ r2[0], r2[1], 0.0, 0.0 });
+            const rs = shape_sampler.impl.sample(.{ r2[0], r2[1], 0.0, 0.0 });
             if (0.0 == rs.pdf()) {
                 continue;
             }
@@ -458,7 +455,69 @@ pub const Rectangle = struct {
         return buffer[0..current_sample];
     }
 
-    pub fn sampleFrom(trafo: Trafo, uv: Vec2f, importance_uv: Vec2f, two_sided: bool, sampler: *Sampler) SampleFrom {
+    pub fn samplePortalTo(
+        p: Vec4f,
+        n: Vec4f,
+        trafo: Trafo,
+        time: u64,
+        total_sphere: bool,
+        split_threshold: f32,
+        shape_sampler: *const ShapeSampler,
+        sampler: *Sampler,
+        scene: *const Scene,
+        buffer: *Scene.SamplesTo,
+    ) []SampleTo {
+        const num_samples = shape_sampler.numSamples(split_threshold);
+        const nsf: f32 = @floatFromInt(num_samples);
+
+        var current_sample: u32 = 0;
+        for (0..num_samples) |_| {
+            const r2 = sampler.sample2D();
+            const rs = shape_sampler.impl.Portal.sample(p, r2, trafo);
+            if (0.0 == rs.pdf()) {
+                continue;
+            }
+
+            const uv = Vec2f{ rs.uvw[0], rs.uvw[1] };
+            const ps = Portal.imageToWorld(uv, trafo);
+            const dir = -ps.dir;
+
+            if ((math.dot3(dir, n) <= 0.0 and !total_sphere) or 0.0 == ps.weight) {
+                continue;
+            }
+
+            const wn = trafo.rotation.r[2];
+
+            const d = math.dot3(wn, trafo.position);
+            const hit_t = -(math.dot3(wn, p) - d) / math.dot3(wn, dir);
+
+            const ws = p + @as(Vec4f, @splat(hit_t)) * dir;
+
+            const uvw = shape_sampler.impl.Portal.portalUvw(dir, time, scene);
+
+            buffer[current_sample] = SampleTo.init(
+                ws,
+                wn,
+                dir,
+                uvw,
+                (nsf * rs.pdf()) / ps.weight,
+            );
+            current_sample += 1;
+        }
+
+        return buffer[0..current_sample];
+    }
+
+    pub fn sampleFrom(
+        trafo: Trafo,
+        uv: Vec2f,
+        importance_uv: Vec2f,
+        time: u64,
+        two_sided: bool,
+        shape_sampler: *const ShapeSampler,
+        sampler: *Sampler,
+        scene: *const Scene,
+    ) SampleFrom {
         const uv2 = @as(Vec2f, @splat(-1.0)) * uv + @as(Vec2f, @splat(0.5));
         const ls = Vec4f{ uv2[0], uv2[1], 0.0, 0.0 };
         const ws = trafo.objectToWorldPoint(ls);
@@ -477,19 +536,21 @@ pub const Rectangle = struct {
         const scale = trafo.scale();
         const area = @as(f32, if (two_sided) 4.0 else 1.0) * (scale[0] * scale[1]);
 
+        const uvw = shape_sampler.impl.portalUvw(.{ uv[0], uv[1], 0.0, 0.0 }, -dir, time, scene);
+
         return SampleFrom.init(
             ro.offsetRay(ws, wn),
             wn,
             dir,
-            .{ uv[0], uv[1], 0.0, 0.0 },
+            uvw,
             importance_uv,
             trafo,
             1.0 / (std.math.pi * area),
         );
     }
 
-    pub fn pdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, split_threshold: f32, material: *const Material) f32 {
-        const num_samples = material.numSamples(split_threshold);
+    pub fn pdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, split_threshold: f32, shape_sampler: *const ShapeSampler) f32 {
+        const num_samples = shape_sampler.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
         const scale = frag.isec.trafo.scale();
@@ -511,7 +572,13 @@ pub const Rectangle = struct {
         }
     }
 
-    pub fn materialPdf(dir: Vec4f, p: Vec4f, frag: *const Fragment, split_threshold: f32, material: *const Material) f32 {
+    pub fn materialPdf(
+        dir: Vec4f,
+        p: Vec4f,
+        frag: *const Fragment,
+        split_threshold: f32,
+        shape_sampler: *const ShapeSampler,
+    ) f32 {
         const c = @abs(math.dot3(frag.isec.trafo.rotation.r[2], dir));
 
         const scale = frag.isec.trafo.scale();
@@ -519,10 +586,26 @@ pub const Rectangle = struct {
 
         const sl = math.squaredDistance3(p, frag.p);
 
-        const num_samples = material.numSamples(split_threshold);
-        const material_pdf = material.emissionPdf(frag.uvw) * @as(f32, @floatFromInt(num_samples));
+        const num_samples = shape_sampler.numSamples(split_threshold);
+        const material_pdf = shape_sampler.impl.pdf(frag.uvw) * @as(f32, @floatFromInt(num_samples));
 
         return (material_pdf * sl) / (c * area);
+    }
+
+    pub fn portalPdf(
+        dir: Vec4f,
+        p: Vec4f,
+        frag: *const Fragment,
+        split_threshold: f32,
+        shape_sampler: *const ShapeSampler,
+    ) f32 {
+        const ps = Portal.worldToImageWeighted(-dir, frag.isec.trafo) orelse return 0.0;
+
+        const ppdf = shape_sampler.impl.Portal.pdf(p, ps.uv, frag.isec.trafo);
+
+        const num_samples = shape_sampler.numSamples(split_threshold);
+
+        return (ppdf * @as(f32, @floatFromInt(num_samples))) / ps.weight;
     }
 
     pub fn surfaceDifferentials(trafo: Trafo) DifferentialSurface {

@@ -18,7 +18,7 @@ const Ray = math.Ray;
 
 const std = @import("std");
 
-pub const DistantSphere = struct {
+pub const Distant = struct {
     pub fn intersect(ray: Ray, trafo: Trafo, isec: *Intersection) bool {
         const radius = trafo.scaleX();
 

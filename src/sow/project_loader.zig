@@ -47,7 +47,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, project: *Project) !void {
         } else if (std.mem.eql(u8, "triplanar", entry.key_ptr.*)) {
             project.triplanar = json.readBool(entry.value_ptr.*);
         } else if (std.mem.eql(u8, "materials", entry.key_ptr.*)) {
-            var aw: std.io.Writer.Allocating = .init(alloc);
+            var aw: std.Io.Writer.Allocating = .init(alloc);
             try std.json.Stringify.value(entry.value_ptr.*, .{ .whitespace = .indent_4 }, &aw.writer);
             project.materials = aw.toArrayList();
         } else if (std.mem.eql(u8, "particles", entry.key_ptr.*)) {

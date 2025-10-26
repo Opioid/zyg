@@ -17,7 +17,6 @@ pub const Options = struct {
     no_tex_dwim: bool = false,
     debug_material: bool = false,
     stats: bool = false,
-    iter: bool = false,
 
     pub fn deinit(self: *Options, alloc: Allocator) void {
         for (self.mounts.items) |mount| {
@@ -35,7 +34,7 @@ pub const Options = struct {
         var iter = args;
 
         if (!iter.skip()) {
-            help();
+            try help();
             return options;
         }
 
@@ -78,7 +77,7 @@ pub const Options = struct {
 
     fn handle(self: *Options, alloc: Allocator, command: []const u8, parameter: []const u8) !void {
         if (std.mem.eql(u8, "help", command) or std.mem.eql(u8, "h", command)) {
-            help();
+            try help();
         } else if (std.mem.eql(u8, "frame", command) or std.mem.eql(u8, "f", command)) {
             self.start_frame = std.fmt.parseUnsigned(u32, parameter, 0) catch 0;
         } else if (std.mem.eql(u8, "num-frames", command) or std.mem.eql(u8, "n", command)) {
@@ -102,8 +101,6 @@ pub const Options = struct {
             self.debug_material = true;
         } else if (std.mem.eql(u8, "stats", command)) {
             self.stats = true;
-        } else if (std.mem.eql(u8, "iter", command)) {
-            self.iter = true;
         }
     }
 
@@ -123,7 +120,7 @@ pub const Options = struct {
         return true;
     }
 
-    fn help() void {
+    fn help() !void {
         const text =
             \\zyg is a global illumination renderer
             \\Usage:
@@ -155,12 +152,11 @@ pub const Options = struct {
             \\      --no-tex                    Disables loading of all textures.
             \\
             \\      --debug-mat                 Force all materials to debug material type.
-            \\
-            \\      --iter                      Prompt to render again, retaining loaded assets.
         ;
 
         var file_buffer: [4096]u8 = undefined;
         var stdout = std.fs.File.stdout().writer(&file_buffer);
-        stdout.interface.print(text, .{}) catch return;
+        try stdout.interface.print(text, .{});
+        try stdout.interface.flush();
     }
 };

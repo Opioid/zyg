@@ -12,21 +12,19 @@ const RNG = base.rnd.Generator;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const c = @cImport({
-    @cInclude("arpraguesky/ArPragueSkyModelGround.h");
-});
+const arp = @import("arp_sky");
 
 const Error = error{
     FailedToLoadSky,
 };
 
 pub const Model = struct {
-    state: *c.ArPragueSkyModelGroundState,
+    state: *arp.ArPragueSkyModelGroundState,
 
     sun_direction: Vec4f,
     shadow_direction: Vec4f,
 
-    pub const AngularRadius = c.PSMG_SUN_RADIUS;
+    pub const AngularRadius = arp.PSMG_SUN_RADIUS;
 
     const Self = @This();
 
@@ -38,7 +36,7 @@ pub const Model = struct {
 
         const sun_elevation = -std.math.asin(sun_direction[1]);
 
-        const state = c.arpragueskymodelground_state_alloc_init_handle(
+        const state = arp.arpragueskymodelground_state_alloc_init_handle(
             &stream,
             readStream,
             sun_elevation,
@@ -62,7 +60,7 @@ pub const Model = struct {
         };
     }
 
-    fn readStream(buffer: ?*anyopaque, size: usize, count: usize, stream: ?*c.FILE) callconv(.c) usize {
+    fn readStream(buffer: ?*anyopaque, size: usize, count: usize, stream: ?*arp.FILE) callconv(.c) usize {
         if (null == buffer or null == stream) {
             return 0;
         }
@@ -73,7 +71,7 @@ pub const Model = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        c.arpragueskymodelground_state_free(self.state);
+        arp.arpragueskymodelground_state_free(self.state);
     }
 
     pub fn evaluateSky(self: Self, wi: Vec4f, rng: *RNG) Vec4f {
@@ -97,7 +95,7 @@ pub const Model = struct {
             var rwl: f32 = 0.0;
 
             for (samples) |s| {
-                rwl += @as(f32, @floatCast(c.arpragueskymodelground_sky_radiance(
+                rwl += @as(f32, @floatCast(arp.arpragueskymodelground_sky_radiance(
                     self.state,
                     theta,
                     gamma,
@@ -112,9 +110,8 @@ pub const Model = struct {
         return spectrum.aces.XYZtoAP1(radiance.XYZ());
     }
 
-    pub fn evaluateSun(self: Self, wi: Vec4f, rng: *RNG) Vec4f {
-        const wi_dot_z = math.clamp(wi[1], -1.0, 1.0);
-        const theta = std.math.acos(wi_dot_z);
+    pub fn evaluateSun(self: Self, wi_dot_z: f32, rng: *RNG) Vec4f {
+        const theta = std.math.acos(math.saturate(wi_dot_z));
 
         var samples: [24]f32 = undefined;
         const num_samples: f32 = @floatFromInt(samples.len);
@@ -127,7 +124,7 @@ pub const Model = struct {
             var rwl: f32 = 0.0;
 
             for (samples) |s| {
-                rwl += @as(f32, @floatCast(c.arpragueskymodelground_solar_radiance(
+                rwl += @as(f32, @floatCast(arp.arpragueskymodelground_solar_radiance(
                     self.state,
                     theta,
                     Spectrum.randomWavelength(i, s),
