@@ -1,4 +1,7 @@
-const SummedAreaTable = @import("summed_area_table.zig").SummedAreaTable;
+const sumat = @import("summed_area_table.zig");
+const SummedAreaTable = sumat.SummedAreaTable;
+const EvaluatorX = sumat.EvaluatorX;
+const EvaluatorY = sumat.EvaluatorY;
 const Continuous = @import("distribution_2d.zig").Distribution2D.Continuous;
 const vec2 = @import("vector2.zig");
 const Vec2i = vec2.Vec2i;
@@ -25,42 +28,19 @@ pub const WindowedDistribution2D = struct {
         self.sat.deinit(alloc);
     }
 
-    const CDFX = struct {
-        b: Bounds2f,
-        sat: SummedAreaTable,
-        int: f32,
-
-        pub fn eval(self: CDFX, x: f32) f32 {
-            var bx = self.b;
-            bx.bounds[1][0] = x;
-            return self.sat.integral(bx) / self.int;
-        }
-    };
-
-    const CDFY = struct {
-        b: Bounds2f,
-        sat: SummedAreaTable,
-        int: f32,
-
-        pub fn eval(self: CDFY, y: f32) f32 {
-            var by = self.b;
-            by.bounds[1][1] = y;
-            return self.sat.integral(by) / self.int;
-        }
-    };
-
     pub fn sampleContinuous(self: Self, r2: Vec2f, b: Bounds2f) Continuous {
         const int = self.sat.integral(b);
         if (0.0 == int) {
             return .{ .uv = undefined, .pdf = 0.0 };
         }
 
-        const cdfx = CDFX{ .b = b, .sat = self.sat, .int = int };
-
-        var p: Vec2f = undefined;
-        p[0] = sampleBisection(cdfx, r2[0], b.bounds[0][0], b.bounds[1][0], self.sat.dim[0]);
+        const cdfx = EvaluatorX.init(self.sat, b, int);
 
         const nx: f32 = @floatFromInt(self.sat.dim[0]);
+
+        var p: Vec2f = undefined;
+        p[0] = sampleBisection(cdfx, r2[0], b.bounds[0][0], b.bounds[1][0], nx);
+
         var bcond = Bounds2f.init(
             .{ @floor(p[0] * nx) / nx, b.bounds[0][1] },
             .{ @ceil(p[0] * nx) / nx, b.bounds[1][1] },
@@ -75,9 +55,10 @@ pub const WindowedDistribution2D = struct {
             return .{ .uv = undefined, .pdf = 0.0 };
         }
 
-        const cdfy = CDFY{ .b = bcond, .sat = self.sat, .int = cond_int };
+        const cdfy = EvaluatorY.init(self.sat, bcond, cond_int);
 
-        p[1] = sampleBisection(cdfy, r2[1], b.bounds[0][1], b.bounds[1][1], self.sat.dim[1]);
+        const ny: f32 = @floatFromInt(self.sat.dim[1]);
+        p[1] = sampleBisection(cdfy, r2[1], b.bounds[0][1], b.bounds[1][1], ny);
 
         return .{ .uv = p, .pdf = self.eval(p) / int };
     }
@@ -91,9 +72,7 @@ pub const WindowedDistribution2D = struct {
         return self.eval(p) / int;
     }
 
-    fn sampleBisection(cdf: anytype, u: f32, imin: f32, imax: f32, n: i32) f32 {
-        const nf: f32 = @floatFromInt(n);
-
+    fn sampleBisection(cdf: anytype, u: f32, imin: f32, imax: f32, nf: f32) f32 {
         var min = imin;
         var max = imax;
         while (@ceil(nf * max) - @floor(nf * min) > 1.0) {
