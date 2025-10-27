@@ -193,6 +193,7 @@ pub const Material = struct {
         return .{
             .impl = .{ .Portal = .{ .distribution = wdf, .light_link = light_link } },
             .average_emission = rad * average_emission,
+            .num_samples = self.emittance.num_samples,
         };
     }
 };
