@@ -16,6 +16,7 @@ const math = base.math;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 const AABB = math.AABB;
+const Bounds2f = math.Bounds2f;
 const Distribution1D = math.Distribution1D;
 const Distribution2D = math.Distribution2D;
 const Distribution3D = math.Distribution3D;
@@ -267,10 +268,8 @@ const PortalImpl = struct {
         };
     }
 
-    pub fn sample(self: *const Self, p: Vec4f, r2: Vec2f, trafo: Trafo) RadianceSample {
-        const b = Portal.imageBounds(p, trafo) orelse return .init2(undefined, 0.0);
-
-        const rs = self.distribution.sampleContinuous(r2, b);
+    pub fn sample(self: *const Self, bounds: Bounds2f, r2: Vec2f) RadianceSample {
+        const rs = self.distribution.sampleContinuous(r2, bounds);
 
         return .init2(rs.uv, rs.pdf);
     }
