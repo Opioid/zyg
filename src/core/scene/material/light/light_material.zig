@@ -234,8 +234,7 @@ const LuminanceContext = struct {
 
                 avg += Vec4f{ wr[0], wr[1], wr[2], uv_weight };
 
-                //   self.luminance[row + x] = spectrum.luminance(wr);
-                self.luminance[row + x] = math.hmax3(wr); // spectrum.luminance(wr);
+                self.luminance[row + x] = math.hmax3(wr);
             }
         }
 
@@ -362,13 +361,13 @@ const PortalLuminanceContext = struct {
 
                         const dome_uv = Dome.worldToImage(dir, dome_trafo);
 
-                        const radiance = ts.sampleImage2D_3(self.texture, dome_uv, 0.5, self.scene);
+                        const radiance = ts.sampleImageNearest2D_3(self.texture, dome_uv, self.scene);
 
                         luminance += math.hmax3(radiance) * ps.weight;
                     }
                 }
 
-                self.luminance[row + x] = luminance / @as(f32, @floatFromInt(subsamples * subsamples));
+                self.luminance[row + x] = luminance / (nsf * nsf);
             }
         }
     }
