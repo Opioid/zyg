@@ -3,6 +3,7 @@ const GzipStream = @import("gzip_read_stream.zig").GzipReadStream;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Io = std.Io;
 
 pub const ReadStream = union(enum) {
     const Error = error{

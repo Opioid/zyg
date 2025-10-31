@@ -48,6 +48,9 @@ pub fn main() !void {
 
     const alloc = std.heap.c_allocator;
 
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+
     var args = try std.process.argsWithAllocator(alloc);
     var options = try Options.parse(alloc, args);
     args.deinit();
@@ -62,7 +65,7 @@ pub fn main() !void {
     var graph = try Graph.init(alloc);
     defer graph.deinit(alloc);
 
-    var resources = try Resources.init(alloc, &graph.scene, &threads);
+    var resources = try Resources.init(alloc, io, &graph.scene, &threads);
     defer resources.deinit(alloc);
 
     resources.materials.provider.setSettings(false, false, false);

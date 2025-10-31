@@ -21,6 +21,7 @@ const Pack4f = math.Pack4f;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Io = std.Io;
 
 const Num_particles_per_chunk = 1024;
 
@@ -113,10 +114,10 @@ pub const Driver = struct {
         }
     }
 
-    pub fn render(self: *Driver, alloc: Allocator, camera_id: u32, frame: u32, iteration: u32, num_samples: u32) !void {
+    pub fn render(self: *Driver, alloc: Allocator, io: Io, camera_id: u32, frame: u32, iteration: u32, num_samples: u32) !void {
         log.info("Camera {} Frame {}", .{ camera_id, frame });
 
-        const render_start = std.time.milliTimestamp();
+        const render_start = chrono.now(io);
 
         const camera = &self.view.cameras.items[camera_id];
 
@@ -142,14 +143,14 @@ pub const Driver = struct {
         self.frame_iteration = iteration;
         self.frame_iteration_samples = if (num_samples > 0) num_samples else view.num_samples_per_pixel;
 
-        log.info("Preparation time {d:.3} s", .{chrono.secondsSince(render_start)});
+        log.info("Preparation time {d:.3} s", .{chrono.secondsSince(io, render_start)});
 
-        self.bakePhotons(alloc);
+        self.bakePhotons(alloc, io);
 
-        self.renderFrameBackward(camera_id);
-        self.renderFrameForward(camera_id);
+        self.renderFrameBackward(io, camera_id);
+        self.renderFrameForward(io, camera_id);
 
-        log.info("Render time {d:.3} s", .{chrono.secondsSince(render_start)});
+        log.info("Render time {d:.3} s", .{chrono.secondsSince(io, render_start)});
     }
 
     pub fn startFrame(self: *Driver, alloc: Allocator, camera_id: u32, frame: u32, progressive: bool) !void {
@@ -222,8 +223,8 @@ pub const Driver = struct {
         return self.resolveAovToBuffer(layer_id, class, self.target.pixels.ptr, num_pixels);
     }
 
-    pub fn exportFrame(self: *Driver, alloc: Allocator, camera_id: u32, frame: u32, exporters: []Sink) !void {
-        const start = std.time.milliTimestamp();
+    pub fn exportFrame(self: *Driver, alloc: Allocator, io: Io, camera_id: u32, frame: u32, exporters: []Sink) !void {
+        const start = chrono.now(io);
 
         const camera = &self.view.cameras.items[camera_id];
 
@@ -250,17 +251,17 @@ pub const Driver = struct {
             }
         }
 
-        log.info("Export time {d:.3} s", .{chrono.secondsSince(start)});
+        log.info("Export time {d:.3} s", .{chrono.secondsSince(io, start)});
     }
 
-    fn renderFrameBackward(self: *Driver, camera_id: u32) void {
+    fn renderFrameBackward(self: *Driver, io: Io, camera_id: u32) void {
         if (0 == self.ranges.size()) {
             return;
         }
 
         log.info("Tracing light rays...", .{});
 
-        const start = std.time.milliTimestamp();
+        const start = chrono.now(io);
 
         const camera = &self.view.cameras.items[camera_id];
         var sensor = &self.view.sensor;
@@ -288,7 +289,7 @@ pub const Driver = struct {
             }
         }
 
-        log.info("Light ray time {d:.3} s", .{chrono.secondsSince(start)});
+        log.info("Light ray time {d:.3} s", .{chrono.secondsSince(io, start)});
     }
 
     fn renderTiles(context: Threads.Context, id: u32) void {
@@ -307,13 +308,13 @@ pub const Driver = struct {
         }
     }
 
-    fn renderFrameForward(self: *Driver, camera_id: u32) void {
+    fn renderFrameForward(self: *Driver, io: Io, camera_id: u32) void {
         if (0 == self.view.num_samples_per_pixel) {
             return;
         }
 
         log.info("Tracing camera rays...", .{});
-        const start = std.time.milliTimestamp();
+        const start = chrono.now(io);
 
         const camera = &self.view.cameras.items[camera_id];
         var sensor = &self.view.sensor;
@@ -333,7 +334,7 @@ pub const Driver = struct {
             self.threads.runParallel(self, renderTiles, 0);
         }
 
-        log.info("Camera ray time {d:.3} s", .{chrono.secondsSince(start)});
+        log.info("Camera ray time {d:.3} s", .{chrono.secondsSince(io, start)});
     }
 
     fn renderFrameIterationForward(self: *Driver) void {
@@ -362,7 +363,7 @@ pub const Driver = struct {
         }
     }
 
-    fn bakePhotons(self: *Driver, alloc: Allocator) void {
+    fn bakePhotons(self: *Driver, alloc: Allocator, io: Io) void {
         const num_photons = self.view.photon_settings.num_photons;
 
         if (0 == num_photons) {
@@ -370,7 +371,7 @@ pub const Driver = struct {
         }
 
         log.info("Baking photons...", .{});
-        const start = std.time.milliTimestamp();
+        const start = chrono.now(io);
 
         for (self.workers, 0..) |*w, i| {
             w.rng.start(0, i);
@@ -419,7 +420,7 @@ pub const Driver = struct {
 
         self.photon_map.compileFinalize();
 
-        log.info("Photon time {d:.3} s", .{chrono.secondsSince(start)});
+        log.info("Photon time {d:.3} s", .{chrono.secondsSince(io, start)});
     }
 
     fn bakeRanges(context: Threads.Context, id: u32, begin: u32, end: u32) void {
