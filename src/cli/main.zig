@@ -19,6 +19,7 @@ const Vec2i = base.math.Vec2i;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Io = std.Io;
 
 pub fn main() !void {
     // core.size_test.testSize();
@@ -30,6 +31,9 @@ pub fn main() !void {
 
     // const alloc = da.allocator();
     const alloc = std.heap.c_allocator;
+
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
 
     var args = try std.process.argsWithAllocator(alloc);
     var options = try Options.parse(alloc, args);
@@ -56,7 +60,7 @@ pub fn main() !void {
     var graph = try Graph.init(alloc);
     defer graph.deinit(alloc);
 
-    var resources = try Resources.init(alloc, &graph.scene, &threads);
+    var resources = try Resources.init(alloc, io, &graph.scene, &threads);
     defer resources.deinit(alloc);
 
     resources.materials.provider.setSettings(options.no_tex, options.no_tex_dwim, options.debug_material);
@@ -81,7 +85,7 @@ pub fn main() !void {
 
     log.info("Loading...", .{});
 
-    const loading_start = std.time.milliTimestamp();
+    const loading_start = chrono.now(io);
 
     if (try loadTakeAndScene(
         alloc,
@@ -91,7 +95,7 @@ pub fn main() !void {
         &scene_loader,
         &resources,
     )) {
-        log.info("Loading time {d:.2} s", .{chrono.secondsSince(loading_start)});
+        log.info("Loading time {d:.2} s", .{chrono.secondsSince(io, loading_start)});
 
         if (options.stats) {
             printStats(&graph.scene);
@@ -99,7 +103,7 @@ pub fn main() !void {
 
         log.info("Rendering...", .{});
 
-        const rendering_start = std.time.milliTimestamp();
+        const rendering_start = chrono.now(io);
 
         try driver.configure(alloc, &graph.take.view, &graph.scene);
 
@@ -108,6 +112,7 @@ pub fn main() !void {
         while (i < end) : (i += 1) {
             reloadFrameDependant(
                 alloc,
+                io,
                 i,
                 &graph,
                 &scene_loader,
@@ -119,12 +124,12 @@ pub fn main() !void {
                 graph.simulate(start, start + camera.super().frame_duration);
 
                 const camera_id: u32 = @intCast(cid);
-                try driver.render(alloc, camera_id, i, options.sample, options.num_samples);
-                try driver.exportFrame(alloc, camera_id, i, graph.take.exporters.items);
+                try driver.render(alloc, io, camera_id, i, options.sample, options.num_samples);
+                try driver.exportFrame(alloc, io, camera_id, i, graph.take.exporters.items);
             }
         }
 
-        log.info("Total render time {d:.2} s", .{chrono.secondsSince(rendering_start)});
+        log.info("Total render time {d:.2} s", .{chrono.secondsSince(io, rendering_start)});
     }
 }
 
@@ -164,6 +169,7 @@ fn loadTakeAndScene(
 
 fn reloadFrameDependant(
     alloc: Allocator,
+    io: Io,
     frame: u32,
     graph: *Graph,
     scene_loader: *SceneLoader,
@@ -184,7 +190,7 @@ fn reloadFrameDependant(
 
     log.info("Loading...", .{});
 
-    const loading_start = std.time.milliTimestamp();
+    const loading_start = chrono.now(io);
 
     try graph.scene.commitMaterials(alloc, resources.threads);
     graph.clear(alloc, false);
@@ -206,7 +212,7 @@ fn reloadFrameDependant(
         return err;
     };
 
-    log.info("Loading time {d:.2} s", .{chrono.secondsSince(loading_start)});
+    log.info("Loading time {d:.2} s", .{chrono.secondsSince(io, loading_start)});
 }
 
 fn printStats(scene: *const scn.Scene) void {

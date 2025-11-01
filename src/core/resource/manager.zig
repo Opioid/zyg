@@ -16,6 +16,7 @@ const Variants = base.memory.VariantMap;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Io = std.Io;
 
 const Error = error{
     UnknownResource,
@@ -45,11 +46,11 @@ pub const Manager = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator, scene: *Scene, threads: *Threads) !Self {
+    pub fn init(alloc: Allocator, io: Io, scene: *Scene, threads: *Threads) !Self {
         return Self{
             .scene = scene,
             .threads = threads,
-            .fs = try Filesystem.init(alloc),
+            .fs = try Filesystem.init(alloc, io),
             .images = Images.init(.{}, &scene.images),
             .materials = Materials.init(.{}, &scene.materials),
             .shapes = Shapes.init(.{}, &scene.shapes),

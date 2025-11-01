@@ -24,6 +24,7 @@ const Threads = base.thread.Pool;
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Io = std.Io;
 
 const Format = enum(u32) {
     UInt8,
@@ -35,6 +36,7 @@ const Format = enum(u32) {
 
 const Engine = struct {
     alloc: Allocator,
+    io: Io,
 
     threads: Threads = .{},
 
@@ -59,7 +61,10 @@ export fn su_init() i32 {
 
     const alloc = std.heap.c_allocator;
 
-    engine = .{ .alloc = alloc };
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+
+    engine = .{ .alloc = alloc, .io = io };
 
     if (engine) |*e| {
         const num_workers = Threads.availableCores(0);
@@ -79,7 +84,7 @@ export fn su_init() i32 {
             return -1;
         };
 
-        e.resources = Resources.init(alloc, &e.scene, &e.threads) catch {
+        e.resources = Resources.init(alloc, io, &e.scene, &e.threads) catch {
             engine = null;
             return -1;
         };
@@ -551,7 +556,7 @@ export fn su_render_frame(frame: u32) i32 {
 
         e.frame = frame;
 
-        e.driver.render(e.alloc, 0, frame, 0, 0) catch {
+        e.driver.render(e.alloc, e.io, 0, frame, 0, 0) catch {
             return -1;
         };
 
@@ -563,7 +568,7 @@ export fn su_render_frame(frame: u32) i32 {
 
 export fn su_export_frame() i32 {
     if (engine) |*e| {
-        e.driver.exportFrame(e.alloc, 0, e.frame, e.take.exporters.items) catch {
+        e.driver.exportFrame(e.alloc, e.io, 0, e.frame, e.take.exporters.items) catch {
             return -1;
         };
 

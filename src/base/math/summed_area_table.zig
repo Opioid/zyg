@@ -105,13 +105,19 @@ pub const SummedAreaTable = struct {
         return math.max(s / area, 0.0);
     }
 
-    pub fn lookup(self: Self, xx0: i32, xx1: i32, yy0: i32, yy1: i32, dx: f32, dy: f32, w: i32) f32 {
-        const v00 = self.buffer[index(xx0, yy0, w)];
-        const v10 = self.buffer[index(xx1, yy0, w)];
-        const v01 = self.buffer[index(xx0, yy1, w)];
-        const v11 = self.buffer[index(xx1, yy1, w)];
+    pub fn lookup(self: Self, x0: i32, x1: i32, y0: i32, y1: i32, dx: f32, dy: f32, w: i32) f32 {
+        const y0w = y0 * w;
+        const y1w = y1 * w;
 
-        return (1.0 - dx) * (1.0 - dy) * v00 + (1.0 - dx) * dy * v01 + dx * (1.0 - dy) * v10 + dx * dy * v11;
+        const v00 = self.buffer[@intCast(x0 + y0w)];
+        const v10 = self.buffer[@intCast(x1 + y0w)];
+        const v01 = self.buffer[@intCast(x0 + y1w)];
+        const v11 = self.buffer[@intCast(x1 + y1w)];
+
+        const odx = 1.0 - dx;
+        const ody = 1.0 - dy;
+
+        return ody * (odx * v00 + dx * v10) + dy * (odx * v01 + dx * v11);
     }
 
     inline fn index(x: i32, y: i32, w: i32) u32 {

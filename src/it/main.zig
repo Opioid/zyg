@@ -27,6 +27,9 @@ pub fn main() !void {
     // const alloc = da.allocator();
     const alloc = std.heap.c_allocator;
 
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+
     var args = try std.process.argsWithAllocator(alloc);
     var options = try Options.parse(alloc, args);
     args.deinit();
@@ -43,10 +46,10 @@ pub fn main() !void {
     var scene = try scn.Scene.init(alloc);
     defer scene.deinit(alloc);
 
-    var resources = try resource.Manager.init(alloc, &scene, &threads);
+    var resources = try resource.Manager.init(alloc, io, &scene, &threads);
     defer resources.deinit(alloc);
 
-    const loading_start = std.time.milliTimestamp();
+    const loading_start = chrono.now(io);
 
     var image_options: Variants = .{};
     defer image_options.deinit(alloc);
@@ -129,7 +132,7 @@ pub fn main() !void {
         try write(alloc, input_name, output_name, operator.class, operator.target, &writer, encoding, format, &threads);
     }
 
-    log.info("Total render time {d:.2} s", .{chrono.secondsSince(loading_start)});
+    log.info("Total render time {d:.2} s", .{chrono.secondsSince(io, loading_start)});
 }
 
 fn write(

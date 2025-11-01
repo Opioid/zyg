@@ -467,13 +467,15 @@ pub const Rectangle = struct {
         scene: *const Scene,
         buffer: *Scene.SamplesTo,
     ) []SampleTo {
+        const bounds = Portal.imageBounds(p, trafo) orelse return buffer[0..0];
+
         const num_samples = shape_sampler.numSamples(split_threshold);
         const nsf: f32 = @floatFromInt(num_samples);
 
         var current_sample: u32 = 0;
         for (0..num_samples) |_| {
             const r2 = sampler.sample2D();
-            const rs = shape_sampler.impl.Portal.sample(p, r2, trafo);
+            const rs = shape_sampler.impl.Portal.sample(bounds, r2);
             if (0.0 == rs.pdf()) {
                 continue;
             }

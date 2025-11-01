@@ -5,8 +5,11 @@ const fl = @import("file.zig");
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Io = std.Io;
 
 pub const System = struct {
+    io: Io,
+
     mounts: std.ArrayList([]u8) = .empty,
 
     name_buffer: []u8,
@@ -17,11 +20,11 @@ pub const System = struct {
     stream: FileReadStream = undefined,
     gzip_stream: GzipReadStream = undefined,
 
-    pub fn init(alloc: Allocator) !System {
+    pub fn init(alloc: Allocator, io: Io) !System {
         const buffer = try alloc.alloc(u8, 256);
         @memset(buffer, 0);
 
-        return System{ .name_buffer = buffer };
+        return System{ .io = io, .name_buffer = buffer };
     }
 
     pub fn deinit(self: *System, alloc: Allocator) void {
@@ -106,14 +109,14 @@ pub const System = struct {
                 continue;
             };
 
-            self.stream.setFile(file);
+            self.stream.setFile(self.io, file);
             return ReadStream.initFile(&self.stream);
         }
 
         @memcpy(self.name_buffer[0..modified_name.len], modified_name);
         self.resolved_name_len = @intCast(modified_name.len);
 
-        self.stream.setFile(try std.fs.cwd().openFile(modified_name, .{}));
+        self.stream.setFile(self.io, try std.fs.cwd().openFile(modified_name, .{}));
         return ReadStream.initFile(&self.stream);
     }
 

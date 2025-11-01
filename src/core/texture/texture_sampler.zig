@@ -56,6 +56,10 @@ pub fn sampleImage2D_3(texture: Texture, st: Vec2f, r: f32, scene: *const Scene)
     };
 }
 
+pub fn sampleImageNearest2D_3(texture: Texture, st: Vec2f, scene: *const Scene) Vec4f {
+    return Nearest2D.sample_3(texture, st, scene);
+}
+
 pub fn sample2D_3(texture: Texture, rs: Renderstate, sampler: *Sampler, context: Context) Vec4f {
     switch (texture.type) {
         .Uniform => return texture.uniform3(),
