@@ -1,3 +1,5 @@
+const gilbert = @import("gilbert.zig");
+
 const math = @import("base").math;
 const Vec2i = math.Vec2i;
 const Vec2ul = math.Vec2ul;
@@ -9,10 +11,10 @@ const std = @import("std");
 pub const TileQueue = struct {
     crop: Vec4i,
 
+    num_tiles: Vec2i,
+
     tile_dimensions: i32,
     filter_radius: i32,
-    tiles_per_row: i32,
-    num_tiles: i32,
 
     current_consume: i32,
 
@@ -26,18 +28,16 @@ pub const TileQueue = struct {
         const xy = Vec2i{ crop[0], crop[1] };
         const zw = Vec2i{ crop[2], crop[3] };
         const dim: Vec2f = @floatFromInt(zw - xy);
-        const tdf: f32 = @floatFromInt(tile_dimensions);
+        const tdf: Vec2f = @splat(@floatFromInt(tile_dimensions));
 
-        const tiles_per_row: i32 = @intFromFloat(@ceil(dim[0] / tdf));
-        const tiles_per_col: i32 = @intFromFloat(@ceil(dim[1] / tdf));
+        self.num_tiles = @intFromFloat(@ceil(dim / tdf));
 
-        self.tiles_per_row = tiles_per_row;
-        self.num_tiles = tiles_per_row * tiles_per_col;
         self.current_consume = 0;
     }
 
     pub fn size(self: Self) u32 {
-        return @intCast(self.num_tiles);
+        const nt = self.num_tiles;
+        return @intCast(nt[0] * nt[1]);
     }
 
     pub fn restart(self: *Self) void {
@@ -47,7 +47,9 @@ pub const TileQueue = struct {
     pub fn pop(self: *Self) ?Vec4i {
         const current = @atomicRmw(i32, &self.current_consume, .Add, 1, .monotonic);
 
-        if (current >= self.num_tiles) {
+        const num_tiles = self.num_tiles;
+
+        if (current >= num_tiles[0] * num_tiles[1]) {
             return null;
         }
 
@@ -55,9 +57,7 @@ pub const TileQueue = struct {
         const tile_dimensions = self.tile_dimensions;
         const filter_radius = self.filter_radius;
 
-        var start: Vec2i = undefined;
-        start[1] = @divTrunc(current, self.tiles_per_row);
-        start[0] = current - start[1] * self.tiles_per_row;
+        var start = gilbert.gilbert_d2xy(current, num_tiles);
 
         start *= @splat(tile_dimensions);
         start += Vec2i{ crop[0], crop[1] };
