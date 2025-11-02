@@ -37,7 +37,7 @@ pub const Probe = struct {
         };
     }
 
-    pub fn clone(self: *const Probe, ray: Ray) Probe {
+    pub fn clone(self: Probe, ray: Ray) Probe {
         return .{
             .ray = ray,
             .depth = self.depth,

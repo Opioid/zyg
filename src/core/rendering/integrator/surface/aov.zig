@@ -14,7 +14,6 @@ const base = @import("base");
 const math = base.math;
 const Ray = math.Ray;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 
 const std = @import("std");
 

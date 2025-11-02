@@ -540,7 +540,7 @@ pub const Shape = union(enum) {
         };
     }
 
-    pub fn hasShapeSampler(self: *Shape) bool {
+    pub fn hasShapeSampler(self: *const Shape) bool {
         return switch (self.*) {
             .TriangleMesh => true,
             else => false,
