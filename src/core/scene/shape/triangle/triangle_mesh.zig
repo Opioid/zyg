@@ -505,6 +505,9 @@ pub const Mesh = struct {
         const op = trafo.worldToObjectPoint(p);
         const on = trafo.worldToObjectNormal(n);
 
+        const scale = trafo.scale() * trafo.scale();
+        const scale_squared = scale * scale;
+
         const part = self.parts[part_id];
 
         var samples_buffer: LightTree.Samples = undefined;
@@ -526,7 +529,7 @@ pub const Mesh = struct {
 
             const cross_axis = math.cross3(e1, e2);
 
-            const ca = (trafo.scale() * trafo.scale()) * cross_axis;
+            const ca = scale_squared * cross_axis;
             const lca = math.length3(ca);
             const sn = ca / @as(Vec4f, @splat(lca));
             var wn = trafo.objectToWorldNormal(sn);
