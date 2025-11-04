@@ -115,7 +115,7 @@ pub const Fragment = struct {
     pub fn offsetP(self: Self, v: Vec4f) Vec4f {
         const p = self.p;
         const n = if (self.sameHemisphere(v)) self.geo_n else -self.geo_n;
-        return ro.offsetRay(p + @as(Vec4f, @splat(self.offset())) * n, n);
+        return ro.offsetRay(@mulAdd(Vec4f, @splat(self.offset()), n, p), n);
     }
 
     pub fn offsetRay(self: Self, dir: Vec4f, max_t: f32) Ray {

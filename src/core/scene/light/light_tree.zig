@@ -201,7 +201,7 @@ fn importance(
     const sin_cu = math.min(radius / l, 1.0);
     const cos_cone = cone[3];
     const cos_a = math.safe.absDotC(da, na, two_sided);
-    const cos_n = math.max(-math.dot3(n, na), math.safe.DotMin);
+    const cos_n = math.max(-math.dot3(n, na), 0.0);
 
     const sa = Vec4f{ sin_cu, cos_cone, cos_a, cos_n };
     const sb = math.max4(@as(Vec4f, @splat(1.0)) - sa * sa, @splat(0.0));

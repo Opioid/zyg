@@ -25,6 +25,6 @@ pub const Ray = struct {
     }
 
     pub fn point(self: Ray, t: f32) Vec4f {
-        return self.origin + @as(Vec4f, @splat(t)) * self.direction;
+        return @mulAdd(Vec4f, @splat(t), self.direction, self.origin);
     }
 };

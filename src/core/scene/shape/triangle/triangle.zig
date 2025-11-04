@@ -123,8 +123,8 @@ pub fn positionDifferentials(pa: Vec4f, pb: Vec4f, pc: Vec4f, uva: Vec2f, uvb: V
     } else {
         const invdet = 1.0 / determinant;
 
-        dpdu = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(duv12[1])) * dp02 - @as(Vec4f, @splat(duv02[1])) * dp12);
-        dpdv = @as(Vec4f, @splat(invdet)) * (@as(Vec4f, @splat(-duv12[0])) * dp02 + @as(Vec4f, @splat(duv02[0])) * dp12);
+        dpdu = @as(Vec4f, @splat(invdet)) * @mulAdd(Vec4f, @splat(duv12[1]), dp02, @as(Vec4f, @splat(-duv02[1])) * dp12);
+        dpdv = @as(Vec4f, @splat(invdet)) * @mulAdd(Vec4f, @splat(-duv12[0]), dp02, @as(Vec4f, @splat(duv02[0])) * dp12);
     }
 
     return .{ dpdu, dpdv };
@@ -132,12 +132,20 @@ pub fn positionDifferentials(pa: Vec4f, pb: Vec4f, pc: Vec4f, uva: Vec2f, uvb: V
 
 pub inline fn interpolate2(a: Vec2f, b: Vec2f, c: Vec2f, u: f32, v: f32) Vec2f {
     const w = 1.0 - u - v;
-    return a * @as(Vec2f, @splat(w)) + b * @as(Vec2f, @splat(u)) + c * @as(Vec2f, @splat(v));
+    //  return a * @as(Vec2f, @splat(w)) + b * @as(Vec2f, @splat(u)) + c * @as(Vec2f, @splat(v));
+
+    const temp0 = @mulAdd(Vec2f, b, @splat(u), c * @as(Vec2f, @splat(v)));
+
+    return @mulAdd(Vec2f, a, @splat(w), temp0);
 }
 
 pub inline fn interpolate3(a: Vec4f, b: Vec4f, c: Vec4f, u: f32, v: f32) Vec4f {
     const w = 1.0 - u - v;
-    return a * @as(Vec4f, @splat(w)) + b * @as(Vec4f, @splat(u)) + c * @as(Vec4f, @splat(v));
+    //  return a * @as(Vec4f, @splat(w)) + b * @as(Vec4f, @splat(u)) + c * @as(Vec4f, @splat(v));
+
+    const temp0 = @mulAdd(Vec4f, b, @splat(u), c * @as(Vec4f, @splat(v)));
+
+    return @mulAdd(Vec4f, a, @splat(w), temp0);
 }
 
 pub inline fn area(a: Vec4f, b: Vec4f, c: Vec4f) f32 {
