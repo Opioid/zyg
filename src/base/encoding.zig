@@ -1,4 +1,5 @@
 const math = @import("math/math.zig");
+const Vec2us = math.Vec2us;
 const Vec2f = math.Vec2f;
 const Vec4f = math.Vec4f;
 
@@ -11,7 +12,7 @@ pub fn unorm8ToFloat(norm: u8) f32 {
 }
 
 pub fn floatToSnorm8(x: f32) u8 {
-    return @intFromFloat((x + 1.0) * (if (x > 0.0) @as(f32, 127.5) else @as(f32, 128.0)));
+    return @intFromFloat((x + 1.0) * (if (x > 0.0) 127.5 else 128.0));
 }
 
 pub fn snorm8ToFloat(byte: u8) f32 {
@@ -58,7 +59,7 @@ pub fn unorm16ToFloat(norm: anytype) normToFloatType(@TypeOf(norm)) {
 
 pub fn floatToSnorm16(x: anytype) floatToNorm16Type(@TypeOf(x)) {
     return switch (@typeInfo(@TypeOf(x))) {
-        .float => @intFromFloat((x + 1.0) * (if (x > 0.0) @as(f32, 32767.5) else @as(f32, 32768.0))),
+        .float => @intFromFloat((x + 1.0) * (if (x > 0.0) 32767.5 else 32768.0)),
         .vector => |vector| {
             const Type = @Vector(vector.len, f32);
             return @intFromFloat((x + @as(Type, @splat(1.0))) * @select(f32, x > @as(Type, @splat(0.0)), @as(Type, @splat(32767.5)), @as(Type, @splat(32768.0))));
@@ -94,4 +95,14 @@ pub fn octDecode(o: Vec2f) Vec4f {
     v[1] += if (v[1] > 0.0) -t else t;
 
     return math.normalize3(v);
+}
+
+pub fn compressNormal(n: Vec4f) Vec2us {
+    const o = octEncode(n);
+    return floatToSnorm16(o);
+}
+
+pub fn decompressNormal(c: Vec2us) Vec4f {
+    const f = snorm16ToFloat(c);
+    return octDecode(f);
 }
