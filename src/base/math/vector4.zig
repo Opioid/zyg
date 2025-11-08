@@ -118,7 +118,7 @@ pub inline fn tangent3(n: Vec4f) Vec4f {
 }
 
 pub inline fn gramSchmidt(v: Vec4f, w: Vec4f) Vec4f {
-    return v - @as(Vec4f, @splat(dot3(v, w))) * w;
+    return @mulAdd(Vec4f, @splat(-dot3(v, w)), w, v);
 }
 
 pub inline fn min4(a: Vec4f, b: Vec4f) Vec4f {

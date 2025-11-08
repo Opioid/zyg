@@ -390,7 +390,7 @@ pub const Mesh = struct {
     //Gram-Schmidt method
     fn orthogonalize(a: Vec4f, b: Vec4f) Vec4f {
         //we assume that a is normalized
-        return math.normalize3(b - @as(Vec4f, @splat(math.dot3(a, b))) * a);
+        return math.normalize3(@mulAdd(Vec4f, @splat(-math.dot3(a, b)), a, b));
     }
 
     const SphericalSample = struct {

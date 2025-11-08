@@ -31,11 +31,9 @@ pub const Frame = struct {
         var result: Vec4f = @splat(v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
         result = result * self.x;
         var temp: Vec4f = @splat(v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
-        temp = temp * self.y;
-        result = result + temp;
+        result = @mulAdd(Vec4f, temp, self.y, result);
         temp = @splat(v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
-        temp = temp * self.z;
-        return result + temp;
+        return @mulAdd(Vec4f, temp, self.z, result);
     }
 
     pub fn worldToFrame(self: Frame, v: Vec4f) Vec4f {
