@@ -1,0 +1,12 @@
+[
+  {
+    "label": "Build Debug",
+    "command": "zig build",
+    "cwd": "$ZED_WORKTREE_ROOT"
+  },
+  {
+    "label": "Build&Run Release",
+    "command": "zig build -Doptimize=ReleaseFast run",
+    "cwd": "$ZED_WORKTREE_ROOT"
+  }
+]

@@ -102,7 +102,7 @@ pub fn build(b: *std.Build) void {
     cli.root_module.addImport("util", util);
 
     cli.linkLibC();
-    cli.root_module.strip = true;
+    cli.root_module.strip = .Debug != optimize;
     b.installArtifact(cli);
 
     // C-API
@@ -118,7 +118,7 @@ pub fn build(b: *std.Build) void {
     it.root_module.addImport("core", core);
 
     it.linkLibC();
-    it.root_module.strip = true;
+    it.root_module.strip = .Debug != optimize;
     b.installArtifact(it);
 
     // sow
@@ -126,7 +126,7 @@ pub fn build(b: *std.Build) void {
     sow.root_module.addImport("core", core);
     sow.root_module.addImport("util", util);
 
-    sow.root_module.strip = true;
+    sow.root_module.strip = .Debug != optimize;
     b.installArtifact(sow);
 
     // run zyg
