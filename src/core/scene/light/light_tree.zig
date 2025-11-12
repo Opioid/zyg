@@ -204,7 +204,7 @@ fn importance(
     const cos_n = math.max(-math.dot3(n, na), 0.0);
 
     const sa = Vec4f{ sin_cu, cos_cone, cos_a, cos_n };
-    const sb = math.max4(@as(Vec4f, @splat(1.0)) - sa * sa, @splat(0.0));
+    const sb = math.max4(@mulAdd(Vec4f, sa, -sa, @splat(1.0)), @splat(0.0));
     const sr = @sqrt(sb);
 
     const cos_cu = sr[0];
@@ -227,12 +227,12 @@ fn importance(
 }
 
 fn clampedCosSub(cos_a: f32, cos_b: f32, sin_a: f32, sin_b: f32) f32 {
-    const angle = cos_a * cos_b + sin_a * sin_b;
+    const angle = @mulAdd(f32, cos_a, cos_b, sin_a * sin_b);
     return if (cos_a > cos_b) 1.0 else angle;
 }
 
 fn clampedSinSub(cos_a: f32, cos_b: f32, sin_a: f32, sin_b: f32) f32 {
-    const angle = sin_a * cos_b - sin_b * cos_a;
+    const angle = @mulAdd(f32, sin_a, cos_b, -sin_b * cos_a);
     return if (cos_a > cos_b) 0.0 else angle;
 }
 

@@ -237,8 +237,8 @@ pub const Perspective = struct {
 
         const ss: Vec4f = @splat(self.super.sample_spacing);
 
-        const x_dir_w = math.normalize3(dir_w + ss * d_x_w);
-        const y_dir_w = math.normalize3(dir_w + ss * d_y_w);
+        const x_dir_w = math.normalize3(@mulAdd(Vec4f, ss, d_x_w, dir_w));
+        const y_dir_w = math.normalize3(@mulAdd(Vec4f, ss, d_y_w, dir_w));
 
         return .{
             .x_origin = p_w,

@@ -91,9 +91,7 @@ fn worley_distance3(p: Vec4f, xyz: Vec4i, offset: Vec4i, jitter: f32) f32 {
 fn worley_cell_position2(xy: Vec2i, offset: Vec2i, jitter: f32) Vec2f {
     var off = cellNoise2(@floatFromInt(xy + offset));
 
-    off -= @splat(0.5);
-    off *= @splat(jitter);
-    off += @splat(0.5);
+    off = @mulAdd(Vec2f, off - @as(Vec2f, @splat(0.5)), @splat(jitter), @splat(0.5));
 
     return @as(Vec2f, @floatFromInt(xy)) + off;
 }
@@ -101,9 +99,7 @@ fn worley_cell_position2(xy: Vec2i, offset: Vec2i, jitter: f32) Vec2f {
 fn worley_cell_position3(xyz: Vec4i, offset: Vec4i, jitter: f32) Vec4f {
     var off = cellNoise3(@floatFromInt(xyz + offset));
 
-    off -= @splat(0.5);
-    off *= @splat(jitter);
-    off += @splat(0.5);
+    off = @mulAdd(Vec4f, off - @as(Vec4f, @splat(0.5)), @splat(jitter), @splat(0.5));
 
     return @as(Vec4f, @floatFromInt(xyz)) + off;
 }

@@ -155,8 +155,8 @@ pub const Context = struct {
         const tx = -(math.dot3(n, rd.x_origin) - d) / math.dot3(n, rd.x_direction);
         const ty = -(math.dot3(n, rd.y_origin) - d) / math.dot3(n, rd.y_direction);
 
-        const px: [4]f32 = rd.x_origin + @as(Vec4f, @splat(tx)) * rd.x_direction;
-        const py: [4]f32 = rd.y_origin + @as(Vec4f, @splat(ty)) * rd.y_direction;
+        const px: [4]f32 = @mulAdd(Vec4f, @splat(tx), rd.x_direction, rd.x_origin);
+        const py: [4]f32 = @mulAdd(Vec4f, @splat(ty), rd.y_direction, rd.y_origin);
 
         // Compute uv offsets at offset-ray frag points
         // Choose two dimensions to use for ray offset computations
@@ -172,26 +172,28 @@ pub const Context = struct {
         };
 
         // Initialize A, bx, and by matrices for offset computation
+        const dpdua: [4]f32 = dpdu;
+        const dpdva: [4]f32 = dpdv;
         const a: [2][2]f32 = .{
-            .{ @as([4]f32, dpdu)[dim[0]], @as([4]f32, dpdv)[dim[0]] },
-            .{ @as([4]f32, dpdu)[dim[1]], @as([4]f32, dpdv)[dim[1]] },
+            .{ dpdua[dim[0]], dpdva[dim[0]] },
+            .{ dpdua[dim[1]], dpdva[dim[1]] },
         };
 
         const pa: [4]f32 = p;
         const bx = Vec2f{ px[dim[0]] - pa[dim[0]], px[dim[1]] - pa[dim[1]] };
         const by = Vec2f{ py[dim[0]] - pa[dim[0]], py[dim[1]] - pa[dim[1]] };
 
-        const det = a[0][0] * a[1][1] - a[0][1] * a[1][0];
+        const det = @mulAdd(f32, a[0][0], a[1][1], -a[0][1] * a[1][0]);
 
         if (@abs(det) < 1.0e-10) {
             return @splat(0.0);
         }
 
-        const dudx = (a[1][1] * bx[0] - a[0][1] * bx[1]) / det;
-        const dvdx = (a[0][0] * bx[1] - a[1][0] * bx[0]) / det;
+        const dudx = @mulAdd(f32, a[1][1], bx[0], -a[0][1] * bx[1]) / det;
+        const dvdx = @mulAdd(f32, a[0][0], bx[1], -a[1][0] * bx[0]) / det;
 
-        const dudy = (a[1][1] * by[0] - a[0][1] * by[1]) / det;
-        const dvdy = (a[0][0] * by[1] - a[1][0] * by[0]) / det;
+        const dudy = @mulAdd(f32, a[1][1], by[0], -a[0][1] * by[1]) / det;
+        const dvdy = @mulAdd(f32, a[0][0], by[1], -a[1][0] * by[0]) / det;
 
         return .{ dudx, dvdx, dudy, dvdy };
     }

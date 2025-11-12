@@ -505,7 +505,7 @@ pub const Mesh = struct {
         const op = trafo.worldToObjectPoint(p);
         const on = trafo.worldToObjectNormal(n);
 
-        const scale = trafo.scale() * trafo.scale();
+        const scale = trafo.scale();
         const scale_squared = scale * scale;
 
         const part = self.parts[part_id];
