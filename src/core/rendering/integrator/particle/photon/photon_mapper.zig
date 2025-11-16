@@ -154,24 +154,13 @@ pub const Mapper = struct {
                 }
 
                 const path = sample_result.path;
-                if (.Specular == path.scattering) {
-                    vertex.state.specular = true;
-                    vertex.state.singular = path.singular();
-
-                    if (vertex.state.primary_ray) {
-                        vertex.state.started_specular = true;
-                    }
-                } else if (.Straight != path.event) {
-                    vertex.state.specular = false;
-                    vertex.state.singular = false;
-                    vertex.state.primary_ray = false;
-                }
+                vertex.state.update(path);
 
                 if (.Straight != path.event) {
                     vertex.origin = frag.p;
                 }
 
-                vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
+                vertex.probe.ray = frag.offsetRay(sample_result.wi);
                 vertex.probe.depth.increment(&frag);
 
                 if (0.0 == vertex.probe.wavelength) {

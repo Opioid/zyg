@@ -65,8 +65,8 @@ pub fn perlin3D_1(p: Vec4f) f32 {
 // Perlin 'fade' function.
 fn fade(comptime T: type, t: T) T {
     return switch (@typeInfo(T)) {
-        .float => t * t * t * (t * (t * 6.0 - 15.0) + 10.0),
-        .vector => t * t * t * (t * (t * @as(T, @splat(6.0)) - @as(T, @splat(15.0))) + @as(T, @splat(10.0))),
+        .float => t * t * t * @mulAdd(T, t, (@mulAdd(T, t, 6.0, -15.0)), 10.0),
+        .vector => t * t * t * @mulAdd(T, t, (@mulAdd(T, t, @splat(6.0), @splat(-15.0))), @splat(10.0)),
         else => comptime unreachable,
     };
 }

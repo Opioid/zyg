@@ -1,7 +1,6 @@
 const Fragment = @import("intersection.zig").Fragment;
 
 const math = @import("base").math;
-const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
 pub const Probe = struct {
@@ -37,7 +36,7 @@ pub const Probe = struct {
         };
     }
 
-    pub fn clone(self: *const Probe, ray: Ray) Probe {
+    pub fn clone(self: Probe, ray: Ray) Probe {
         return .{
             .ray = ray,
             .depth = self.depth,

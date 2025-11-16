@@ -238,8 +238,8 @@ pub const Perspective = struct {
 
         const ss: Vec4f = @splat(self.super.sample_spacing);
 
-        const x_dir_w = math.normalize3(dir_w + ss * d_x_w);
-        const y_dir_w = math.normalize3(dir_w + ss * d_y_w);
+        const x_dir_w = math.normalize3(@mulAdd(Vec4f, ss, d_x_w, dir_w));
+        const y_dir_w = math.normalize3(@mulAdd(Vec4f, ss, d_y_w, dir_w));
 
         return .{
             .x_origin = p_w,
@@ -337,7 +337,7 @@ pub const Perspective = struct {
             var sampler = Sampler{ .Random = .{ .rng = &rng } };
 
             var frag: Fragment = undefined;
-            if (scene.intersect(&probe, &sampler, &frag)) {
+            if (scene.intersect(&probe, false, &sampler, &frag)) {
                 self.focus_distance = probe.ray.max_t + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;

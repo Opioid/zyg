@@ -1,4 +1,7 @@
-const math = @import("base").math;
+const base = @import("base");
+const enc = base.encoding;
+const math = base.math;
+const Vec2us = math.Vec2us;
 const Vec2f = math.Vec2f;
 const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
@@ -61,7 +64,7 @@ pub const Buffer = union(enum) {
         }
     }
 
-    pub fn copy(self: Buffer, positions: [*]f32, normals: [*]f32, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Buffer, positions: [*]f32, normals: [*]Vec2us, uvs: [*]Vec2f, count: u32) void {
         return switch (self) {
             inline else => |v| v.copy(positions, normals, uvs, count),
         };
@@ -107,7 +110,7 @@ pub const Separate = struct {
         }
     }
 
-    pub fn copy(self: Self, positions: [*]f32, normals: [*]f32, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Self, positions: [*]f32, normals: [*]Vec2us, uvs: [*]Vec2f, count: u32) void {
         const num_components = count * 3;
 
         var begin: u32 = 0;
@@ -120,7 +123,9 @@ pub const Separate = struct {
             end += num_components;
         }
 
-        @memcpy(normals[0..num_components], @as([*]const f32, @ptrCast(self.normals.ptr))[0..num_components]);
+        for (self.normals, 0..) |n, i| {
+            normals[i] = enc.compressNormal(math.vec3fTo4f(n));
+        }
 
         if (count == self.uvs.len) {
             @memcpy(uvs[0..count], self.uvs);
@@ -155,16 +160,14 @@ pub const SeparateQuat = struct {
         alloc.free(self.positions);
     }
 
-    pub fn copy(self: Self, positions: [*]f32, normals: [*]f32, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Self, positions: [*]f32, normals: [*]Vec2us, uvs: [*]Vec2f, count: u32) void {
         const num_components = count * 3;
         @memcpy(positions[0..num_components], @as([*]const f32, @ptrCast(self.positions[0].ptr))[0..num_components]);
 
         for (self.ts[0..count], 0..count) |ts, i| {
             const frame = Vec4f{ ts.v[0], ts.v[1], ts.v[2], if (ts.v[3] < 0.0) -ts.v[3] else ts.v[3] };
             const normal = quaternion.toNormal(frame);
-            normals[i * 3 + 0] = normal[0];
-            normals[i * 3 + 1] = normal[1];
-            normals[i * 3 + 2] = normal[2];
+            normals[i] = enc.compressNormal(normal);
         }
 
         @memcpy(uvs[0..count], self.uvs);
@@ -209,7 +212,7 @@ pub const CAPI = struct {
         };
     }
 
-    pub fn copy(self: Self, positions: [*]f32, normals: [*]f32, uvs: [*]Vec2f, count: u32) void {
+    pub fn copy(self: Self, positions: [*]f32, normals: [*]Vec2us, uvs: [*]Vec2f, count: u32) void {
         var i: u32 = 0;
         while (i < count) : (i += 1) {
             const dest_id = i * 3;
@@ -222,12 +225,16 @@ pub const CAPI = struct {
 
         i = 0;
         while (i < count) : (i += 1) {
-            const dest_id = i * 3;
             const source_id = i * self.normals_stride;
 
-            normals[dest_id + 0] = self.normals[source_id + 0];
-            normals[dest_id + 1] = self.normals[source_id + 1];
-            normals[dest_id + 2] = self.normals[source_id + 2];
+            const normal = Vec4f{
+                self.normals[source_id + 0],
+                self.normals[source_id + 1],
+                self.normals[source_id + 2],
+                0.0,
+            };
+
+            normals[i] = enc.compressNormal(normal);
         }
 
         i = 0;

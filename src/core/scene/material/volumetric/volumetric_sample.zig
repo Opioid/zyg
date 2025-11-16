@@ -54,7 +54,7 @@ pub const Sample = struct {
                 cos_theta = (1.0 + gg - sqr * sqr) / (2.0 * g);
             }
 
-            const sin_theta = @sqrt(math.max(0.0, 1.0 - cos_theta * cos_theta));
+            const sin_theta = @sqrt(math.max(0.0, @mulAdd(f32, cos_theta, -cos_theta, 1.0)));
             const phi = r2[1] * (2.0 * std.math.pi);
 
             const wil = math.smpl.sphereDirection(sin_theta, cos_theta, phi);
@@ -76,8 +76,11 @@ pub const Sample = struct {
     }
 
     fn phaseHg(cos_theta: f32, g: f32) f32 {
-        const gg = g * g;
-        const denom = 1.0 + gg + 2.0 * g * cos_theta;
-        return (1.0 / (4.0 * std.math.pi)) * (1.0 - gg) / (denom * @sqrt(denom));
+        // const gg = g * g;
+        // const denom = 1.0 + gg + 2.0 * g * cos_theta;
+
+        const denom = @mulAdd(f32, g, g, @mulAdd(f32, 2.0 * g, cos_theta, 1.0));
+
+        return @mulAdd(f32, g, -g, 1.0) / ((4.0 * std.math.pi) * denom * @sqrt(denom));
     }
 };

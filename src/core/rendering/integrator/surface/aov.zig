@@ -14,7 +14,6 @@ const base = @import("base");
 const math = base.math;
 const Ray = math.Ray;
 const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 
 const std = @import("std");
 
@@ -212,20 +211,9 @@ pub const AOV = struct {
             const sample_result = sample_results[0];
 
             const path = sample_result.path;
-            if (.Specular == path.scattering) {
-                vertex.state.specular = true;
-                vertex.state.singular = path.singular();
+            vertex.state.update(path);
 
-                if (vertex.state.primary_ray) {
-                    vertex.state.started_specular = true;
-                }
-            } else if (.Straight != path.event) {
-                vertex.state.specular = false;
-                vertex.state.singular = false;
-                vertex.state.primary_ray = false;
-            }
-
-            vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
+            vertex.probe.ray = frag.offsetRay(sample_result.wi);
             vertex.probe.depth.increment(frag);
 
             if (vertex.probe.depth.surface >= self.settings.max_depth.surface or !vertex.state.primary_ray) {

@@ -42,141 +42,128 @@ pub const PathtracerMIS = struct {
         var vertices: VertexPool = undefined;
         vertices.start(input);
 
-        while (vertices.iterate()) {
-            while (vertices.consume()) |vertex| {
-                const total_depth = vertex.probe.depth.total();
+        while (vertices.consume()) |vertex| {
+            const total_depth = vertex.probe.depth.total();
 
-                var sampler = worker.pickSampler(total_depth);
+            var sampler = worker.pickSampler(total_depth);
 
-                var frag: Fragment = undefined;
-                worker.context.nextEvent(vertex, &frag, sampler);
-                if (.Abort == frag.event) {
-                    continue;
-                }
-
-                const shadow_catcher = frag.hit() and worker.context.scene.propIsShadowCatcher(frag.prop);
-
-                const this_light = self.connectLight(vertex, &frag, shadow_catcher, sampler, worker.context);
-                const split_weight: Vec4f = @splat(vertex.split_weight);
-                var split_throughput = vertex.throughput * split_weight;
-
-                if (shadow_catcher) {
-                    vertex.shadow_catcher_emission += split_throughput * this_light.unoccluded;
-
-                    if (!vertex.state.transparent) {
-                        continue;
-                    }
-                } else {
-                    vertex.shadow_catcher_occluded += split_throughput * this_light.occluded;
-                    vertex.shadow_catcher_unoccluded += split_throughput * this_light.unoccluded;
-                }
-
-                const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
-                result.add(split_throughput * this_light.emission, indirect_light_depth, 2, 0 == total_depth, vertex.state.singular);
-
-                if (!frag.hit() or
-                    vertex.probe.depth.surface >= max_depth.surface or
-                    vertex.probe.depth.volume >= max_depth.volume or
-                    .Absorb == frag.event)
-                {
-                    if (vertex.state.transparent) {
-                        vertex.throughput *= @as(Vec4f, @splat(1.0)) - math.min4(this_light.emission, @splat(1.0));
-                    }
-
-                    continue;
-                }
-
-                if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
-                    continue;
-                }
-
-                const caustics = self.causticsResolve(vertex.state);
-                const mat_sample = vertex.sample(&frag, sampler, self.settings.regularize_roughness, caustics, worker.context);
-
-                if (worker.aov.active()) {
-                    worker.commonAOV(vertex, &frag, &mat_sample);
-                }
-
-                split_throughput = vertex.throughput * split_weight;
-
-                const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
-                if (mat_sample.canEvaluate() and vertex.state.primary_ray and gather_photons) {
-                    result.direct += split_throughput * worker.photonLi(&frag, &mat_sample, sampler);
-                }
-
-                vertex.light_split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth);
-                const max_splits = VertexPool.maxSplits(vertex, total_depth);
-                const next_light = sampleLights(vertex, &frag, &mat_sample, max_splits, shadow_catcher, sampler, worker.context);
-
-                vertex.state.from_shadow_catcher = shadow_catcher;
-
-                if (shadow_catcher) {
-                    vertex.shadow_catcher_occluded = next_light.occluded;
-                    vertex.shadow_catcher_unoccluded = next_light.unoccluded;
-                    vertex.state.shadow_catcher_in_camera = true;
-                }
-
-                const direct_light_depth = total_depth - @as(u32, if (.ExitSSS == frag.event) 1 else 0);
-                result.add(split_throughput * next_light.emission, direct_light_depth, 1, false, false);
-
-                vertex.state.exit_sss = .ExitSSS == frag.event;
-
-                var bxdf_samples: bxdf.Samples = undefined;
-                const sample_results = mat_sample.sample(sampler, max_splits, &bxdf_samples);
-                const path_count: u32 = @intCast(sample_results.len);
-
-                if (0 == path_count) {
-                    vertex.throughput = @splat(0.0);
-                }
-
-                for (sample_results) |sample_result| {
-                    var next_vertex = vertices.new();
-
-                    next_vertex.* = vertex.*;
-                    next_vertex.path_count = vertex.path_count * path_count;
-                    next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
-
-                    const path = sample_result.path;
-                    if (.Specular == path.scattering) {
-                        next_vertex.state.specular = true;
-                        next_vertex.state.singular = path.singular();
-
-                        if (vertex.state.primary_ray) {
-                            next_vertex.state.started_specular = true;
-                        }
-                    } else if (.Straight != path.event) {
-                        next_vertex.state.specular = false;
-                        next_vertex.state.singular = false;
-                        next_vertex.state.primary_ray = false;
-                    }
-
-                    if (.Straight != path.event) {
-                        next_vertex.state.translucent = mat_sample.isTranslucent();
-                        next_vertex.depth = next_vertex.probe.depth;
-                        next_vertex.bxdf_pdf = sample_result.pdf;
-                        next_vertex.origin = frag.p;
-                        next_vertex.geo_n = mat_sample.super().geometricNormal();
-                        next_vertex.reg_alpha = path.reg_alpha;
-                    }
-
-                    next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
-
-                    next_vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
-                    next_vertex.probe.depth.increment(&frag);
-
-                    if (0.0 == next_vertex.probe.wavelength) {
-                        next_vertex.probe.wavelength = sample_result.wavelength;
-                    }
-
-                    if (.Transmission == path.event) {
-                        next_vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.context.scene);
-                    }
-
-                    next_vertex.state.transparent = next_vertex.state.transparent and (.Transmission == path.event or .Straight == path.event);
-                }
-
-                sampler.incrementPadding();
+            var frag: Fragment = undefined;
+            worker.context.nextEvent(vertex, &frag, sampler);
+            if (.Abort == frag.event) {
+                continue;
             }
+
+            const shadow_catcher = frag.hit() and worker.context.scene.propIsShadowCatcher(frag.prop);
+
+            const this_light = self.connectLight(vertex, &frag, shadow_catcher, sampler, worker.context);
+            const split_weight: Vec4f = @splat(vertex.split_weight);
+            var split_throughput = vertex.throughput * split_weight;
+
+            if (shadow_catcher) {
+                vertex.shadow_catcher_emission += split_throughput * this_light.unoccluded;
+
+                if (!vertex.state.transparent) {
+                    continue;
+                }
+            } else {
+                vertex.shadow_catcher_occluded += split_throughput * this_light.occluded;
+                vertex.shadow_catcher_unoccluded += split_throughput * this_light.unoccluded;
+            }
+
+            const indirect_light_depth = total_depth - @as(u32, if (vertex.state.exit_sss) 1 else 0);
+            result.add(split_throughput * this_light.emission, indirect_light_depth, 2, 0 == total_depth, vertex.state.singular);
+
+            if (!frag.hit() or
+                vertex.probe.depth.surface >= max_depth.surface or
+                vertex.probe.depth.volume >= max_depth.volume or
+                .Absorb == frag.event)
+            {
+                if (vertex.state.transparent) {
+                    vertex.throughput *= @as(Vec4f, @splat(1.0)) - math.min4(this_light.emission, @splat(1.0));
+                }
+
+                continue;
+            }
+
+            if (hlp.russianRoulette(&vertex.throughput, sampler.sample1D())) {
+                continue;
+            }
+
+            const caustics = self.causticsResolve(vertex.state);
+            const mat_sample = vertex.sample(&frag, sampler, self.settings.regularize_roughness, caustics, worker.context);
+
+            if (worker.aov.active()) {
+                worker.commonAOV(vertex, &frag, &mat_sample);
+            }
+
+            split_throughput = vertex.throughput * split_weight;
+
+            const gather_photons = vertex.state.started_specular or self.settings.photons_not_only_through_specular;
+            if (mat_sample.canEvaluate() and vertex.state.primary_ray and gather_photons) {
+                result.direct += split_throughput * worker.photonLi(&frag, &mat_sample, sampler);
+            }
+
+            vertex.light_split_threshold = self.settings.light_sampling.splitThreshold(vertex.probe.depth);
+            const max_splits = VertexPool.maxSplits(vertex, total_depth);
+            const next_light = sampleLights(vertex, &frag, &mat_sample, max_splits, shadow_catcher, sampler, worker.context);
+
+            vertex.state.from_shadow_catcher = shadow_catcher;
+
+            if (shadow_catcher) {
+                vertex.shadow_catcher_occluded = next_light.occluded;
+                vertex.shadow_catcher_unoccluded = next_light.unoccluded;
+                vertex.state.shadow_catcher_in_camera = true;
+            }
+
+            const direct_light_depth = total_depth - @as(u32, if (.ExitSSS == frag.event) 1 else 0);
+            result.add(split_throughput * next_light.emission, direct_light_depth, 1, false, false);
+
+            vertex.state.exit_sss = .ExitSSS == frag.event;
+
+            var bxdf_samples: bxdf.Samples = undefined;
+            const sample_results = mat_sample.sample(sampler, max_splits, &bxdf_samples);
+            const path_count: u32 = @intCast(sample_results.len);
+
+            if (0 == path_count) {
+                vertex.throughput = @splat(0.0);
+            }
+
+            for (sample_results) |sample_result| {
+                var next_vertex = vertices.new();
+
+                next_vertex.* = vertex.*;
+                next_vertex.path_count = vertex.path_count * path_count;
+                next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
+
+                const path = sample_result.path;
+                next_vertex.state.update(path);
+
+                if (.Straight != path.event) {
+                    next_vertex.state.translucent = mat_sample.isTranslucent();
+                    next_vertex.depth = next_vertex.probe.depth;
+                    next_vertex.bxdf_pdf = sample_result.pdf;
+                    next_vertex.origin = frag.p;
+                    next_vertex.geo_n = mat_sample.super().geometricNormal();
+                    next_vertex.reg_alpha = path.reg_alpha;
+                }
+
+                next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
+
+                next_vertex.probe.ray = frag.offsetRay(sample_result.wi);
+                next_vertex.probe.depth.increment(&frag);
+
+                if (0.0 == next_vertex.probe.wavelength) {
+                    next_vertex.probe.wavelength = sample_result.wavelength;
+                }
+
+                if (.Transmission == path.event) {
+                    next_vertex.interfaceChange(sample_result.wi, &frag, &mat_sample, worker.context.scene);
+                }
+
+                next_vertex.state.transparent = next_vertex.state.transparent and (.Transmission == path.event or .Straight == path.event);
+            }
+
+            sampler.incrementPadding();
         }
 
         result.direct[3] = 0.0;
@@ -325,7 +312,7 @@ pub const PathtracerMIS = struct {
 
         if (ro.RayMaxT == vertex.probe.ray.max_t) {
             for (context.scene.infinite_props.items) |prop| {
-                if (!context.propIntersect(prop, vertex.probe, sampler, &light_frag)) {
+                if (!context.propIntersect(prop, vertex.probe, false, sampler, &light_frag)) {
                     continue;
                 }
 

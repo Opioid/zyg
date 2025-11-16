@@ -86,14 +86,18 @@ pub const Integrator = struct {
         const material = medium.material(context.scene);
 
         if (material.denseSSSOptimization()) {
-            integrateHomogeneousSSS(medium.prop, medium.trafo, vertex, frag, sampler, context);
+            if (context.scene.propIsVisibleInSSS(medium.prop)) {
+                integrateHomogeneousSSS(true, medium.prop, medium.trafo, vertex, frag, sampler, context);
+            } else {
+                integrateHomogeneousSSS(false, medium.prop, medium.trafo, vertex, frag, sampler, context);
+            }
             return;
         }
 
         const ray_max_t = vertex.probe.ray.max_t;
         const limit = context.scene.propAabbIntersectP(medium.prop, vertex.probe.ray) orelse ray_max_t;
         vertex.probe.ray.max_t = math.min(ro.offsetF(limit), ray_max_t);
-        if (!context.intersect(&vertex.probe, sampler, frag)) {
+        if (!context.intersect(&vertex.probe, false, sampler, frag)) {
             return;
         }
 
@@ -125,7 +129,15 @@ pub const Integrator = struct {
         vertex.throughput *= result.tr;
     }
 
-    fn integrateHomogeneousSSS(prop: u32, trafo: Trafo, vertex: *Vertex, frag: *Fragment, sampler: *Sampler, context: Context) void {
+    fn integrateHomogeneousSSS(
+        comptime Global: bool,
+        prop: u32,
+        trafo: Trafo,
+        vertex: *Vertex,
+        frag: *Fragment,
+        sampler: *Sampler,
+        context: Context,
+    ) void {
         frag.event = .Abort;
 
         const cc = vertex.mediums.topCC();
@@ -175,7 +187,12 @@ pub const Integrator = struct {
 
             vertex.probe.ray.max_t = free_path;
 
-            if (!shape.intersect(vertex.probe, trafo, &frag.isec)) {
+            const hit = if (Global)
+                context.intersect(&vertex.probe, true, sampler, frag)
+            else
+                shape.intersect(vertex.probe, trafo, &frag.isec);
+
+            if (!hit) {
                 const wil = sampleHg(g, sampler);
                 const frame = Frame.init(vertex.probe.ray.direction);
                 const wi = frame.frameToWorld(wil);
@@ -184,12 +201,13 @@ pub const Integrator = struct {
 
                 local_weight *= albedo;
             } else {
-                vertex.probe.ray.max_t = frag.isec.t;
-                frag.prop = prop;
+                if (!Global) {
+                    vertex.probe.ray.max_t = frag.isec.t;
+                    frag.prop = prop;
+                    shape.fragment(vertex.probe, frag);
+                }
 
-                shape.fragment(vertex.probe, frag);
-
-                if (frag.sameHemisphere(vertex.probe.ray.direction)) {
+                if (prop == frag.prop and frag.sameHemisphere(vertex.probe.ray.direction)) {
                     vertex.mediums.pop();
                     frag.event = .ExitSSS;
                 } else {
@@ -217,7 +235,7 @@ pub const Integrator = struct {
             cos_theta = (1.0 + gg - sqr * sqr) / (2.0 * g);
         }
 
-        const sin_theta = @sqrt(math.max(0.0, 1.0 - cos_theta * cos_theta));
+        const sin_theta = @sqrt(math.max(0.0, @mulAdd(f32, cos_theta, -cos_theta, 1.0)));
         const phi = r2[1] * (2.0 * std.math.pi);
 
         return math.smpl.sphereDirection(sin_theta, cos_theta, phi);

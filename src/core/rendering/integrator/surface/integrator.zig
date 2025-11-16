@@ -1,28 +1,11 @@
-const aov = @import("aov.zig");
-pub const AOV = aov.AOV;
-pub const AOVFactory = aov.Factory;
-
-const pt = @import("pathtracer.zig");
-pub const Pathtracer = pt.Pathtracer;
-pub const PathtracerFactory = pt.Factory;
-
-const ptdl = @import("pathtracer_dl.zig");
-pub const PathtracerDL = ptdl.PathtracerDL;
-pub const PathtracerDLFactory = ptdl.Factory;
-
-const ptmis = @import("pathtracer_mis.zig");
-pub const PathtracerMIS = ptmis.PathtracerMIS;
-pub const PathtracerMISFactory = ptmis.Factory;
+pub const AOV = @import("aov.zig").AOV;
+pub const Pathtracer = @import("pathtracer.zig").Pathtracer;
+pub const PathtracerDL = @import("pathtracer_dl.zig").PathtracerDL;
+pub const PathtracerMIS = @import("pathtracer_mis.zig").PathtracerMIS;
 
 const IValue = @import("../helper.zig").IValue;
-
 const Vertex = @import("../../../scene/vertex.zig").Vertex;
 const Worker = @import("../../worker.zig").Worker;
-
-const base = @import("base");
-const math = base.math;
-const Vec4f = math.Vec4f;
-const RNG = base.rnd.Generator;
 
 pub const Integrator = union(enum) {
     AOV: AOV,

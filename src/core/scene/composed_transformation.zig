@@ -84,11 +84,9 @@ pub const ComposedTransformation = struct {
         var result: Vec4f = @splat(v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
         result = result * a;
         var temp: Vec4f = @splat(v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
-        temp = temp * b;
-        result = result + temp;
+        result = @mulAdd(Vec4f, temp, b, result);
         temp = @splat(v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
-        temp = temp * c;
-        return result + temp;
+        return @mulAdd(Vec4f, temp, c, result);
     }
 
     pub fn objectToWorldPoint(self: Self, p: Vec4f) Vec4f {

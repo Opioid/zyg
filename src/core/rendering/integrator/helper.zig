@@ -63,12 +63,13 @@ pub inline fn composeAlpha(throughput: Vec4f, transparent: bool) f32 {
 
 pub inline fn powerHeuristic(f_pdf: f32, g_pdf: f32) f32 {
     const f2 = f_pdf * f_pdf;
-    return f2 / (f2 + g_pdf * g_pdf);
+    return f2 / @mulAdd(f32, g_pdf, g_pdf, f2);
 }
 
 // == power_heuristic(a, b) / a
 pub inline fn predividedPowerHeuristic(f_pdf: f32, g_pdf: f32) f32 {
-    return f_pdf / (f_pdf * f_pdf + g_pdf * g_pdf);
+    const f2 = f_pdf * f_pdf;
+    return f_pdf / @mulAdd(f32, g_pdf, g_pdf, f2);
 }
 
 pub inline fn russianRoulette(throughput: *Vec4f, r: f32) bool {

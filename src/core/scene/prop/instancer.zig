@@ -74,10 +74,10 @@ pub const Instancer = struct {
         return self.volume_bvh.num_nodes > 0;
     }
 
-    pub fn intersect(self: *const Self, probe: Probe, trafo: Trafo, sampler: *Sampler, scene: *const Scene, isec: *Intersection) bool {
+    pub fn intersect(self: *const Self, probe: Probe, trafo: Trafo, sss: bool, sampler: *Sampler, scene: *const Scene, isec: *Intersection) bool {
         var local_probe = trafo.worldToObjectProbe(probe);
 
-        if (self.solid_bvh.intersectIndexed(&local_probe, self.prototypes.items.ptr, sampler, scene, &self.space, isec)) {
+        if (self.solid_bvh.intersectIndexed(&local_probe, sss, self.prototypes.items.ptr, sampler, scene, &self.space, isec)) {
             isec.trafo = trafo.transform(isec.trafo);
 
             return true;

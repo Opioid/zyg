@@ -9,6 +9,7 @@ const MediumStack = @import("prop/medium.zig").Stack;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 const mat = @import("material/material.zig");
 const IoR = @import("material/sample_base.zig").IoR;
+const Path = @import("material/bxdf.zig").Sample.Path;
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -25,6 +26,21 @@ pub const Vertex = struct {
         from_shadow_catcher: bool = false,
         shadow_catcher_in_camera: bool = false,
         exit_sss: bool = false,
+
+        pub inline fn update(state: *State, path: Path) void {
+            if (.Specular == path.scattering) {
+                state.specular = true;
+                state.singular = path.singular();
+
+                if (state.primary_ray) {
+                    state.started_specular = true;
+                }
+            } else if (.Straight != path.event) {
+                state.specular = false;
+                state.singular = false;
+                state.primary_ray = false;
+            }
+        }
     };
 
     probe: Probe,
@@ -221,57 +237,60 @@ pub const Pool = struct {
         self.next_end = 1;
     }
 
-    pub fn iterate(self: *Pool) bool {
+    pub fn consume(self: *Pool) ?*Vertex {
         const old_end = self.current_end;
-        var i = self.current_start;
-        while (i < old_end) : (i += 1) {
-            const mask = @as(u32, 1) << @as(u5, @truncate(i));
-            if (0 != (self.terminated & mask)) {
-                const v = &self.buffer[i];
-                if (v.state.shadow_catcher_in_camera) {
-                    const occluded = v.shadow_catcher_occluded;
-                    const unoccluded = v.shadow_catcher_unoccluded;
-                    const ol = occluded < unoccluded;
-                    const shadow_ratio = @select(f32, ol, occluded / unoccluded, @as(Vec4f, @splat(1.0)));
-                    const alpha = self.transparency[3];
-                    self.transparency += shadow_ratio * v.shadow_catcher_emission * @as(Vec4f, @splat(v.split_weight));
-                    self.transparency[3] = alpha + math.max((1.0 - math.average3(shadow_ratio)) * v.split_weight, 0.0);
-                } else if (v.state.transparent) {
-                    self.transparency[3] += math.max((1.0 - math.average3(v.throughput)) * v.split_weight, 0.0);
-                } else {
-                    const alpha = self.transparency[3];
-                    self.transparency += v.shadow_catcher_emission * @as(Vec4f, @splat(v.split_weight));
-                    self.transparency[3] = alpha + v.split_weight;
+        const current_id = self.current_id;
+
+        if (current_id < old_end) {
+            return self.iterate(current_id);
+        } else {
+            var i = self.current_start;
+            while (i < old_end) : (i += 1) {
+                const mask = @as(u32, 1) << @as(u5, @truncate(i));
+                if (0 != (self.terminated & mask)) {
+                    const v = &self.buffer[i];
+                    if (v.state.shadow_catcher_in_camera) {
+                        const occluded = v.shadow_catcher_occluded;
+                        const unoccluded = v.shadow_catcher_unoccluded;
+                        const ol = occluded < unoccluded;
+                        const shadow_ratio = @select(f32, ol, occluded / unoccluded, @as(Vec4f, @splat(1.0)));
+                        const alpha = self.transparency[3];
+                        self.transparency += shadow_ratio * v.shadow_catcher_emission * @as(Vec4f, @splat(v.split_weight));
+                        self.transparency[3] = alpha + math.max((1.0 - math.average3(shadow_ratio)) * v.split_weight, 0.0);
+                    } else if (v.state.transparent) {
+                        self.transparency[3] += math.max((1.0 - math.average3(v.throughput)) * v.split_weight, 0.0);
+                    } else {
+                        const alpha = self.transparency[3];
+                        self.transparency += v.shadow_catcher_emission * @as(Vec4f, @splat(v.split_weight));
+                        self.transparency[3] = alpha + v.split_weight;
+                    }
                 }
+            }
+
+            const current_start = self.next_start;
+            const current_end = self.next_end;
+
+            self.current_id = current_start;
+            self.current_start = current_start;
+            self.current_end = current_end;
+
+            const next_start: u32 = if (NumVertices == current_start) 0 else NumVertices;
+            self.next_start = next_start;
+            self.next_end = next_start;
+
+            if (current_start < current_end) {
+                return self.iterate(current_start);
             }
         }
 
-        const current_start = self.next_start;
-        const current_end = self.next_end;
-
-        self.current_id = current_start;
-        self.current_start = current_start;
-        self.current_end = current_end;
-
-        const next_start: u32 = if (NumVertices == current_start) 0 else NumVertices;
-        self.next_start = next_start;
-        self.next_end = next_start;
-
-        return current_start < current_end;
+        return null;
     }
 
-    pub fn consume(self: *Pool) ?*Vertex {
-        const id = self.current_id;
-        self.current_id += 1;
-
-        if (id < self.current_end) {
-            const mask = @as(u32, 1) << @as(u5, @truncate(id));
-            self.terminated |= mask;
-
-            return &self.buffer[id];
-        }
-
-        return null;
+    inline fn iterate(self: *Pool, id: u32) *Vertex {
+        const mask = @as(u32, 1) << @as(u5, @truncate(id));
+        self.terminated |= mask;
+        self.current_id = id + 1;
+        return &self.buffer[id];
     }
 
     pub fn new(self: *Pool) *Vertex {

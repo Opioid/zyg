@@ -268,8 +268,8 @@ pub const Scene = struct {
         self.caustic_aabb = caustic_aabb;
     }
 
-    pub fn intersect(self: *const Scene, probe: *Probe, sampler: *Sampler, frag: *Fragment) bool {
-        return self.solid_bvh.intersect(probe, sampler, self, frag);
+    pub fn intersect(self: *const Scene, probe: *Probe, sss: bool, sampler: *Sampler, frag: *Fragment) bool {
+        return self.solid_bvh.intersect(probe, sss, sampler, self, frag);
     }
 
     pub fn visibility(self: *const Scene, probe: Probe, sampler: *Sampler, context: Context, tr: *Vec4f) bool {
@@ -441,9 +441,10 @@ pub const Scene = struct {
         entity: u32,
         in_camera: bool,
         in_reflection: bool,
+        in_sss: bool,
         shadow_catcher_light: bool,
     ) void {
-        self.props.items[entity].setVisibility(in_camera, in_reflection, shadow_catcher_light);
+        self.props.items[entity].setVisibility(in_camera, in_reflection, in_sss, shadow_catcher_light);
     }
 
     pub fn propSetShadowCatcher(self: *Scene, entity: u32) void {
@@ -566,6 +567,18 @@ pub const Scene = struct {
 
     pub fn propShape(self: *const Scene, entity: usize) *Shape {
         return &self.shapes.items[self.props.items[entity].resource];
+    }
+
+    pub fn propIsVisibleInCamera(self: *const Scene, entity: u32) bool {
+        return self.props.items[entity].properties.visible_in_camera;
+    }
+
+    pub fn propIsVisibleInReflection(self: *const Scene, entity: u32) bool {
+        return self.props.items[entity].properties.visible_in_reflection;
+    }
+
+    pub fn propIsVisibleInSSS(self: *const Scene, entity: u32) bool {
+        return self.props.items[entity].properties.visible_in_sss;
     }
 
     pub fn propIsShadowCatcher(self: *const Scene, entity: u32) bool {

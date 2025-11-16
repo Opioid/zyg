@@ -335,7 +335,7 @@ fn scatter(
             vertex.probe = Probe.init(world_up.ray(region, x_pos, y_pos), 0);
 
             var frag: Fragment = undefined;
-            if (!context.scene.intersect(&vertex.probe, &sampler, &frag)) {
+            if (!context.scene.intersect(&vertex.probe, false, &sampler, &frag)) {
                 continue;
             }
 

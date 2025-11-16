@@ -53,7 +53,7 @@ pub const Tree = struct {
         return self.nodes[0].aabb();
     }
 
-    pub fn intersect(self: Tree, probe: *Probe, sampler: *Sampler, scene: *const Scene, frag: *Fragment) bool {
+    pub fn intersect(self: Tree, probe: *Probe, sss: bool, sampler: *Sampler, scene: *const Scene, frag: *Fragment) bool {
         var stack = NodeStack{};
 
         var n: u32 = if (0 == self.num_nodes) NodeStack.End else 0;
@@ -73,7 +73,7 @@ pub const Tree = struct {
                 const start = node.indicesStart();
                 const end = start + num;
                 for (instances[start..end]) |p| {
-                    if (props[p].intersect(p, p, probe.*, sampler, scene, &scene.prop_space, &isec)) {
+                    if (props[p].intersect(p, p, probe.*, sss, sampler, scene, &scene.prop_space, &isec)) {
                         probe.ray.max_t = isec.t;
                         prop = isec.resolveEntity(p);
                     }
@@ -118,6 +118,7 @@ pub const Tree = struct {
     pub fn intersectIndexed(
         self: Tree,
         probe: *Probe,
+        sss: bool,
         indices: [*]const u32,
         sampler: *Sampler,
         scene: *const Scene,
@@ -143,7 +144,7 @@ pub const Tree = struct {
                 const end = start + num;
                 for (instances[start..end]) |i| {
                     const p = indices[i];
-                    if (props[p].intersect(i, p, probe.*, sampler, scene, space, isec)) {
+                    if (props[p].intersect(i, p, probe.*, sss, sampler, scene, space, isec)) {
                         probe.ray.max_t = isec.t;
                         prop = isec.resolveEntity(p);
                     }

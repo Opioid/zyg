@@ -121,11 +121,9 @@ pub const Mat3x3 = struct {
         var result: Vec4f = @splat(v[0]); // @shuffle(f32, v, v, [4]i32{ 0, 0, 0, 0 });
         result = result * self.r[0];
         var temp: Vec4f = @splat(v[1]); // @shuffle(f32, v, v, [4]i32{ 1, 1, 1, 1 });
-        temp = temp * self.r[1];
-        result = result + temp;
+        result = @mulAdd(Vec4f, temp, self.r[1], result);
         temp = @splat(v[2]); // @shuffle(f32, v, v, [4]i32{ 2, 2, 2, 2 });
-        temp = temp * self.r[2];
-        return result + temp;
+        return @mulAdd(Vec4f, temp, self.r[2], result);
     }
 
     pub inline fn transformVectorTransposed(self: Mat3x3, v: Vec4f) Vec4f {

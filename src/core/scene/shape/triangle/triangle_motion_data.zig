@@ -2,7 +2,10 @@ const VertexBuffer = @import("vertex_buffer.zig").Buffer;
 const triangle = @import("triangle.zig");
 const motion = @import("../../motion.zig");
 
-const math = @import("base").math;
+const base = @import("base");
+const enc = base.encoding;
+const math = base.math;
+const Vec2us = math.Vec2us;
 const Vec2f = math.Vec2f;
 const Pack3f = math.Pack3f;
 const Vec4f = math.Vec4f;
@@ -27,7 +30,7 @@ pub const MotionData = struct {
     triangles: [*]Triangle = undefined,
     triangle_parts: [*]u16 = undefined,
     positions: [*]f32 = undefined,
-    normals: [*]f32 = undefined,
+    normals: [*]Vec2us = undefined,
     uvs: [*]Vec2f = undefined,
 
     const Self = @This();
@@ -36,7 +39,7 @@ pub const MotionData = struct {
         const num_frame_position_components = self.num_frames * self.num_vertices * 3;
 
         alloc.free(self.uvs[0..self.num_vertices]);
-        alloc.free(self.normals[0 .. self.num_vertices * 3 + 1]);
+        alloc.free(self.normals[0..self.num_vertices]);
         alloc.free(self.positions[0 .. num_frame_position_components + 1]);
         alloc.free(self.triangle_parts[0..self.num_triangles]);
         alloc.free(self.triangles[0..self.num_triangles]);
@@ -55,12 +58,11 @@ pub const MotionData = struct {
         self.triangles = (try alloc.alloc(Triangle, num_triangles)).ptr;
         self.triangle_parts = (try alloc.alloc(u16, num_triangles)).ptr;
         self.positions = (try alloc.alloc(f32, num_frame_position_components + 1)).ptr;
-        self.normals = (try alloc.alloc(f32, num_vertices * 3 + 1)).ptr;
+        self.normals = (try alloc.alloc(Vec2us, num_vertices)).ptr;
         self.uvs = (try alloc.alloc(Vec2f, num_vertices)).ptr;
 
         vertices.copy(self.positions, self.normals, self.uvs, num_vertices);
         self.positions[num_frame_position_components] = 0.0;
-        self.normals[num_vertices * 3] = 0.0;
     }
 
     pub fn setTriangle(self: *Self, triangle_id: u32, a: u32, b: u32, c: u32, part: u32) void {
@@ -86,7 +88,7 @@ pub const MotionData = struct {
     }
 
     inline fn shadingNormal(self: Self, index: u32) Vec4f {
-        return self.normals[index * 3 ..][0..4].*;
+        return enc.decompressNormal(self.normals[index]);
     }
 
     pub fn intersect(self: Self, ray: Ray, frame: Frame, index: u32) ?Hit {

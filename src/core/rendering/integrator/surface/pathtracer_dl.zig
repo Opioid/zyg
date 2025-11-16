@@ -88,18 +88,7 @@ pub const PathtracerDL = struct {
             const sample_result = sample_results[0];
 
             const path = sample_result.path;
-            if (.Specular == path.scattering) {
-                vertex.state.specular = true;
-                vertex.state.singular = path.singular();
-
-                if (vertex.state.primary_ray) {
-                    vertex.state.started_specular = true;
-                }
-            } else if (.Straight != path.event) {
-                vertex.state.specular = false;
-                vertex.state.singular = false;
-                vertex.state.primary_ray = false;
-            }
+            vertex.state.update(path);
 
             if (.Straight != path.event) {
                 vertex.origin = frag.p;
@@ -107,7 +96,7 @@ pub const PathtracerDL = struct {
 
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-            vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
+            vertex.probe.ray = frag.offsetRay(sample_result.wi);
             vertex.probe.depth.increment(&frag);
 
             if (0.0 == vertex.probe.wavelength) {
@@ -202,7 +191,7 @@ pub const PathtracerDL = struct {
         }
 
         for (context.scene.infinite_props.items) |prop| {
-            if (!context.propIntersect(prop, vertex.probe, sampler, &light_frag)) {
+            if (!context.propIntersect(prop, vertex.probe, false, sampler, &light_frag)) {
                 continue;
             }
 

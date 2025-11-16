@@ -156,10 +156,10 @@ const LinearStochastic2D = struct {
         var threshold = omw[0] * omw[1];
         index += @intFromBool(r > threshold);
 
-        threshold += w[0] * omw[1];
+        threshold = @mulAdd(f32, w[0], omw[1], threshold);
         index += @intFromBool(r > threshold);
 
-        threshold += omw[0] * w[1];
+        threshold = @mulAdd(f32, omw[0], w[1], threshold);
         index += @intFromBool(r > threshold);
 
         xy[0] += index & 1;
