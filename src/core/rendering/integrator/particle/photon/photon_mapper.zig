@@ -171,7 +171,7 @@ pub const Mapper = struct {
                     vertex.origin = frag.p;
                 }
 
-                vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
+                vertex.probe.ray = frag.offsetRay(sample_result.wi);
                 vertex.probe.depth.increment(&frag);
 
                 if (0.0 == vertex.probe.wavelength) {

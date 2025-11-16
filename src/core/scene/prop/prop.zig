@@ -23,6 +23,7 @@ pub const Prop = struct {
         visible_in_camera: bool = true,
         visible_in_reflection: bool = true,
         visible_in_shadow: bool = true,
+        visible_in_sss: bool = false,
         evaluate_visibility: bool = false,
         unoccluding: bool = false,
         solid: bool = true,
@@ -33,7 +34,11 @@ pub const Prop = struct {
         shadow_catcher: bool = false,
         shadow_catcher_light: bool = false,
 
-        pub inline fn visible(self: Properties, depth: u32) bool {
+        pub inline fn visible(self: Properties, depth: u32, sss: bool) bool {
+            if (sss and !self.visible_in_sss) {
+                return false;
+            }
+
             if (0 == depth) {
                 return self.visible_in_camera;
             }
@@ -45,14 +50,6 @@ pub const Prop = struct {
     resource: u32 = Null,
 
     properties: Properties = .{},
-
-    pub fn visibleInCamera(self: Prop) bool {
-        return self.properties.visible_in_camera;
-    }
-
-    pub fn visibleInReflection(self: Prop) bool {
-        return self.properties.visible_in_reflection;
-    }
 
     pub fn unoccluding(self: Prop) bool {
         return self.properties.unoccluding;
@@ -78,10 +75,12 @@ pub const Prop = struct {
         self: *Prop,
         in_camera: bool,
         in_reflection: bool,
+        in_sss: bool,
         shadow_catcher_light: bool,
     ) void {
         self.properties.visible_in_camera = in_camera;
         self.properties.visible_in_reflection = in_reflection;
+        self.properties.visible_in_sss = in_sss;
         self.properties.shadow_catcher_light = shadow_catcher_light;
         self.properties.visible_in_shadow = if (self.properties.shadow_catcher) false else in_reflection;
     }
@@ -165,6 +164,7 @@ pub const Prop = struct {
         entity: u32,
         prototype: u32,
         probe: Probe,
+        sss: bool,
         sampler: *Sampler,
         scene: *const Scene,
         space: *const Space,
@@ -172,7 +172,7 @@ pub const Prop = struct {
     ) bool {
         const properties = self.properties;
 
-        if (!properties.visible(probe.depth.surface)) {
+        if (!properties.visible(probe.depth.surface, sss)) {
             return false;
         }
 
@@ -183,7 +183,7 @@ pub const Prop = struct {
         const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.frame_start, properties.static);
 
         if (properties.instancer) {
-            return scene.instancer(self.resource).intersect(probe, trafo, sampler, scene, isec);
+            return scene.instancer(self.resource).intersect(probe, trafo, sss, sampler, scene, isec);
         } else {
             const shape = scene.shape(self.resource);
 
@@ -246,7 +246,7 @@ pub const Prop = struct {
         const properties = self.properties;
         const scene = context.scene;
 
-        if (!properties.visible(vertex.probe.depth.surface)) {
+        if (!properties.visible(vertex.probe.depth.surface, false)) {
             return @splat(0.0);
         }
 

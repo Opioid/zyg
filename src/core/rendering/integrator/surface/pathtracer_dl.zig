@@ -107,7 +107,7 @@ pub const PathtracerDL = struct {
 
             vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-            vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
+            vertex.probe.ray = frag.offsetRay(sample_result.wi);
             vertex.probe.depth.increment(&frag);
 
             if (0.0 == vertex.probe.wavelength) {
@@ -202,7 +202,7 @@ pub const PathtracerDL = struct {
         }
 
         for (context.scene.infinite_props.items) |prop| {
-            if (!context.propIntersect(prop, vertex.probe, sampler, &light_frag)) {
+            if (!context.propIntersect(prop, vertex.probe, false, sampler, &light_frag)) {
                 continue;
             }
 

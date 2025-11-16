@@ -43,8 +43,8 @@ pub const Context = struct {
 
     const Self = @This();
 
-    pub fn intersect(self: Self, probe: *Probe, sampler: *Sampler, frag: *Fragment) bool {
-        return self.scene.intersect(probe, sampler, frag);
+    pub fn intersect(self: Self, probe: *Probe, sss: bool, sampler: *Sampler, frag: *Fragment) bool {
+        return self.scene.intersect(probe, sss, sampler, frag);
     }
 
     pub fn visibility(self: Self, probe: Probe, sampler: *Sampler, tr: *Vec4f) bool {
@@ -59,7 +59,7 @@ pub const Context = struct {
 
         const origin = vertex.probe.ray.origin;
 
-        _ = self.intersect(&vertex.probe, sampler, frag);
+        _ = self.intersect(&vertex.probe, false, sampler, frag);
 
         const dif_t = math.distance3(origin, vertex.probe.ray.origin);
         vertex.probe.ray.origin = origin;
@@ -98,11 +98,12 @@ pub const Context = struct {
         return VolumeIntegrator.propScatter(ray, throughput, material, cc, entity, depth, sampler, self);
     }
 
-    pub fn propIntersect(self: Self, entity: u32, probe: Probe, sampler: *Sampler, frag: *Fragment) bool {
+    pub fn propIntersect(self: Self, entity: u32, probe: Probe, sss: bool, sampler: *Sampler, frag: *Fragment) bool {
         if (self.scene.prop(entity).intersect(
             entity,
             entity,
             probe,
+            sss,
             sampler,
             self.scene,
             &self.scene.prop_space,

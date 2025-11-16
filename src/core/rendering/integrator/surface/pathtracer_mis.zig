@@ -160,7 +160,7 @@ pub const PathtracerMIS = struct {
 
                 next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-                next_vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
+                next_vertex.probe.ray = frag.offsetRay(sample_result.wi);
                 next_vertex.probe.depth.increment(&frag);
 
                 if (0.0 == next_vertex.probe.wavelength) {
@@ -323,7 +323,7 @@ pub const PathtracerMIS = struct {
 
         if (ro.RayMaxT == vertex.probe.ray.max_t) {
             for (context.scene.infinite_props.items) |prop| {
-                if (!context.propIntersect(prop, vertex.probe, sampler, &light_frag)) {
+                if (!context.propIntersect(prop, vertex.probe, false, sampler, &light_frag)) {
                     continue;
                 }
 

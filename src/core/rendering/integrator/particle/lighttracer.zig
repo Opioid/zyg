@@ -137,7 +137,7 @@ pub const Lighttracer = struct {
 
                 next_vertex.throughput *= sample_result.reflection / @as(Vec4f, @splat(sample_result.pdf));
 
-                next_vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
+                next_vertex.probe.ray = frag.offsetRay(sample_result.wi);
                 next_vertex.probe.depth.increment(&frag);
 
                 if (0.0 == next_vertex.probe.wavelength) {

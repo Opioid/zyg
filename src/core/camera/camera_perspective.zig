@@ -336,7 +336,7 @@ pub const Perspective = struct {
             var sampler = Sampler{ .Random = .{ .rng = &rng } };
 
             var frag: Fragment = undefined;
-            if (scene.intersect(&probe, &sampler, &frag)) {
+            if (scene.intersect(&probe, false, &sampler, &frag)) {
                 self.focus_distance = probe.ray.max_t + self.focus.point[2];
             } else {
                 self.focus_distance = self.focus_distance;

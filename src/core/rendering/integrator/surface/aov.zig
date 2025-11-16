@@ -224,7 +224,7 @@ pub const AOV = struct {
                 vertex.state.primary_ray = false;
             }
 
-            vertex.probe.ray = frag.offsetRay(sample_result.wi, ro.RayMaxT);
+            vertex.probe.ray = frag.offsetRay(sample_result.wi);
             vertex.probe.depth.increment(frag);
 
             if (vertex.probe.depth.surface >= self.settings.max_depth.surface or !vertex.state.primary_ray) {

@@ -101,7 +101,7 @@ pub const Fragment = struct {
     }
 
     pub fn visibleInCamera(self: Self, scene: *const Scene) bool {
-        return scene.prop(self.prop).visibleInCamera();
+        return scene.propIsVisibleInCamera(self.prop);
     }
 
     pub inline fn subsurface(self: Self) bool {
@@ -118,8 +118,8 @@ pub const Fragment = struct {
         return ro.offsetRay(@mulAdd(Vec4f, @splat(self.offset()), n, p), n);
     }
 
-    pub fn offsetRay(self: Self, dir: Vec4f, max_t: f32) Ray {
-        return Ray.init(self.offsetP(dir), dir, 0.0, max_t);
+    pub fn offsetRay(self: Self, dir: Vec4f) Ray {
+        return Ray.init(self.offsetP(dir), dir, 0.0, ro.RayMaxT);
     }
 };
 

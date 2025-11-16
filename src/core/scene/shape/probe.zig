@@ -1,7 +1,6 @@
 const Fragment = @import("intersection.zig").Fragment;
 
 const math = @import("base").math;
-const Vec4f = math.Vec4f;
 const Ray = math.Ray;
 
 pub const Probe = struct {

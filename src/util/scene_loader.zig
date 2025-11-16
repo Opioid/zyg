@@ -313,7 +313,7 @@ pub const Loader = struct {
             setShadowCatcher(entity_id, shadow_catcher, scene);
         }
 
-        if (is_light and scene.prop(entity_id).visibleInReflection()) {
+        if (is_light and scene.propIsVisibleInReflection(entity_id)) {
             try scene.createLight(alloc, entity_id, light_link_id);
         }
 
@@ -384,7 +384,7 @@ pub const Loader = struct {
 
         const light = scene.light(light_id);
 
-        scene.propSetVisibility(light.prop, false, false, false);
+        scene.propSetVisibility(light.prop, false, false, false, false);
         scene.lightSetPrototype(light_id);
 
         const material_id = scene.propMaterialId(light.prop, light.part);
@@ -615,9 +615,10 @@ pub const Loader = struct {
     fn setVisibility(prop: u32, value: std.json.Value, scene: *Scene) void {
         const in_camera = json.readBoolMember(value, "in_camera", true);
         const in_reflection = json.readBoolMember(value, "in_reflection", true);
+        const in_sss = json.readBoolMember(value, "in_sss", false);
         const shadow_catcher_light = json.readBoolMember(value, "shadow_catcher_light", false);
 
-        scene.propSetVisibility(prop, in_camera, in_reflection, shadow_catcher_light);
+        scene.propSetVisibility(prop, in_camera, in_reflection, in_sss, shadow_catcher_light);
     }
 
     fn setShadowCatcher(prop: u32, value: std.json.Value, scene: *Scene) void {
