@@ -136,18 +136,7 @@ pub const PathtracerMIS = struct {
                 next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
 
                 const path = sample_result.path;
-                if (.Specular == path.scattering) {
-                    next_vertex.state.specular = true;
-                    next_vertex.state.singular = path.singular();
-
-                    if (vertex.state.primary_ray) {
-                        next_vertex.state.started_specular = true;
-                    }
-                } else if (.Straight != path.event) {
-                    next_vertex.state.specular = false;
-                    next_vertex.state.singular = false;
-                    next_vertex.state.primary_ray = false;
-                }
+                next_vertex.state.update(path);
 
                 if (.Straight != path.event) {
                     next_vertex.state.translucent = mat_sample.isTranslucent();

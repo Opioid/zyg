@@ -118,18 +118,7 @@ pub const Lighttracer = struct {
                 next_vertex.path_count = vertex.path_count * path_count;
                 next_vertex.split_weight = vertex.split_weight * sample_result.split_weight;
 
-                if (.Specular == path.scattering) {
-                    next_vertex.state.specular = true;
-                    next_vertex.state.singular = path.singular();
-
-                    if (vertex.state.primary_ray) {
-                        next_vertex.state.started_specular = true;
-                    }
-                } else if (.Straight != path.event) {
-                    next_vertex.state.specular = false;
-                    next_vertex.state.singular = false;
-                    next_vertex.state.primary_ray = false;
-                }
+                next_vertex.state.update(path);
 
                 if (.Straight != path.event) {
                     next_vertex.origin = frag.p;

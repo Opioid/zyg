@@ -9,6 +9,7 @@ const MediumStack = @import("prop/medium.zig").Stack;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 const mat = @import("material/material.zig");
 const IoR = @import("material/sample_base.zig").IoR;
+const Path = @import("material/bxdf.zig").Sample.Path;
 
 const math = @import("base").math;
 const Vec4f = math.Vec4f;
@@ -25,6 +26,21 @@ pub const Vertex = struct {
         from_shadow_catcher: bool = false,
         shadow_catcher_in_camera: bool = false,
         exit_sss: bool = false,
+
+        pub inline fn update(state: *State, path: Path) void {
+            if (.Specular == path.scattering) {
+                state.specular = true;
+                state.singular = path.singular();
+
+                if (state.primary_ray) {
+                    state.started_specular = true;
+                }
+            } else if (.Straight != path.event) {
+                state.specular = false;
+                state.singular = false;
+                state.primary_ray = false;
+            }
+        }
     };
 
     probe: Probe,

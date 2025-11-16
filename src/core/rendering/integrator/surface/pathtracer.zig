@@ -79,18 +79,7 @@ pub const Pathtracer = struct {
             const sample_result = sample_results[0];
 
             const path = sample_result.path;
-            if (.Specular == path.scattering) {
-                vertex.state.specular = true;
-                vertex.state.singular = path.singular();
-
-                if (vertex.state.primary_ray) {
-                    vertex.state.started_specular = true;
-                }
-            } else if (.Straight != path.event) {
-                vertex.state.specular = false;
-                vertex.state.singular = false;
-                vertex.state.primary_ray = false;
-            }
+            vertex.state.update(path);
 
             if (.Straight != path.event) {
                 vertex.origin = frag.p;
