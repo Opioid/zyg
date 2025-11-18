@@ -205,7 +205,7 @@ pub const AABB = struct {
         // bounds0[axis] = mima.max(d, bounds0[axis]);
         // self.bounds[0] = bounds0;
 
-        var bounds0: [*]f32 = @as([*]f32, @ptrCast(&self.bounds[0]));
+        var bounds0: [*]f32 = @ptrCast(&self.bounds[0]);
         bounds0[axis] = util.max(d, bounds0[axis]);
         self.bounds[0] = bounds0[0..4].*;
 
@@ -214,15 +214,9 @@ pub const AABB = struct {
     }
 
     pub fn clipMax(self: *AABB, d: f32, axis: u8) void {
-        // var bounds1: [4]f32 = self.bounds[1];
-        // bounds1[axis] = mima.min(d, bounds1[axis]);
-        // self.bounds[1] = bounds1;
-
-        var bounds1: [*]f32 = @as([*]f32, @ptrCast(&self.bounds[1]));
+        var bounds1: [*]f32 = @ptrCast(&self.bounds[1]);
         bounds1[axis] = util.min(d, bounds1[axis]);
         self.bounds[1] = bounds1[0..4].*;
-
-        // self.bounds[1][axis] = mima.min(d, self.bounds[1][axis]);
     }
 
     pub fn covers(self: AABB, other: AABB) bool {

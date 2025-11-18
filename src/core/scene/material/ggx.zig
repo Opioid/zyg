@@ -38,9 +38,9 @@ pub fn dspbrMicroEc(f0: Vec4f, n_dot_wi: f32, n_dot_wo: f32, alpha: f32) Vec4f {
 
     const m = ((1.0 - e_wo) * (1.0 - e_wi)) / (std.math.pi * (1.0 - e_avg));
 
-    const f_avg = @as(Vec4f, @splat(1.0 / 21.0)) + @as(Vec4f, @splat(20.0 / 21.0)) * f0;
+    const f_avg = @mulAdd(Vec4f, @splat(20.0 / 21.0), f0, @splat(1.0 / 21.0));
 
-    const f = ((f_avg * f_avg) * @as(Vec4f, @splat(e_avg))) / (@as(Vec4f, @splat(1.0)) - f_avg * @as(Vec4f, @splat(1.0 - e_avg)));
+    const f = ((f_avg * f_avg) * @as(Vec4f, @splat(e_avg))) / @mulAdd(Vec4f, -f_avg, @splat(1.0 - e_avg), @splat(1.0));
 
     return @as(Vec4f, @splat(m)) * f;
 }
@@ -107,7 +107,7 @@ pub const Iso = struct {
         const h = Aniso.sample(wo, @splat(alpha), xi, frame, &n_dot_h);
 
         const wo_dot_h = math.safe.clampDot(wo, h);
-        const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
+        const wi = math.normalize3(@mulAdd(Vec4f, @splat(2.0 * wo_dot_h), h, -wo));
 
         const n_dot_wi = frame.clampNdot(wi);
         const alpha2 = alpha * alpha;
@@ -169,7 +169,7 @@ pub const Iso = struct {
         frame: Frame,
         result: *bxdf.Sample,
     ) f32 {
-        const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
+        const wi = math.normalize3(@mulAdd(Vec4f, @splat(2.0 * wo_dot_h), h, -wo));
 
         const n_dot_wi = frame.clampNdot(wi);
         const alpha2 = alpha * alpha;
@@ -203,7 +203,7 @@ pub const Iso = struct {
         const abs_wi_dot_h = math.safe.clampAbs(wi_dot_h);
         const abs_wo_dot_h = math.safe.clampAbs(wo_dot_h);
 
-        const wi = math.normalize3(@as(Vec4f, @splat(eta * abs_wo_dot_h - abs_wi_dot_h)) * h - @as(Vec4f, @splat(eta)) * wo);
+        const wi = math.normalize3(@as(Vec4f, @splat(@mulAdd(f32, eta, abs_wo_dot_h, -abs_wi_dot_h))) * h - @as(Vec4f, @splat(eta)) * wo);
 
         const n_dot_wi = frame.clampAbsNdot(wi);
 
@@ -227,7 +227,7 @@ pub const Iso = struct {
     }
 
     fn distribution(n_dot_h: f32, a2: f32) f32 {
-        const d = (n_dot_h * n_dot_h) * (a2 - 1.0) + 1.0;
+        const d = @mulAdd(f32, n_dot_h * n_dot_h, a2 - 1.0, 1.0);
         return a2 / (std.math.pi * d * d);
     }
 
@@ -235,7 +235,7 @@ pub const Iso = struct {
         const n_dot = Vec2f{ n_dot_wi, n_dot_wo };
         const a2: Vec2f = @splat(alpha2);
 
-        const t = @sqrt(a2 + (@as(Vec2f, @splat(1.0)) - a2) * (n_dot * n_dot));
+        const t = @sqrt(@mulAdd(Vec2f, @as(Vec2f, @splat(1.0)) - a2, n_dot * n_dot, a2));
 
         const t_wi = t[0];
         const t_wo = t[1];
@@ -244,8 +244,8 @@ pub const Iso = struct {
     }
 
     fn gSmithCorrelated(n_dot_wi: f32, n_dot_wo: f32, alpha2: f32) f32 {
-        const a = n_dot_wo * @sqrt(alpha2 + (1.0 - alpha2) * (n_dot_wi * n_dot_wi));
-        const b = n_dot_wi * @sqrt(alpha2 + (1.0 - alpha2) * (n_dot_wo * n_dot_wo));
+        const a = n_dot_wo * @sqrt(@mulAdd(f32, (1.0 - alpha2), (n_dot_wi * n_dot_wi), alpha2));
+        const b = n_dot_wi * @sqrt(@mulAdd(f32, (1.0 - alpha2), (n_dot_wo * n_dot_wo), alpha2));
 
         return (2.0 * n_dot_wi * n_dot_wo) / (a + b);
     }
@@ -324,7 +324,7 @@ pub const Aniso = struct {
 
         const wo_dot_h = math.safe.clampDot(wo, h);
 
-        const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
+        const wi = math.normalize3(@mulAdd(Vec4f, @splat(2.0 * wo_dot_h), h, -wo));
 
         const n_dot_wi = frame.clampNdot(wi);
 
@@ -365,7 +365,7 @@ pub const Aniso = struct {
         const x_dot_h = math.dot3(frame.x, h);
         const y_dot_h = math.dot3(frame.y, h);
 
-        const wi = math.normalize3(@as(Vec4f, @splat(2.0 * wo_dot_h)) * h - wo);
+        const wi = math.normalize3(@mulAdd(Vec4f, @splat(2.0 * wo_dot_h), h, -wo));
 
         const n_dot_wi = frame.clampNdot(wi);
 
