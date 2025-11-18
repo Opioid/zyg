@@ -23,7 +23,7 @@ pub const Shaper = struct {
     const Self = Shaper;
 
     pub fn init(alloc: Allocator, dimensions: Vec2i) !Self {
-        const len = @as(usize, @intCast(dimensions[0] * dimensions[1]));
+        const len: usize = @intCast(dimensions[0] * dimensions[1]);
         return Self{
             .dimensions = dimensions,
             .pixels = try alloc.alloc(Pack4f, len),
@@ -221,7 +221,7 @@ pub const Shaper = struct {
                         wy = wy - dim[1];
                     }
 
-                    var pixel = &self.pixels[@as(usize, @intCast(wy * dim[0] + wx))];
+                    var pixel = &self.pixels[@intCast(wy * dim[0] + wx)];
                     const old: Vec4f = pixel.v;
                     pixel.v = math.lerp(old, color, @as(Vec4f, @splat(w)));
                 }

@@ -78,7 +78,7 @@ pub fn loadKeyframes(
                     }
                 }
 
-                graph.animationSetFrame(animation, i, keyframe);
+                graph.animationSetFrame(animation, @intCast(i), keyframe);
 
                 current_time += frame_step;
             }
@@ -123,7 +123,7 @@ pub fn loadTransformationsAndTimes(
             keyframe.k = pt.transform(keyframe.k);
         }
 
-        graph.animationSetFrame(animation, i, keyframe);
+        graph.animationSetFrame(animation, @intCast(i), keyframe);
 
         current_time += frame_step;
     }
