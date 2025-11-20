@@ -69,7 +69,12 @@ const color_matching = [_][3]f32{
 };
 
 pub fn turbo(x: f32) [3]u8 {
-    const i = @as(u8, @intFromFloat(x * 255.0 + 0.5));
+    if (x < 0.0) {
+        return .{ 0, 0, 0 };
+    }
+
+    const i: u8 = @intFromFloat(x * 255.0 + 0.5);
+
     return turbo_srgb_bytes[i];
 }
 

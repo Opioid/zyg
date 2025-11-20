@@ -27,6 +27,8 @@ pub fn testSize() void {
 
     testType(math.Vec2f, "Vec2f", 8);
     testType(math.Pack3f, "Pack3f", 12);
+    testType(math.Vec4b, "Vec4b", 4);
+    testType(math.Vec4s, "Vec4s", 8);
     testType(math.Vec4f, "Vec4f", 16);
     testType(math.Pack4f, "Pack4f", 16);
     testType(math.Ray, "Ray", 64);
