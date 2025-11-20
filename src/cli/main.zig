@@ -15,8 +15,6 @@ const base = @import("base");
 const chrono = base.chrono;
 const Threads = base.thread.Pool;
 
-const Vec2i = base.math.Vec2i;
-
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;

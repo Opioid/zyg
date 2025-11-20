@@ -253,7 +253,7 @@ pub const Driver = struct {
 
             if (self.view.aov_sample_count) {
                 const d = camera.super().resolution;
-                const weights = try alloc.alloc(f32, @as(u32, @intCast(d[0] * d[1])));
+                const weights = try alloc.alloc(f32, @intCast(d[0] * d[1]));
                 defer alloc.free(weights);
 
                 self.view.sensor.layers[layer_id].buffer.copyWeights(weights);
