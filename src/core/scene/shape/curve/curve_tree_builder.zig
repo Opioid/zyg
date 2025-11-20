@@ -147,7 +147,7 @@ pub const Builder = struct {
                     cost += mod * box.volume();
                 }
 
-                self.count = @as(u32, @intCast(ps.len));
+                self.count = @intCast(ps.len);
                 self.cost = cost;
             }
 

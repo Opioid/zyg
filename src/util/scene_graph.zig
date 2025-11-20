@@ -121,7 +121,7 @@ pub const Graph = struct {
         try self.prop_frames.append(alloc, @intCast(self.keyframes.items.len));
         try self.prop_topology.append(alloc, .{});
 
-        return @as(u32, @intCast(self.prop_props.items.len - 1));
+        return @intCast(self.prop_props.items.len - 1);
     }
 
     pub fn propSerializeChild(self: *Self, parent_id: u32, child_id: u32) void {
@@ -242,7 +242,7 @@ pub const Graph = struct {
         self.animations.items[animation].entity = entity;
     }
 
-    pub fn animationSetFrame(self: *Self, animation: u32, index: usize, keyframe: Keyframe) void {
+    pub fn animationSetFrame(self: *Self, animation: u32, index: u32, keyframe: Keyframe) void {
         self.animations.items[animation].set(index, keyframe);
     }
 
@@ -264,12 +264,12 @@ pub const Graph = struct {
                 }
 
                 const num_frames = if (animation) self.scene.num_interpolation_frames else 1;
-                self.propPropagateTransformation(entity, num_frames, frames);
+                self.propPropagateTransformation(@intCast(entity), num_frames, frames);
             }
         }
     }
 
-    fn propPropagateTransformation(self: *Self, entity: usize, num_frames: u32, frames: [*]const math.Transformation) void {
+    fn propPropagateTransformation(self: *Self, entity: u32, num_frames: u32, frames: [*]const math.Transformation) void {
         var child = self.prop_topology.items[entity].child;
         while (Null != child) {
             self.propInheritTransformations(child, num_frames, frames);

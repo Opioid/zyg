@@ -85,8 +85,8 @@ pub const SingleGenerator = struct {
         self.state = old *% 6364136223846793005 +% 1;
 
         // Calculate output function (XSH RR), uses old state for max ILP
-        const xrs = @as(u32, @truncate(((old >> 18) ^ old) >> 27));
-        const rot = @as(u5, @truncate(old >> 59));
+        const xrs: u32 = @truncate(((old >> 18) ^ old) >> 27);
+        const rot: u5 = @truncate(old >> 59);
 
         return (xrs >> rot) | (xrs << ((0 -% rot) & 31));
     }

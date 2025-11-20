@@ -93,7 +93,7 @@ pub const Buffer = struct {
         _ = @atomicRmw(f32, &dest.v[3], .Add, weight, .monotonic);
     }
 
-    pub fn lessPixel(self: *Self, id: usize, slot: u32, value: f32) void {
+    pub fn lessPixel(self: *Self, id: u32, slot: u32, value: f32) void {
         const pixels = self.buffers[slot];
         var dest = &pixels[id];
 

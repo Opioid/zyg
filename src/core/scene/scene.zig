@@ -251,7 +251,7 @@ pub const Scene = struct {
 
         for (0..num_lights) |i| {
             try self.propPrepareSampling(alloc, @intCast(i), time, threads);
-            self.light_temp_powers[i] = self.lightPower(i);
+            self.light_temp_powers[i] = self.lightPower(@intCast(i));
         }
 
         try self.light_distribution.configure(alloc, self.light_temp_powers[0..num_lights], 0);
@@ -561,11 +561,11 @@ pub const Scene = struct {
         return self.prop_space.aabbs.items[entity].cachedRadius();
     }
 
-    pub fn propShapeId(self: *const Scene, entity: usize) u32 {
+    pub fn propShapeId(self: *const Scene, entity: u32) u32 {
         return self.props.items[entity].resource;
     }
 
-    pub fn propShape(self: *const Scene, entity: usize) *Shape {
+    pub fn propShape(self: *const Scene, entity: u32) *Shape {
         return &self.shapes.items[self.props.items[entity].resource];
     }
 
@@ -724,7 +724,7 @@ pub const Scene = struct {
         return self.lights.items[light_id].two_sided;
     }
 
-    pub fn lightPower(self: *const Scene, light_id: usize) f32 {
+    pub fn lightPower(self: *const Scene, light_id: u32) f32 {
         return self.light_aabbs.items[light_id].bounds[0][3];
     }
 

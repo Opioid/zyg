@@ -3,7 +3,7 @@ const math = base.math;
 const Vec4f = math.Vec4f;
 
 pub fn schlick1(wo_dot_h: f32, f0: f32) f32 {
-    return f0 + math.pow5(1.0 - wo_dot_h) * (1.0 - f0);
+    return @mulAdd(f32, math.pow5(1.0 - wo_dot_h), 1.0 - f0, f0);
 }
 
 pub const Schlick = struct {
@@ -14,7 +14,7 @@ pub const Schlick = struct {
     }
 
     pub fn f(self: Schlick, wo_dot_h: f32) Vec4f {
-        return self.f0 + @as(Vec4f, @splat(math.pow5(1.0 - wo_dot_h))) * (@as(Vec4f, @splat(1.0)) - self.f0);
+        return @mulAdd(Vec4f, @splat(math.pow5(1.0 - wo_dot_h)), @as(Vec4f, @splat(1.0)) - self.f0, self.f0);
     }
 
     pub fn IorToF0(n0: f32, n1: f32) f32 {
