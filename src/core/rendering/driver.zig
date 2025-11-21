@@ -131,7 +131,7 @@ pub const Driver = struct {
 
         try view.sensor.resize(alloc, dim, camera.numLayers(), view.aovs);
 
-        self.tiles.configure(camera.super().crop, 32, view.sensor.filter_radius_int);
+        self.tiles.configure(camera.super().crop, Worker.TileDimensions, view.sensor.filter_radius_int);
 
         try self.target.resize(alloc, img.Description.init2D(dim));
 

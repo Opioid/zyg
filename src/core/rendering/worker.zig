@@ -43,6 +43,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Worker = struct {
+    pub const TileDimensions = 32;
+
     context: Context = undefined,
 
     sensor: *Sensor = undefined,
