@@ -239,7 +239,9 @@ pub const Sensor = struct {
         const summed = emission + direct + indirect;
         const composed = Vec4f{ summed[0], summed[1], summed[2], value.direct[3] };
 
-        return layer.buffer.addPixel(id, composed, weight);
+        layer.buffer.addPixel(id, composed, weight);
+
+        return composed;
     }
 
     pub fn splatSample(self: *Self, layer: u32, sample: SampleTo, color: Vec4f, bounds: Vec4i) void {

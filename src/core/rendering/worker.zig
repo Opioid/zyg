@@ -204,15 +204,15 @@ pub const Worker = struct {
 
                             const ivalue = self.surface_integrator.li(vertex, self);
 
-                            // The weightd value is what was added to the pixel
-                            const weighted = sensor.addSample(layer, sample, ivalue, self.aov);
+                            // The total value of the sample, not taking re-construction filter into account
+                            const value = sensor.addSample(layer, sample, ivalue, self.aov);
 
                             // This clipped value is what we use for the noise estimate
-                            const value = math.clamp4(ef * weighted, @splat(-wp), @splat(wp));
+                            const clipped = math.min4(ef * value, @splat(wp));
 
-                            const new_m = old_m + (value - old_m) / @as(Vec4f, @splat(@floatFromInt(cs + 1)));
+                            const new_m = old_m + (clipped - old_m) / @as(Vec4f, @splat(@floatFromInt(cs + 1)));
 
-                            old_s += (value - old_m) * (value - new_m);
+                            old_s += (clipped - old_m) * (clipped - new_m);
                             old_m = new_m;
 
                             self.samplers[0].incrementSample();

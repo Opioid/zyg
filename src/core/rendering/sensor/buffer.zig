@@ -60,10 +60,10 @@ pub const Buffer = union(Class) {
         }
     }
 
-    pub fn addPixel(self: *Self, i: u32, color: Vec4f, weight: f32) Vec4f {
-        return switch (self.*) {
+    pub fn addPixel(self: *Self, i: u32, color: Vec4f, weight: f32) void {
+        switch (self.*) {
             inline else => |*s| s.addPixel(i, color, weight),
-        };
+        }
     }
 
     pub fn addPixelAtomic(self: *Self, i: u32, color: Vec4f, weight: f32) void {
