@@ -15,12 +15,13 @@ pub const TileQueue = struct {
     num_tiles: Vec2i,
 
     tile_dimensions: i32,
+    filter_padding: i32,
 
     current_consume: i32,
 
     const Self = @This();
 
-    pub fn configure(self: *Self, dimensions: Vec2i, crop: Vec4i, tile_dimensions: i32) void {
+    pub fn configure(self: *Self, dimensions: Vec2i, crop: Vec4i, tile_dimensions: i32, filter_padding: i32) void {
         // Pad the crop so that we render full size tiles
         // This is to have the same noise estimate per tile for arbitrary crops,
         // at the cost of potentially rendering pixels that won't be in the final image
@@ -35,6 +36,7 @@ pub const TileQueue = struct {
 
         self.crop = padded_crop;
         self.tile_dimensions = tile_dimensions;
+        self.filter_padding = filter_padding;
 
         const xy = Vec2i{ padded_crop[0], padded_crop[1] };
         const zw = Vec2i{ padded_crop[2], padded_crop[3] };
@@ -72,7 +74,27 @@ pub const TileQueue = struct {
         start *= @splat(tile_dimensions);
         start += Vec2i{ crop[0], crop[1] };
 
-        const end = @min(start + @as(Vec2i, @splat(tile_dimensions)), Vec2i{ crop[2], crop[3] });
+        var end = @min(start + @as(Vec2i, @splat(tile_dimensions)), Vec2i{ crop[2], crop[3] });
+
+        const filter_padding = self.filter_padding;
+        if (filter_padding > 0) {
+            if (crop[1] == start[1]) {
+                start[1] -= filter_padding;
+            }
+
+            if (crop[3] == end[1]) {
+                end[1] += filter_padding;
+            }
+
+            if (crop[0] == start[0]) {
+                start[0] -= filter_padding;
+            }
+
+            if (crop[2] == end[0]) {
+                end[0] += filter_padding;
+            }
+        }
+
         const back = end - @as(Vec2i, @splat(1));
 
         return Vec4i{ start[0], start[1], back[0], back[1] };
