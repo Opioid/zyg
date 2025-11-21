@@ -45,7 +45,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Worker = struct {
     pub const TileDimensions = 16;
-    const TileArea = TileDimensions * TileDimensions;
+    const TileArea = if (Sensor.ImportanceSampling) TileDimensions * TileDimensions else (TileDimensions + 2) * (TileDimensions + 2);
 
     const TileStack = TileStackN(TileArea);
 
@@ -120,6 +120,10 @@ pub const Worker = struct {
         return p;
     }
 
+    inline fn wrap(comptime Dim: i32, x: i32) i32 {
+        return if (x < 0) (Dim + 1) - x else x;
+    }
+
     // Running variance calculation as described in
     // https://www.johndcook.com/blog/standard_deviation/
 
@@ -136,7 +140,6 @@ pub const Worker = struct {
         const scene = self.context.scene;
         const layer = self.context.layer;
         const sensor = self.sensor;
-        const r = camera.super().resolution;
 
         var crop = camera.super().crop;
         crop[2] -= crop[0] + 1;
@@ -146,6 +149,8 @@ pub const Worker = struct {
         isolated_bounds[2] -= isolated_bounds[0];
         isolated_bounds[3] -= isolated_bounds[1];
 
+        const fr = sensor.filterPadding();
+        const r = camera.super().resolution + @as(Vec2i, @splat(2 * fr));
         const so = iteration / num_expected_samples;
         const offset = Vec2i{ target_tile[0], target_tile[1] };
 
@@ -185,14 +190,13 @@ pub const Worker = struct {
                     const x_back = tile[2];
                     var x = tile[0];
                     var xx = @rem(x, TileDimensions);
-                    const pixel_n: u32 = @intCast(y * r[0]);
+                    const pixel_n: u32 = @intCast((y + fr) * r[0]);
 
                     while (x <= x_back) : (x += 1) {
-                        const ii: u32 = @intCast(yy * TileDimensions + xx);
+                        const ii: u32 = @intCast(wrap(TileDimensions, yy) * TileDimensions + wrap(TileDimensions, xx));
                         xx += 1;
 
-                        const pixel_id = pixel_n + @as(u32, @intCast(x));
-
+                        const pixel_id = pixel_n + @as(u32, @intCast(x + fr));
                         const sample_index = @as(u64, pixel_id) * @as(u64, num_expected_samples) + @as(u64, iteration + s_start);
                         const tsi: u32 = @truncate(sample_index);
                         const seed = @as(u32, @truncate(sample_index >> 32)) + so;

@@ -23,8 +23,10 @@ const Allocator = std.mem.Allocator;
 
 pub const Sensor = TSensor(false);
 
-fn TSensor(comptime ImportanceSampling: bool) type {
+fn TSensor(comptime importance_sampling: bool) type {
     return struct {
+        pub const ImportanceSampling = importance_sampling;
+
         pub const Buffer = @import("buffer.zig").Buffer;
         pub const Tonemapper = @import("tonemapper.zig").Tonemapper;
 
@@ -209,6 +211,10 @@ fn TSensor(comptime ImportanceSampling: bool) type {
         pub fn isolatedTile(self: *const Self, tile: Vec4i) Vec4i {
             const r = self.filter_radius_int;
             return tile + Vec4i{ r, r, -r, -r };
+        }
+
+        pub fn filterPadding(self: *const Self) i32 {
+            return if (ImportanceSampling) 0 else self.filter_radius_int;
         }
 
         pub fn addSample(
