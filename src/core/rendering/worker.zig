@@ -137,6 +137,15 @@ pub const Worker = struct {
         const layer = self.context.layer;
         const sensor = self.sensor;
         const r = camera.super().resolution;
+
+        var crop = camera.super().crop;
+        crop[2] -= crop[0] + 1;
+        crop[3] -= crop[1] + 1;
+
+        var isolated_bounds = sensor.isolatedTile(target_tile);
+        isolated_bounds[2] -= isolated_bounds[0];
+        isolated_bounds[3] -= isolated_bounds[1];
+
         const so = iteration / num_expected_samples;
         const offset = Vec2i{ target_tile[0], target_tile[1] };
 
@@ -205,7 +214,7 @@ pub const Worker = struct {
                             const ivalue = self.surface_integrator.li(vertex, self);
 
                             // The total value of the sample, not taking re-construction filter into account
-                            const value = sensor.addSample(layer, sample, ivalue, self.aov);
+                            const value = sensor.addSample(layer, sample, ivalue, self.aov, crop, isolated_bounds);
 
                             // This clipped value is what we use for the noise estimate
                             const clipped = math.min4(ef * value, @splat(wp));

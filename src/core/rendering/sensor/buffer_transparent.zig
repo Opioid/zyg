@@ -54,6 +54,18 @@ pub const Transparent = struct {
         self.pixel_weights[i] = pixel_weight;
     }
 
+    pub fn addPixelAtomic(self: *Transparent, i: u32, color: Vec4f, weight: f32) void {
+        _ = @atomicRmw(f32, &self.pixel_weights[i], .Add, weight, .monotonic);
+
+        const wc = @as(Vec4f, @splat(weight)) * color;
+
+        var value = &self.pixels[i];
+        _ = @atomicRmw(f32, &value.v[0], .Add, wc[0], .monotonic);
+        _ = @atomicRmw(f32, &value.v[1], .Add, wc[1], .monotonic);
+        _ = @atomicRmw(f32, &value.v[2], .Add, wc[2], .monotonic);
+        _ = @atomicRmw(f32, &value.v[3], .Add, wc[3], .monotonic);
+    }
+
     pub fn splatPixelAtomic(self: *Transparent, i: u32, color: Vec4f, weight: f32) void {
         const wc = @as(Vec4f, @splat(weight)) * color;
 

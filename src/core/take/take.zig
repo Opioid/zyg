@@ -55,7 +55,7 @@ pub const View = struct {
         .full_light_path = false,
     } },
 
-    sensor: Sensor = Sensor.init(
+    sensor: Sensor = .init(
         .Opaque,
         .infinite,
         2.0,
