@@ -139,7 +139,6 @@ pub const Cache = struct {
         material_id: u32,
         light_id: u32,
         scene: *Scene,
-        threads: *Threads,
     ) !u32 {
         const material = scene.resources.material(material_id);
 
@@ -161,8 +160,8 @@ pub const Cache = struct {
             return entry;
         }
 
-        const shape_sampler = try shape.prepareSampling(alloc, part, material_id, &scene.light_tree_builder, scene.resources, threads) orelse
-            try material.prepareSampling(alloc, trafo, time, shape, light_link, scene, threads);
+        const shape_sampler = try shape.prepareSampling(alloc, part, material_id, &scene.light_tree_builder, scene.resources) orelse
+            try material.prepareSampling(alloc, trafo, time, shape, light_link, scene);
 
         try self.resources.append(alloc, shape_sampler);
 

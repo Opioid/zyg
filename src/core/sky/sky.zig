@@ -87,14 +87,7 @@ pub const Sky = struct {
         }
     }
 
-    pub fn compile(
-        self: *Self,
-        alloc: Allocator,
-        time: u64,
-        scene: *Scene,
-        threads: *Threads,
-        fs: *Filesystem,
-    ) !void {
+    pub fn compile(self: *Self, alloc: Allocator, time: u64, scene: *Scene) !void {
         if (Prop.Null == self.sun) {
             return;
         }
@@ -149,9 +142,11 @@ pub const Sky = struct {
         var buf1: [48]u8 = undefined;
         const sun_filename = try std.fmt.bufPrint(&buf1, "../cache/sun_{s}.exr", .{hb64});
 
+        const fs = &scene.resources.fs;
+
         {
             var stream = fs.readStream(alloc, sky_filename) catch {
-                return self.bakeSky(alloc, scene, threads, fs, sky_filename, sun_filename);
+                return self.bakeSky(alloc, scene, sky_filename, sun_filename);
             };
 
             defer stream.deinit();
@@ -165,7 +160,7 @@ pub const Sky = struct {
 
         {
             var stream = fs.readStream(alloc, sun_filename) catch {
-                return self.bakeSky(alloc, scene, threads, fs, sky_filename, sun_filename);
+                return self.bakeSky(alloc, scene, sky_filename, sun_filename);
             };
 
             defer stream.deinit();
@@ -177,15 +172,7 @@ pub const Sky = struct {
         }
     }
 
-    fn bakeSky(
-        self: *Self,
-        alloc: Allocator,
-        scene: *Scene,
-        threads: *Threads,
-        fs: *Filesystem,
-        sky_filename: []u8,
-        sun_filename: []u8,
-    ) !void {
+    fn bakeSky(self: *Self, alloc: Allocator, scene: *Scene, sky_filename: []u8, sun_filename: []u8) !void {
         var image = &scene.resources.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.data.image.id).Float3;
 
         try image.resize(alloc, img.Description.init2D(BakeDimensions));
@@ -196,7 +183,7 @@ pub const Sky = struct {
 
         const unrotated_direction = Vec4f{ 0.0, sin_el, @sqrt(1.0 - sin_el * sin_el), 0.0 };
 
-        var model = Model.init(alloc, unrotated_direction, self.visibility, self.albedo, fs) catch {
+        var model = Model.init(alloc, unrotated_direction, self.visibility, self.albedo, &scene.resources.fs) catch {
             var y: i32 = 0;
             while (y < BakeDimensions[1]) : (y += 1) {
                 var x: i32 = 0;
@@ -235,6 +222,8 @@ pub const Sky = struct {
             .shape = scene.propShape(self.sky),
             .image = image,
         };
+
+        const threads = scene.resources.threads;
 
         threads.runParallel(&context, SkyContext.bakeSky, 0);
 

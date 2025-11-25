@@ -71,10 +71,9 @@ pub const Material = union(enum) {
         shape: *const Shape,
         light_link: u32,
         scene: *const Scene,
-        threads: *Threads,
     ) !ShapeSampler {
         return switch (self.*) {
-            .Light => |*m| m.prepareSampling(alloc, trafo, time, shape, light_link, scene, threads),
+            .Light => |*m| m.prepareSampling(alloc, trafo, time, shape, light_link, scene),
             .Sky => |*m| m.prepareSampling(alloc, shape, scene.resources),
             .Substitute => |*m| m.prepareSampling(scene.resources),
             .Volumetric => |*m| m.prepareSampling(alloc, scene.resources),

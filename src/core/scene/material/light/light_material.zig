@@ -57,10 +57,9 @@ pub const Material = struct {
         shape: *const Shape,
         light_link: u32,
         scene: *const Scene,
-        threads: *Threads,
     ) !ShapeSampler {
         if (Scene.Null != light_link) {
-            return self.preparePortalSampling(alloc, trafo, time, shape, light_link, scene, threads);
+            return self.preparePortalSampling(alloc, trafo, time, shape, light_link, scene);
         }
 
         const rad = self.emittance.value;
@@ -76,6 +75,8 @@ pub const Material = struct {
 
         const luminance = try alloc.alloc(f32, @intCast(d[0] * d[1]));
         defer alloc.free(luminance);
+
+        const threads = scene.resources.threads;
 
         var avg: Vec4f = @splat(0.0);
 
@@ -146,7 +147,6 @@ pub const Material = struct {
         shape: *const Shape,
         light_link: u32,
         scene: *const Scene,
-        threads: *Threads,
     ) !ShapeSampler {
         const dome_prop = scene.light(light_link).prop;
         const dome_trafo = scene.propTransformationAt(dome_prop, time);
@@ -164,11 +164,11 @@ pub const Material = struct {
                 .dome_trafo = dome_trafo,
                 .portal_dir = trafo.rotation.r[2],
                 .texture = self.emittance.emission_map,
-                .averages = try alloc.alloc(Vec4f, threads.numThreads()),
+                .averages = try alloc.alloc(Vec4f, scene.resources.threads.numThreads()),
             };
             defer alloc.free(context.averages);
 
-            const num = threads.runRange(&context, PortalHemisphereContext.calculate, 0, dim, 0);
+            const num = scene.resources.threads.runRange(&context, PortalHemisphereContext.calculate, 0, dim, 0);
             for (context.averages[0..num]) |a| {
                 avg += a;
             }
@@ -187,7 +187,7 @@ pub const Material = struct {
             .luminance = luminance.ptr,
         };
 
-        _ = threads.runRange(&context, PortalLuminanceContext.calculate, 0, dim, 0);
+        _ = scene.resources.threads.runRange(&context, PortalLuminanceContext.calculate, 0, dim, 0);
 
         const wdf = try WindowedDistribution2D.init(alloc, .{ @intCast(dim), @intCast(dim) }, luminance);
 

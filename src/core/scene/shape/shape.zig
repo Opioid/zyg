@@ -555,10 +555,9 @@ pub const Shape = union(enum) {
         material: u32,
         builder: *LightTreeBuilder,
         resources: *const Resources,
-        threads: *Threads,
     ) !?ShapeSampler {
         return switch (self.*) {
-            .TriangleMesh => |*m| try m.prepareSampling(alloc, part, material, builder, resources, threads),
+            .TriangleMesh => |*m| try m.prepareSampling(alloc, part, material, builder, resources),
             else => null,
         };
     }

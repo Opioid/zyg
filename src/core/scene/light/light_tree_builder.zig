@@ -278,7 +278,7 @@ pub const Builder = struct {
         alloc.free(self.build_nodes);
     }
 
-    pub fn build(self: *Builder, alloc: Allocator, tree: *Tree, scene: *const Scene, threads: *Threads) !void {
+    pub fn build(self: *Builder, alloc: Allocator, tree: *Tree, scene: *const Scene) !void {
         const num_all_lights = scene.numLights();
         const num_lights = scene.numSampleableLights();
 
@@ -347,7 +347,7 @@ pub const Builder = struct {
                 total_power += scene.lightPower(l);
             }
 
-            _ = self.split(tree, 0, num_infinite_lights, num_lights, bounds, cone, two_sided, total_power, 0, scene, threads);
+            _ = self.split(tree, 0, num_infinite_lights, num_lights, bounds, cone, two_sided, total_power, 0, scene);
 
             try tree.allocateNodes(alloc, self.current_node);
             self.build_nodes[0].bounds.cacheRadius();
@@ -454,7 +454,6 @@ pub const Builder = struct {
         total_power: f32,
         depth: u32,
         scene: *const Scene,
-        threads: *Threads,
     ) u32 {
         const lights = tree.light_mapping[begin..end];
         const len = end - begin;
@@ -467,7 +466,7 @@ pub const Builder = struct {
 
         const child0 = self.current_node;
 
-        const sc = evaluateSplits(Scene, lights, bounds, cone, two_sided, Scene_sweep_threshold, self.candidates, scene, threads);
+        const sc = evaluateSplits(Scene, lights, bounds, cone, two_sided, Scene_sweep_threshold, self.candidates, scene, scene.resources.threads);
 
         if (sc.exhausted) {
             return self.assign(node, tree, begin, end, bounds, cone, total_power, scene);
@@ -477,8 +476,8 @@ pub const Builder = struct {
         const split_node = begin + @as(u32, @intCast(base.memory.partition(u32, lights, predicate, Predicate(Scene).f)));
 
         self.current_node += 2;
-        const c0_end = self.split(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.two_sided[0], sc.powers[0], depth + 1, scene, threads);
-        const c1_end = self.split(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.two_sided[1], sc.powers[1], depth + 1, scene, threads);
+        const c0_end = self.split(tree, child0, begin, split_node, sc.aabbs[0], sc.cones[0], sc.two_sided[0], sc.powers[0], depth + 1, scene);
+        const c1_end = self.split(tree, child0 + 1, split_node, end, sc.aabbs[1], sc.cones[1], sc.two_sided[1], sc.powers[1], depth + 1, scene);
 
         node.bounds = bounds;
         node.cone = cone;

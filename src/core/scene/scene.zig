@@ -182,20 +182,15 @@ pub const Scene = struct {
         return 0 == self.infinite_props.items.len;
     }
 
-    pub fn compile(
-        self: *Scene,
-        alloc: Allocator,
-        camera_pos: Vec4f,
-        time: u64,
-        threads: *Threads,
-        fs: *Filesystem,
-    ) !void {
+    pub fn compile(self: *Scene, alloc: Allocator, camera_pos: Vec4f, time: u64) !void {
         const frames_start = time - (time % TickDuration);
         self.frame_start = frames_start;
 
-        try self.sky.compile(alloc, time, self, threads, fs);
+        try self.sky.compile(alloc, time, self);
 
         self.calculateWorldBounds(camera_pos);
+
+        const threads = self.resources.threads;
 
         try self.bvh_builder.build(alloc, &self.solid_bvh, self.finite_props.items, self.prop_space.aabbs.items, threads);
 
@@ -209,13 +204,13 @@ pub const Scene = struct {
         }
 
         for (0..num_lights) |i| {
-            try self.propPrepareSampling(alloc, @intCast(i), time, threads);
+            try self.propPrepareSampling(alloc, @intCast(i), time);
             self.light_temp_powers[i] = self.lightPower(@intCast(i));
         }
 
         try self.light_distribution.configure(alloc, self.light_temp_powers[0..num_lights], 0);
 
-        try self.light_tree_builder.build(alloc, &self.light_tree, self, threads);
+        try self.light_tree_builder.build(alloc, &self.light_tree, self);
 
         var caustic_aabb: AABB = .empty;
         for (self.finite_props.items) |i| {
@@ -404,7 +399,7 @@ pub const Scene = struct {
         self.props.items[entity].setShadowCatcher();
     }
 
-    fn propPrepareSampling(self: *Scene, alloc: Allocator, light_id: u32, time: u64, threads: *Threads) !void {
+    fn propPrepareSampling(self: *Scene, alloc: Allocator, light_id: u32, time: u64) !void {
         var l = &self.lights.items[light_id];
 
         const entity = l.prop;
@@ -431,7 +426,6 @@ pub const Scene = struct {
             material_id,
             light_id,
             self,
-            threads,
         );
 
         l.sampler = sampler_id;

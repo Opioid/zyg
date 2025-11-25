@@ -62,7 +62,6 @@ pub const Part = struct {
         tree: *const Tree,
         builder: *LightTreeBuilder,
         resources: *const Resources,
-        threads: *Threads,
     ) !ShapeSampler {
         const num = self.num_triangles;
 
@@ -90,7 +89,7 @@ pub const Part = struct {
 
         const dimensions: Vec4i = if (m.usefulTexture()) |t| t.dimensions(resources) else @splat(0);
         var context = EvalContext{
-            .temps = try alloc.alloc(Temp, threads.numThreads()),
+            .temps = try alloc.alloc(Temp, resources.threads.numThreads()),
             .powers = try alloc.alloc(f32, num),
             .triangle_mapping = self.triangle_mapping,
             .m = m,
@@ -103,7 +102,7 @@ pub const Part = struct {
             alloc.free(context.temps);
         }
 
-        const num_tasks = threads.runRange(&context, EvalContext.run, 0, num, 0);
+        const num_tasks = resources.threads.runRange(&context, EvalContext.run, 0, num, 0);
 
         var temp: Temp = .{};
         for (context.temps[0..num_tasks]) |t| {
@@ -144,7 +143,7 @@ pub const Part = struct {
 
         try shape_sampler.impl.Mesh.distribution.configure(alloc, context.powers, 0);
 
-        try builder.buildPrimitive(alloc, &shape_sampler.impl.Mesh.light_tree, &shape_sampler.impl.Mesh, threads);
+        try builder.buildPrimitive(alloc, &shape_sampler.impl.Mesh.light_tree, &shape_sampler.impl.Mesh, resources.threads);
 
         return shape_sampler;
     }
@@ -726,7 +725,6 @@ pub const Mesh = struct {
         material: u32,
         builder: *LightTreeBuilder,
         resources: *const Resources,
-        threads: *Threads,
     ) !ShapeSampler {
         // This counts the triangles for _every_ part as an optimization
         if (0 == self.num_primitives) {
@@ -747,7 +745,7 @@ pub const Mesh = struct {
             self.primitive_mapping = primitive_mapping;
         }
 
-        return self.parts[part].configure(alloc, part, material, &self.tree, builder, resources, threads);
+        return self.parts[part].configure(alloc, part, material, &self.tree, builder, resources);
     }
 
     pub fn surfaceDifferentials(self: *const Mesh, primitive: u32, trafo: Trafo) DifferentialSurface {

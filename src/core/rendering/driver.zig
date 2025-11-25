@@ -35,7 +35,6 @@ pub const Driver = struct {
     };
 
     threads: *Threads,
-    fs: *Filesystem,
 
     view: *View = undefined,
     scene: *Scene = undefined,
@@ -58,13 +57,12 @@ pub const Driver = struct {
 
     progressor: Progressor,
 
-    pub fn init(alloc: Allocator, threads: *Threads, fs: *Filesystem, progressor: Progressor) !Driver {
+    pub fn init(alloc: Allocator, threads: *Threads, progressor: Progressor) !Driver {
         const workers = try alloc.alloc(Worker, threads.numThreads());
         @memset(workers, .{});
 
         return Driver{
             .threads = threads,
-            .fs = fs,
             .workers = workers,
             .photon_infos = try alloc.alloc(PhotonInfo, threads.numThreads()),
             .progressor = progressor,
@@ -166,7 +164,7 @@ pub const Driver = struct {
         const camera_pos = self.scene.propWorldPosition(camera.super().entity);
         const start = @as(u64, frame) * camera.super().frame_step;
 
-        try self.scene.compile(alloc, camera_pos, start, self.threads, self.fs);
+        try self.scene.compile(alloc, camera_pos, start);
 
         camera.update(start, self.scene);
 

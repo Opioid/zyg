@@ -102,7 +102,7 @@ export fn su_init() i32 {
 
         e.take.view.num_samples_per_pixel = 1;
 
-        e.driver = rendering.Driver.init(alloc, &e.threads, &resources.fs, .{ .Null = {} }) catch {
+        e.driver = rendering.Driver.init(alloc, &e.threads, .{ .Null = {} }) catch {
             engine = null;
             return -1;
         };
