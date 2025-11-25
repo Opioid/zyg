@@ -6,7 +6,7 @@ const Texture = @import("../../../texture/texture.zig").Texture;
 const ccoef = @import("../collision_coefficients.zig");
 const CC = ccoef.CC;
 const CM = ccoef.CM;
-const Scene = @import("../../scene.zig").Scene;
+const Resources = @import("../../../resource/manager.zig").Manager;
 
 const base = @import("base");
 const math = base.math;
@@ -36,10 +36,9 @@ pub const Builder = struct {
         tree: *Gridtree,
         texture: Texture,
         cc: CC,
-        scene: *const Scene,
-        threads: *Threads,
+        resources: *const Resources,
     ) !void {
-        const d = texture.dimensions(scene);
+        const d = texture.dimensions(resources);
 
         var num_cells = d >> Gridtree.Log2_cell_dim4;
 
@@ -50,11 +49,11 @@ pub const Builder = struct {
         var context = Context{
             .alloc = alloc,
             .grid = try alloc.alloc(BuildNode, cell_len),
-            .splitters = try alloc.alloc(Splitter, threads.numThreads()),
+            .splitters = try alloc.alloc(Splitter, resources.threads.numThreads()),
             .num_cells = num_cells,
             .texture = texture,
             .cc = cc,
-            .scene = scene,
+            .resources = resources,
         };
 
         defer {
@@ -66,8 +65,8 @@ pub const Builder = struct {
         }
 
         // Unfortunately this is necessary because of our crappy threadpool
-        threads.waitAsync();
-        threads.runParallel(&context, Context.distribute, 0);
+        resources.threads.waitAsync();
+        resources.threads.runParallel(&context, Context.distribute, 0);
 
         var num_nodes = cell_len;
         var num_data: u32 = 0;
@@ -128,9 +127,9 @@ const Splitter = struct {
         texture: Texture,
         cc: CC,
         depth: u32,
-        scene: *const Scene,
+        resources: *const Resources,
     ) !void {
-        const d = texture.dimensions(scene);
+        const d = texture.dimensions(resources);
 
         // Include 1 additional voxel on each border to account for filtering
         const minb = @max(box.bounds[0] - @as(Vec4i, @splat(1)), @as(Vec4i, @splat(0)));
@@ -145,7 +144,7 @@ const Splitter = struct {
             while (y < maxb[1]) : (y += 1) {
                 var x = minb[0];
                 while (x < maxb[0]) : (x += 1) {
-                    const density = texture.image3D_1(x, y, z, scene);
+                    const density = texture.image3D_1(x, y, z, resources);
 
                     min_density = math.min(density, min_density);
                     max_density = math.max(density, max_density);
@@ -183,7 +182,7 @@ const Splitter = struct {
 
         {
             const sub = Box{ .bounds = .{ box.bounds[0], center } };
-            try self.split(alloc, &node.children[0], sub, texture, cc, depthp, scene);
+            try self.split(alloc, &node.children[0], sub, texture, cc, depthp, resources);
         }
 
         {
@@ -191,7 +190,7 @@ const Splitter = struct {
                 .{ center[0], box.bounds[0][1], box.bounds[0][2], 0 },
                 .{ box.bounds[1][0], center[1], center[2], 0 },
             } };
-            try self.split(alloc, &node.children[1], sub, texture, cc, depthp, scene);
+            try self.split(alloc, &node.children[1], sub, texture, cc, depthp, resources);
         }
 
         {
@@ -199,7 +198,7 @@ const Splitter = struct {
                 .{ box.bounds[0][0], center[1], box.bounds[0][2], 0 },
                 .{ center[0], box.bounds[1][1], center[2], 0 },
             } };
-            try self.split(alloc, &node.children[2], sub, texture, cc, depthp, scene);
+            try self.split(alloc, &node.children[2], sub, texture, cc, depthp, resources);
         }
 
         {
@@ -207,7 +206,7 @@ const Splitter = struct {
                 .{ center[0], center[1], box.bounds[0][2], 0 },
                 .{ box.bounds[1][0], box.bounds[1][1], center[2], 0 },
             } };
-            try self.split(alloc, &node.children[3], sub, texture, cc, depthp, scene);
+            try self.split(alloc, &node.children[3], sub, texture, cc, depthp, resources);
         }
 
         {
@@ -215,7 +214,7 @@ const Splitter = struct {
                 .{ box.bounds[0][0], box.bounds[0][1], center[2], 0 },
                 .{ center[0], center[1], box.bounds[1][2], 0 },
             } };
-            try self.split(alloc, &node.children[4], sub, texture, cc, depthp, scene);
+            try self.split(alloc, &node.children[4], sub, texture, cc, depthp, resources);
         }
 
         {
@@ -223,7 +222,7 @@ const Splitter = struct {
                 .{ center[0], box.bounds[0][1], center[2], 0 },
                 .{ box.bounds[1][0], center[1], box.bounds[1][2], 0 },
             } };
-            try self.split(alloc, &node.children[5], sub, texture, cc, depthp, scene);
+            try self.split(alloc, &node.children[5], sub, texture, cc, depthp, resources);
         }
 
         {
@@ -231,12 +230,12 @@ const Splitter = struct {
                 .{ box.bounds[0][0], center[1], center[2], 0 },
                 .{ center[0], box.bounds[1][1], box.bounds[1][2], 0 },
             } };
-            try self.split(alloc, &node.children[6], sub, texture, cc, depthp, scene);
+            try self.split(alloc, &node.children[6], sub, texture, cc, depthp, resources);
         }
 
         {
             const sub = Box{ .bounds = .{ center, box.bounds[1] } };
-            try self.split(alloc, &node.children[7], sub, texture, cc, depthp, scene);
+            try self.split(alloc, &node.children[7], sub, texture, cc, depthp, resources);
         }
 
         self.num_nodes += 8;
@@ -253,7 +252,7 @@ const Context = struct {
 
     texture: Texture,
     cc: CC,
-    scene: *const Scene,
+    resources: *const Resources,
 
     current_task: i32 = 0,
 
@@ -293,7 +292,7 @@ const Context = struct {
                 self.texture,
                 self.cc,
                 0,
-                self.scene,
+                self.resources,
             ) catch {};
         }
     }

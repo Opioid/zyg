@@ -10,6 +10,7 @@ const smpl = @import("../sample.zig");
 const SampleTo = smpl.To;
 const SampleFrom = smpl.From;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
+const Resources = @import("../../../resource/manager.zig").Manager;
 const Context = @import("../../context.zig").Context;
 const Scene = @import("../../scene.zig").Scene;
 const Vertex = @import("../../vertex.zig").Vertex;
@@ -60,7 +61,7 @@ pub const Part = struct {
         material: u32,
         tree: *const Tree,
         builder: *LightTreeBuilder,
-        scene: *const Scene,
+        resources: *const Resources,
         threads: *Threads,
     ) !ShapeSampler {
         const num = self.num_triangles;
@@ -82,19 +83,19 @@ pub const Part = struct {
             self.triangle_mapping = triangle_mapping;
         }
 
-        const m = scene.material(material);
+        const m = resources.material(material);
 
         const emission_map = m.emissionImageMapped();
         const two_sided = m.twoSided();
 
-        const dimensions: Vec4i = if (m.usefulTexture()) |t| t.dimensions(scene) else @splat(0);
+        const dimensions: Vec4i = if (m.usefulTexture()) |t| t.dimensions(resources) else @splat(0);
         var context = EvalContext{
             .temps = try alloc.alloc(Temp, threads.numThreads()),
             .powers = try alloc.alloc(f32, num),
             .triangle_mapping = self.triangle_mapping,
             .m = m,
             .tree = tree,
-            .scene = scene,
+            .resources = resources,
             .estimate_area = @as(f32, @floatFromInt(dimensions[0] * dimensions[1])) / 4.0,
         };
         defer {
@@ -161,7 +162,7 @@ pub const Part = struct {
         triangle_mapping: [*]u32,
         m: *const Material,
         tree: *const Tree,
-        scene: *const Scene,
+        resources: *const Resources,
         estimate_area: f32,
 
         pub fn run(context: Threads.Context, id: u32, begin: u32, end: u32) void {
@@ -196,7 +197,7 @@ pub const Part = struct {
                         const s2 = math.smpl.triangleUniform(xi);
                         const uv = self.tree.data.interpolateUv(itri, s2[0], s2[1]);
 
-                        radiance += self.m.imageRadiance(uv, &sampler, self.scene);
+                        radiance += self.m.imageRadiance(uv, &sampler, self.resources);
                     }
 
                     pow = if (math.hmax3(radiance) > 0.0) area else 0.0;
@@ -724,7 +725,7 @@ pub const Mesh = struct {
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
-        scene: *const Scene,
+        resources: *const Resources,
         threads: *Threads,
     ) !ShapeSampler {
         // This counts the triangles for _every_ part as an optimization
@@ -746,7 +747,7 @@ pub const Mesh = struct {
             self.primitive_mapping = primitive_mapping;
         }
 
-        return self.parts[part].configure(alloc, part, material, &self.tree, builder, scene, threads);
+        return self.parts[part].configure(alloc, part, material, &self.tree, builder, resources, threads);
     }
 
     pub fn surfaceDifferentials(self: *const Mesh, primitive: u32, trafo: Trafo) DifferentialSurface {

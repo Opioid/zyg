@@ -8,6 +8,7 @@ const Take = core.take.Take;
 const Scene = core.scene.Scene;
 const Material = core.scene.Material;
 const Transformation = core.scene.Transformation;
+const Resources = core.resource.Manager;
 
 const base = @import("base");
 const math = base.math;
@@ -50,9 +51,9 @@ pub const Graph = struct {
 
     const Self = @This();
 
-    pub fn init(alloc: Allocator) !Self {
+    pub fn init(alloc: Allocator, resources: *Resources) !Self {
         return Graph{
-            .scene = try Scene.init(alloc),
+            .scene = try Scene.init(alloc, resources),
             .prop_props = try List(u32).initCapacity(alloc, Scene.NumReservedProps),
             .prop_properties = try List(Properties).initCapacity(alloc, Scene.NumReservedProps),
             .prop_frames = try List(u32).initCapacity(alloc, Scene.NumReservedProps),

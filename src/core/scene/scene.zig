@@ -23,12 +23,11 @@ const ShapeSampler = @import("shape/shape_sampler.zig").Sampler;
 const ShapeSamplerCache = @import("shape/shape_sampler_cache.zig").Cache;
 const Probe = @import("shape/probe.zig").Probe;
 const Image = @import("../image/image.zig").Image;
-const Procedural = @import("../texture/procedural.zig").Procedural;
 const Sampler = @import("../sampler/sampler.zig").Sampler;
 const Sky = @import("../sky/sky.zig").Sky;
 const Filesystem = @import("../file/system.zig").System;
 const hlp = @import("../rendering/integrator/helper.zig");
-const ggx = @import("material/ggx.zig");
+const Resources = @import("../resource/manager.zig").Manager;
 
 const base = @import("base");
 const math = base.math;
@@ -64,23 +63,10 @@ pub const Scene = struct {
 
     pub const Null = Prop.Null;
 
-    pub const ShapeID = enum(u32) {
-        Canopy,
-        Cube,
-        Disk,
-        Distant,
-        Dome,
-        Rectangle,
-        Sphere,
-    };
+    resources: *Resources,
 
-    images: List(Image) = .empty,
-    materials: List(Material) = .empty,
-    shapes: List(Shape),
-    instancers: List(Instancer),
     samplers: ShapeSamplerCache = .{},
 
-    specular_threshold: f32 = ggx.MinAlpha,
     num_interpolation_frames: u32 = 0,
 
     frame_start: u64 = undefined,
@@ -117,21 +103,9 @@ pub const Scene = struct {
 
     sky: Sky = .{},
 
-    procedural: Procedural = .{},
-
-    pub fn init(alloc: Allocator) !Scene {
-        var shapes = try List(Shape).initCapacity(alloc, 16);
-        try shapes.append(alloc, .{ .Canopy = .{} });
-        try shapes.append(alloc, .{ .Cube = .{} });
-        try shapes.append(alloc, .{ .Disk = .{} });
-        try shapes.append(alloc, .{ .Distant = .{} });
-        try shapes.append(alloc, .{ .Dome = .{} });
-        try shapes.append(alloc, .{ .Rectangle = .{} });
-        try shapes.append(alloc, .{ .Sphere = .{} });
-
+    pub fn init(alloc: Allocator, resources: *Resources) !Scene {
         return Scene{
-            .shapes = shapes,
-            .instancers = try List(Instancer).initCapacity(alloc, 4),
+            .resources = resources,
             .bvh_builder = try PropBvhBuilder.init(alloc),
             .props = try List(Prop).initCapacity(alloc, NumReservedProps),
             .prop_space = try Space.init(alloc, NumReservedProps),
@@ -148,14 +122,6 @@ pub const Scene = struct {
             .unoccluding_props = try List(u32).initCapacity(alloc, NumReservedProps),
             .volume_props = try List(u32).initCapacity(alloc, NumReservedProps),
         };
-    }
-
-    fn deinitResources(comptime T: type, alloc: Allocator, resources: *List(T)) void {
-        for (resources.items) |*r| {
-            r.deinit(alloc);
-        }
-
-        resources.deinit(alloc);
     }
 
     pub fn deinit(self: *Scene, alloc: Allocator) void {
@@ -184,13 +150,6 @@ pub const Scene = struct {
         self.prop_parts.deinit(alloc);
         self.prop_space.deinit(alloc);
         self.props.deinit(alloc);
-
-        self.procedural.deinit(alloc);
-
-        deinitResources(Instancer, alloc, &self.instancers);
-        deinitResources(Shape, alloc, &self.shapes);
-        deinitResources(Material, alloc, &self.materials);
-        deinitResources(Image, alloc, &self.images);
     }
 
     pub fn clear(self: *Scene) void {
@@ -297,12 +256,6 @@ pub const Scene = struct {
         self.volume_bvh.scatter(probe, frag, throughput, sampler, context);
     }
 
-    pub fn commitMaterials(self: *const Scene, alloc: Allocator, threads: *Threads) !void {
-        for (self.materials.items) |*m| {
-            try m.commit(alloc, self, threads);
-        }
-    }
-
     pub fn calculateNumInterpolationFrames(self: *Scene, frame_step: u64, frame_duration: u64) void {
         const num_frames = countFrames(frame_step, frame_duration) + 1;
         self.num_interpolation_frames = @max(self.num_interpolation_frames, num_frames);
@@ -311,7 +264,7 @@ pub const Scene = struct {
     pub fn createEntity(self: *Scene, alloc: Allocator) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configureShape(@intFromEnum(ShapeID.Distant), &.{}, false, self);
+        self.props.items[p].configureShape(@intFromEnum(Resources.ShapeID.Distant), &.{}, false, self.resources);
 
         return p;
     }
@@ -319,9 +272,9 @@ pub const Scene = struct {
     pub fn createPropShape(self: *Scene, alloc: Allocator, shape_id: u32, materials: []const u32, unoccluding: bool, is_prototype: bool) !u32 {
         const p = try self.allocateProp(alloc);
 
-        self.props.items[p].configureShape(shape_id, materials, unoccluding, self);
+        self.props.items[p].configureShape(shape_id, materials, unoccluding, self.resources);
 
-        const shape_inst = self.shape(shape_id);
+        const shape_inst = self.resources.shape(shape_id);
         const num_parts = shape_inst.numParts();
 
         const parts_start: u32 = @intCast(self.material_ids.items.len);
@@ -344,7 +297,7 @@ pub const Scene = struct {
     pub fn createPropInstancer(self: *Scene, alloc: Allocator, shape_id: u32, is_prototype: bool) !u32 {
         const p = try self.allocateProp(alloc);
 
-        const instancer_inst = self.instancer(shape_id);
+        const instancer_inst = self.resources.instancer(shape_id);
 
         self.props.items[p].configureIntancer(shape_id, instancer_inst.solid(), instancer_inst.volume());
 
@@ -484,7 +437,7 @@ pub const Scene = struct {
         l.sampler = sampler_id;
 
         const sampler = self.samplers.sampler(sampler_id);
-        const average_radiance = sampler.averageEmission(self.material(material_id));
+        const average_radiance = sampler.averageEmission(self.resources.material(material_id));
 
         const f = self.prop_space.frames.items[entity];
         const part_aabb = sampler.impl.aabb(shape_inst);
@@ -544,7 +497,7 @@ pub const Scene = struct {
 
         const extent = if (l.volumetric()) shape_inst.volume(trafo.scale()) else shape_inst.area(part, trafo.scale());
 
-        const mat = self.material(material_id);
+        const mat = self.resources.material(material_id);
         const light_power = l.power(mat.totalEmission(average_radiance, extent), self.aabb(), self);
         self.light_aabbs.items[light_id].bounds[0][3] = math.hmax3(light_power);
     }
@@ -566,7 +519,7 @@ pub const Scene = struct {
     }
 
     pub fn propShape(self: *const Scene, entity: u32) *Shape {
-        return &self.shapes.items[self.props.items[entity].resource];
+        return &self.resources.shapes.resources.items[self.props.items[entity].resource];
     }
 
     pub fn propIsVisibleInCamera(self: *const Scene, entity: u32) bool {
@@ -596,11 +549,11 @@ pub const Scene = struct {
 
     pub fn propMaterial(self: *const Scene, entity: u32, part: u32) *Material {
         const p = self.prop_parts.items[entity] + part;
-        return &self.materials.items[self.material_ids.items[p]];
+        return &self.resources.materials.resources.items[self.material_ids.items[p]];
     }
 
     pub fn propOpacity(self: *const Scene, entity: u32, part: u32, uv: Vec2f, sampler: *Sampler) bool {
-        return self.propMaterial(entity, part).super().stochasticOpacity(uv, sampler, self);
+        return self.propMaterial(entity, part).super().stochasticOpacity(uv, sampler, self.resources);
     }
 
     pub fn propLightId(self: *const Scene, entity: u32, part: u32) u32 {
@@ -610,26 +563,6 @@ pub const Scene = struct {
 
     pub fn lightSetPrototype(self: *Scene, light_id: u32) void {
         self.lights.items[light_id].prototype = true;
-    }
-
-    pub fn image(self: *const Scene, image_id: u32) Image {
-        return self.images.items[image_id];
-    }
-
-    pub fn imagePtr(self: *const Scene, image_id: u32) *Image {
-        return &self.images.items[image_id];
-    }
-
-    pub fn material(self: *const Scene, material_id: u32) *Material {
-        return &self.materials.items[material_id];
-    }
-
-    pub fn shape(self: *const Scene, shape_id: u32) *const Shape {
-        return &self.shapes.items[shape_id];
-    }
-
-    pub fn instancer(self: *const Scene, shape_id: u32) *const Instancer {
-        return &self.instancers.items[shape_id];
     }
 
     pub fn prop(self: *const Scene, index: u32) Prop {
@@ -783,16 +716,6 @@ pub const Scene = struct {
     pub fn createSky(self: *Scene, alloc: Allocator) !*Sky {
         try self.sky.configure(alloc, self);
         return &self.sky;
-    }
-
-    pub fn createImage(self: *Scene, alloc: Allocator, item: Image) !u32 {
-        try self.images.append(alloc, item);
-        return @intCast(self.images.items.len - 1);
-    }
-
-    pub fn createMaterial(self: *Scene, alloc: Allocator, item: Material) !u32 {
-        try self.materials.append(alloc, item);
-        return @intCast(self.materials.items.len - 1);
     }
 
     fn calculateWorldBounds(self: *Scene, camera_pos: Vec4f) void {

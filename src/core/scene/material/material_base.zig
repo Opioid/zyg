@@ -1,6 +1,6 @@
 const Rainbow = @import("rainbow_integral.zig");
 const fresnel = @import("fresnel.zig");
-const Scene = @import("../scene.zig").Scene;
+const Resources = @import("../../resource/manager.zig").Manager;
 const Texture = @import("../../texture/texture.zig").Texture;
 const ts = @import("../../texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -32,20 +32,20 @@ pub const Base = struct {
         self.properties.two_sided = two_sided;
     }
 
-    pub fn opacity(self: *const Base, uv: Vec2f, sampler: *Sampler, scene: *const Scene) f32 {
+    pub fn opacity(self: *const Base, uv: Vec2f, sampler: *Sampler, resources: *const Resources) f32 {
         if (!self.mask.isImage()) {
             return 1.0;
         }
 
-        return ts.sampleImage2D_1(self.mask, uv, sampler.sample1D(), scene);
+        return ts.sampleImage2D_1(self.mask, uv, sampler.sample1D(), resources);
     }
 
-    pub fn stochasticOpacity(self: *const Base, uv: Vec2f, sampler: *Sampler, scene: *const Scene) bool {
+    pub fn stochasticOpacity(self: *const Base, uv: Vec2f, sampler: *Sampler, resources: *const Resources) bool {
         if (!self.mask.isImage()) {
             return true;
         }
 
-        const o = ts.sampleImage2D_1(self.mask, uv, sampler.sample1D(), scene);
+        const o = ts.sampleImage2D_1(self.mask, uv, sampler.sample1D(), resources);
         if (0.0 == o or (o < 1.0 and o <= sampler.sample1D())) {
             return false;
         }

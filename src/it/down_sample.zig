@@ -1,7 +1,7 @@
 const core = @import("core");
 const Texture = core.tx.Texture;
 const image = core.image;
-const scn = core.scene;
+const Resouces = core.resource.Manager;
 
 const base = @import("base");
 const math = base.math;
@@ -15,7 +15,7 @@ pub const DownSample = struct {
     pub fn process(
         target: *image.Float4,
         source: Texture,
-        scene: *const scn.Scene,
+        resources: *const Resouces,
         begin: u32,
         end: u32,
     ) void {
@@ -30,10 +30,10 @@ pub const DownSample = struct {
             while (x < width) : (x += 1) {
                 const ix: i32 = @intCast(x);
 
-                const a = source.get2D_4(ix * 2 + 0, iy * 2 + 0, scene);
-                const b = source.get2D_4(ix * 2 + 1, iy * 2 + 0, scene);
-                const c = source.get2D_4(ix * 2 + 0, iy * 2 + 1, scene);
-                const d = source.get2D_4(ix * 2 + 1, iy * 2 + 1, scene);
+                const a = source.get2D_4(ix * 2 + 0, iy * 2 + 0, resources);
+                const b = source.get2D_4(ix * 2 + 1, iy * 2 + 0, resources);
+                const c = source.get2D_4(ix * 2 + 0, iy * 2 + 1, resources);
+                const d = source.get2D_4(ix * 2 + 1, iy * 2 + 1, resources);
 
                 const average = @as(Vec4f, @splat(0.25)) * (a + b + c + d);
 

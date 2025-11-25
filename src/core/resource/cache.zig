@@ -86,14 +86,14 @@ const MetaHashMap = std.AutoHashMapUnmanaged(u32, Variants);
 pub fn Cache(comptime T: type, comptime P: type) type {
     return struct {
         provider: P,
-        resources: *List(T),
+        resources: List(T),
         entries: EntryHashMap = .empty,
         metadata: MetaHashMap = .empty,
         latest_id: u32 = 0,
 
         const Self = @This();
 
-        pub fn init(provider: P, resources: *List(T)) Self {
+        pub fn init(provider: P, resources: List(T)) Self {
             return .{ .provider = provider, .resources = resources };
         }
 
@@ -117,7 +117,15 @@ pub fn Cache(comptime T: type, comptime P: type) type {
 
             self.entries.deinit(alloc);
 
-            self.provider.deinit(alloc);
+            if (void != P) {
+                self.provider.deinit(alloc);
+            }
+
+            for (self.resources.items) |*r| {
+                r.deinit(alloc);
+            }
+
+            self.resources.deinit(alloc);
         }
 
         pub fn reloadFrameDependant(self: *Self, alloc: Allocator, resources: *Resources) !bool {

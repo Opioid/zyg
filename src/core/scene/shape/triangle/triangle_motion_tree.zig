@@ -146,7 +146,7 @@ pub const Tree = struct {
                             const itri = self.data.indexTriangle(i);
                             const uv = self.data.interpolateUv(itri, hit.u, hit.v);
 
-                            if (material.super().stochasticOpacity(uv, sampler, scene)) {
+                            if (material.super().stochasticOpacity(uv, sampler, scene.resources)) {
                                 local_ray.max_t = hit.t;
                                 hpoint = hit;
                                 primitive = i;

@@ -12,8 +12,9 @@ const ccoef = @import("collision_coefficients.zig");
 const CC = ccoef.CC;
 const CCE = ccoef.CCE;
 const Context = @import("../context.zig").Context;
-const Renderstate = @import("../renderstate.zig").Renderstate;
 const Scene = @import("../scene.zig").Scene;
+const Renderstate = @import("../renderstate.zig").Renderstate;
+const Resources = @import("../../resource/manager.zig").Manager;
 const Shape = @import("../shape/shape.zig").Shape;
 const ShapeSampler = @import("../shape/shape_sampler.zig").Sampler;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
@@ -53,11 +54,11 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn commit(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !void {
+    pub fn commit(self: *Material, alloc: Allocator, resources: *const Resources) !void {
         switch (self.*) {
             .Debug => {},
-            .Volumetric => |*m| try m.commit(alloc, scene, threads),
-            inline .Glass, .Substitute => |*m| m.commit(scene),
+            .Volumetric => |*m| try m.commit(alloc, resources),
+            inline .Glass, .Substitute => |*m| m.commit(resources),
             inline else => |*m| m.commit(),
         }
     }
@@ -74,9 +75,9 @@ pub const Material = union(enum) {
     ) !ShapeSampler {
         return switch (self.*) {
             .Light => |*m| m.prepareSampling(alloc, trafo, time, shape, light_link, scene, threads),
-            .Sky => |*m| m.prepareSampling(alloc, shape, scene, threads),
-            .Substitute => |*m| m.prepareSampling(scene),
-            .Volumetric => |*m| m.prepareSampling(alloc, scene, threads),
+            .Sky => |*m| m.prepareSampling(alloc, shape, scene.resources),
+            .Substitute => |*m| m.prepareSampling(scene.resources),
+            .Volumetric => |*m| m.prepareSampling(alloc, scene.resources),
             else => .{ .impl = .Uniform, .average_emission = @splat(0.0) },
         };
     }
@@ -217,9 +218,9 @@ pub const Material = union(enum) {
         };
     }
 
-    pub fn imageRadiance(self: *const Material, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
+    pub fn imageRadiance(self: *const Material, uv: Vec2f, sampler: *Sampler, resources: *const Resources) Vec4f {
         return switch (self.*) {
-            inline .Light, .Substitute => |*m| m.emittance.imageRadiance(uv, sampler, scene),
+            inline .Light, .Substitute => |*m| m.emittance.imageRadiance(uv, sampler, resources),
             else => @splat(0.0),
         };
     }
@@ -237,7 +238,7 @@ pub const Material = union(enum) {
                 return m.visibility(wi, rs, sampler, context, tr);
             },
             else => {
-                const o = self.super().opacity(rs.uv(), sampler, context.scene);
+                const o = self.super().opacity(rs.uv(), sampler, context.scene.resources);
                 if (o < 1.0) {
                     tr.* *= @splat(1.0 - o);
                     return true;

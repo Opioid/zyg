@@ -75,7 +75,7 @@ pub fn load(alloc: Allocator, stream: ReadStream, graph: *Graph, resources: *Res
     }
 
     if (integrator_value_ptr) |integrator_value| {
-        graph.take.view.loadIntegrators(integrator_value.*, &graph.scene);
+        graph.take.view.loadIntegrators(integrator_value.*, resources);
     }
 
     if (post_value_ptr) |post_value| {
@@ -110,7 +110,7 @@ fn loadCamera(alloc: Allocator, value: std.json.Value, graph: *Graph, resources:
             var camera = cam.Perspective{};
 
             if (cam_entry.value_ptr.object.get("parameters")) |parameters| {
-                try camera.setParameters(alloc, parameters, &graph.scene, resources);
+                try camera.setParameters(alloc, parameters, resources);
             }
 
             cam_value_ptr = cam_entry.value_ptr;

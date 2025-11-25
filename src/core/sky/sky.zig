@@ -13,6 +13,7 @@ const Image = img.Image;
 const ExrReader = @import("../image/encoding/exr/exr_reader.zig").Reader;
 const ExrWriter = @import("../image/encoding/exr/exr_writer.zig").Writer;
 const Filesystem = @import("../file/system.zig").System;
+const Resources = @import("../resource/manager.zig").Manager;
 
 const base = @import("base");
 const json = base.json;
@@ -53,15 +54,15 @@ pub const Sky = struct {
 
         var sun_mat = try SkyMaterial.initSun(alloc);
         sun_mat.commit();
-        const sun_mat_id = try scene.createMaterial(alloc, .{ .Sky = sun_mat });
-        const sun_prop = try scene.createPropShape(alloc, @intFromEnum(Scene.ShapeID.Distant), &.{sun_mat_id}, true, false);
+        const sun_mat_id = try scene.resources.createMaterial(alloc, .{ .Sky = sun_mat });
+        const sun_prop = try scene.createPropShape(alloc, @intFromEnum(Resources.ShapeID.Distant), &.{sun_mat_id}, true, false);
 
-        const sky_image = try scene.createImage(alloc, .{ .Float3 = img.Float3.initEmpty() });
+        const sky_image = try scene.resources.createImage(alloc, .{ .Float3 = img.Float3.initEmpty() });
         const emission_map = Texture.initImage(.Float3, sky_image, Texture.DefaultClampMode, @splat(1.0));
         var sky_mat = SkyMaterial.initSky(emission_map);
         sky_mat.commit();
-        const sky_mat_id = try scene.createMaterial(alloc, .{ .Sky = sky_mat });
-        const sky_prop = try scene.createPropShape(alloc, @intFromEnum(Scene.ShapeID.Canopy), &.{sky_mat_id}, true, false);
+        const sky_mat_id = try scene.resources.createMaterial(alloc, .{ .Sky = sky_mat });
+        const sky_prop = try scene.createPropShape(alloc, @intFromEnum(Resources.ShapeID.Canopy), &.{sky_mat_id}, true, false);
 
         self.sky = sky_prop;
         self.sun = sun_prop;
@@ -157,7 +158,7 @@ pub const Sky = struct {
 
             const cached_image = try ExrReader.read(alloc, stream, .XYZ, false);
 
-            var image = scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.data.image.id);
+            var image = scene.resources.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.data.image.id);
             image.deinit(alloc);
             image.* = cached_image;
         }
@@ -185,7 +186,7 @@ pub const Sky = struct {
         sky_filename: []u8,
         sun_filename: []u8,
     ) !void {
-        var image = &scene.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.data.image.id).Float3;
+        var image = &scene.resources.imagePtr(scene.propMaterial(self.sky, 0).Sky.emission_map.data.image.id).Float3;
 
         try image.resize(alloc, img.Description.init2D(BakeDimensions));
 

@@ -276,7 +276,7 @@ pub const Loader = struct {
                 if (material.heterogeneousVolume()) {
                     if (material.usefulTexture()) |t| {
                         const voxel_scale: Vec4f = @splat(trafo.scale[0]);
-                        const dimensions = t.dimensions(scene);
+                        const dimensions = t.dimensions(scene.resources);
                         var offset: Vec4i = @splat(0);
 
                         if (self.resources.images.meta(t.data.image.id)) |meta| {
@@ -338,7 +338,7 @@ pub const Loader = struct {
         const shape = if (value.object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
 
         const scene = &graph.scene;
-        const num_materials = scene.shape(shape).numMaterials();
+        const num_materials = scene.resources.shape(shape).numMaterials();
 
         try graph.materials.ensureTotalCapacity(alloc, num_materials);
         graph.materials.clearRetainingCapacity();
@@ -371,7 +371,7 @@ pub const Loader = struct {
         const shape = if (value.object.get("shape")) |s| try self.loadShape(alloc, s) else return Error.UndefinedShape;
 
         const scene = &graph.scene;
-        const num_materials = scene.shape(shape).numMaterials();
+        const num_materials = scene.resources.shape(shape).numMaterials();
 
         try graph.materials.ensureTotalCapacity(alloc, num_materials);
         graph.materials.clearRetainingCapacity();
@@ -643,19 +643,19 @@ pub const Loader = struct {
 
     pub fn getShape(type_name: []const u8) !u32 {
         if (std.mem.eql(u8, "Canopy", type_name)) {
-            return @intFromEnum(Scene.ShapeID.Canopy);
+            return @intFromEnum(Resources.ShapeID.Canopy);
         } else if (std.mem.eql(u8, "Cube", type_name)) {
-            return @intFromEnum(Scene.ShapeID.Cube);
+            return @intFromEnum(Resources.ShapeID.Cube);
         } else if (std.mem.eql(u8, "Disk", type_name)) {
-            return @intFromEnum(Scene.ShapeID.Disk);
+            return @intFromEnum(Resources.ShapeID.Disk);
         } else if (std.mem.eql(u8, "Distant", type_name)) {
-            return @intFromEnum(Scene.ShapeID.Distant);
+            return @intFromEnum(Resources.ShapeID.Distant);
         } else if (std.mem.eql(u8, "Dome", type_name)) {
-            return @intFromEnum(Scene.ShapeID.Dome);
+            return @intFromEnum(Resources.ShapeID.Dome);
         } else if (std.mem.eql(u8, "Rectangle", type_name)) {
-            return @intFromEnum(Scene.ShapeID.Rectangle);
+            return @intFromEnum(Resources.ShapeID.Rectangle);
         } else if (std.mem.eql(u8, "Sphere", type_name)) {
-            return @intFromEnum(Scene.ShapeID.Sphere);
+            return @intFromEnum(Resources.ShapeID.Sphere);
         }
 
         log.err("Undefined shape \"{s}\"", .{type_name});

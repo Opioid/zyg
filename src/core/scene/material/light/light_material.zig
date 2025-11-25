@@ -2,8 +2,9 @@ const Base = @import("../material_base.zig").Base;
 const Sample = @import("light_sample.zig").Sample;
 const Emittance = @import("../../light/emittance.zig").Emittance;
 const Context = @import("../../context.zig").Context;
-const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Scene = @import("../../scene.zig").Scene;
+const Renderstate = @import("../../renderstate.zig").Renderstate;
+const Resources = @import("../../../resource/manager.zig").Manager;
 const Dome = @import("../../shape/dome.zig").Dome;
 const Portal = @import("../../shape/portal.zig").Portal;
 const Shape = @import("../../shape/shape.zig").Shape;
@@ -71,7 +72,7 @@ pub const Material = struct {
             };
         }
 
-        const d = self.emittance.emission_map.dimensions(scene);
+        const d = self.emittance.emission_map.dimensions(scene.resources);
 
         const luminance = try alloc.alloc(f32, @intCast(d[0] * d[1]));
         defer alloc.free(luminance);
@@ -80,7 +81,7 @@ pub const Material = struct {
 
         {
             var context = LuminanceContext{
-                .scene = scene,
+                .resources = scene.resources,
                 .shape = shape,
                 .texture = self.emittance.emission_map,
                 .luminance = luminance.ptr,
@@ -150,7 +151,7 @@ pub const Material = struct {
         const dome_prop = scene.light(light_link).prop;
         const dome_trafo = scene.propTransformationAt(dome_prop, time);
 
-        const dim: u32 = @intCast(self.emittance.emission_map.dimensions(scene)[1]);
+        const dim: u32 = @intCast(self.emittance.emission_map.dimensions(scene.resources)[1]);
 
         _ = shape;
 
@@ -158,7 +159,7 @@ pub const Material = struct {
 
         {
             var context = PortalHemisphereContext{
-                .scene = scene,
+                .resources = scene.resources,
                 .shape = scene.propShape(dome_prop),
                 .dome_trafo = dome_trafo,
                 .portal_dir = trafo.rotation.r[2],
@@ -179,7 +180,7 @@ pub const Material = struct {
         const luminance = try alloc.alloc(f32, dim * dim);
 
         var context = PortalLuminanceContext{
-            .scene = scene,
+            .resources = scene.resources,
             .portal_trafo = trafo,
             .dome_trafo = dome_trafo,
             .texture = self.emittance.emission_map,
@@ -199,7 +200,7 @@ pub const Material = struct {
 };
 
 const LuminanceContext = struct {
-    scene: *const Scene,
+    resources: *const Resources,
     shape: *const Shape,
     texture: Texture,
     luminance: [*]f32,
@@ -208,7 +209,7 @@ const LuminanceContext = struct {
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         const self: *LuminanceContext = @ptrCast(context);
 
-        const d = self.texture.dimensions(self.scene);
+        const d = self.texture.dimensions(self.resources);
         const width: u32 = @intCast(d[0]);
 
         const idf = @as(Vec2f, @splat(1.0)) / Vec2f{
@@ -229,7 +230,7 @@ const LuminanceContext = struct {
 
                 const uv_weight = self.shape.uvWeight(.{ u, v });
 
-                const radiance = self.texture.image2D_3(@intCast(x), @intCast(y), self.scene);
+                const radiance = self.texture.image2D_3(@intCast(x), @intCast(y), self.resources);
                 const wr = @as(Vec4f, @splat(uv_weight)) * radiance;
 
                 avg += Vec4f{ wr[0], wr[1], wr[2], uv_weight };
@@ -272,7 +273,7 @@ const DistributionContext = struct {
 };
 
 const PortalHemisphereContext = struct {
-    scene: *const Scene,
+    resources: *const Resources,
     shape: *const Shape,
     dome_trafo: Trafo,
     portal_dir: Vec4f,
@@ -282,7 +283,7 @@ const PortalHemisphereContext = struct {
     pub fn calculate(context: Threads.Context, id: u32, begin: u32, end: u32) void {
         const self: *PortalHemisphereContext = @ptrCast(@alignCast(context));
 
-        const d = self.texture.dimensions(self.scene);
+        const d = self.texture.dimensions(self.resources);
         const width: u32 = @intCast(d[0]);
 
         const idf = @as(Vec2f, @splat(1.0)) / Vec2f{
@@ -308,7 +309,7 @@ const PortalHemisphereContext = struct {
                 if (math.dot3(self.portal_dir, dir) <= 0.0) {
                     const uv_weight = self.shape.uvWeight(uv);
 
-                    const radiance = self.texture.image2D_3(@intCast(x), @intCast(y), self.scene);
+                    const radiance = self.texture.image2D_3(@intCast(x), @intCast(y), self.resources);
                     const wr = @as(Vec4f, @splat(uv_weight)) * radiance;
 
                     avg += Vec4f{ wr[0], wr[1], wr[2], uv_weight };
@@ -321,7 +322,7 @@ const PortalHemisphereContext = struct {
 };
 
 const PortalLuminanceContext = struct {
-    scene: *const Scene,
+    resources: *const Resources,
     portal_trafo: Trafo,
     dome_trafo: Trafo,
     texture: Texture,
@@ -335,7 +336,7 @@ const PortalLuminanceContext = struct {
         const portal_trafo = self.portal_trafo;
         const dome_trafo = self.dome_trafo;
 
-        const dim: u32 = @intCast(self.texture.dimensions(self.scene)[1]);
+        const dim: u32 = @intCast(self.texture.dimensions(self.resources)[1]);
         const idf = 1.0 / @as(f32, @floatFromInt(dim));
 
         const subsamples = 4;
@@ -361,7 +362,7 @@ const PortalLuminanceContext = struct {
 
                         const dome_uv = Dome.worldToImage(dir, dome_trafo);
 
-                        const radiance = ts.sampleImageNearest2D_3(self.texture, dome_uv, self.scene);
+                        const radiance = ts.sampleImageNearest2D_3(self.texture, dome_uv, self.resources);
 
                         luminance += math.hmax3(radiance) * ps.weight;
                     }

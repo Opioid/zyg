@@ -1,5 +1,5 @@
 const Texture = @import("../texture/texture.zig").Texture;
-const Scene = @import("../scene/scene.zig").Scene;
+const Resources = @import("../resource/manager.zig").Manager;
 
 const base = @import("base");
 const math = base.math;
@@ -18,8 +18,8 @@ pub const Aperture = struct {
         self.distribution.deinit(alloc);
     }
 
-    pub fn setShape(self: *Aperture, alloc: Allocator, texture: Texture, scene: *const Scene) !void {
-        const d = texture.dimensions(scene);
+    pub fn setShape(self: *Aperture, alloc: Allocator, texture: Texture, resources: *const Resources) !void {
+        const d = texture.dimensions(resources);
 
         const width: u32 = @intCast(d[0]);
         const height: u32 = @intCast(d[1]);
@@ -33,7 +33,7 @@ pub const Aperture = struct {
         while (y < height) : (y += 1) {
             var x: u32 = 0;
             while (x < width) : (x += 1) {
-                const weight = texture.image2D_1(@intCast(x), @intCast(y), scene);
+                const weight = texture.image2D_1(@intCast(x), @intCast(y), resources);
                 weights[x] = weight;
             }
 

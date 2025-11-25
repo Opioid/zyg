@@ -74,7 +74,14 @@ export fn su_init() i32 {
             return -1;
         };
 
-        e.scene = Scene.init(alloc) catch {
+        e.resources = Resources.init(alloc, io, &e.threads) catch {
+            engine = null;
+            return -1;
+        };
+
+        const resources = &e.resources;
+
+        e.scene = Scene.init(alloc, resources) catch {
             engine = null;
             return -1;
         };
@@ -83,13 +90,6 @@ export fn su_init() i32 {
             engine = null;
             return -1;
         };
-
-        e.resources = Resources.init(alloc, io, &e.scene, &e.threads) catch {
-            engine = null;
-            return -1;
-        };
-
-        const resources = &e.resources;
 
         e.fallback_material = resources.materials.store(
             alloc,
@@ -102,7 +102,7 @@ export fn su_init() i32 {
 
         e.take.view.num_samples_per_pixel = 1;
 
-        e.driver = rendering.Driver.init(alloc, &e.threads, &e.resources.fs, .{ .Null = {} }) catch {
+        e.driver = rendering.Driver.init(alloc, &e.threads, &resources.fs, .{ .Null = {} }) catch {
             engine = null;
             return -1;
         };
@@ -225,7 +225,7 @@ export fn su_integrators_create(string: [*:0]const u8) i32 {
         var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
         defer parsed.deinit();
 
-        e.take.view.loadIntegrators(parsed.value, &e.scene);
+        e.take.view.loadIntegrators(parsed.value, &e.resources);
 
         return 0;
     }
@@ -357,11 +357,11 @@ export fn su_material_update(id: u32, string: [*:0]const u8) i32 {
         var parsed = std.json.parseFromSlice(std.json.Value, e.alloc, string[0..std.mem.len(string)], .{}) catch return -1;
         defer parsed.deinit();
 
-        if (id >= e.scene.materials.items.len) {
+        if (id >= e.resources.materials.resources.items.len) {
             return -3;
         }
 
-        const material = e.scene.material(id);
+        const material = e.resources.material(id);
 
         e.resources.materials.provider.updateMaterial(
             e.alloc,
@@ -424,12 +424,12 @@ export fn su_triangle_mesh_create(
 
 export fn su_prop_create(shape: u32, num_materials: u32, materials: [*]const u32) i32 {
     if (engine) |*e| {
-        if (shape >= e.scene.shapes.items.len) {
+        if (shape >= e.resources.shapes.resources.items.len) {
             return -1;
         }
 
-        const scene_mat_len = e.scene.materials.items.len;
-        const num_expected_mats = e.scene.shape(shape).numMaterials();
+        const scene_mat_len = e.resources.materials.resources.items.len;
+        const num_expected_mats = e.resources.shape(shape).numMaterials();
         const fallback_mat = e.fallback_material;
 
         var matbuf = &e.materials;

@@ -9,7 +9,7 @@ const Volumetric = @import("../volumetric/volumetric_sample.zig").Sample;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
 const Context = @import("../../context.zig").Context;
-const Scene = @import("../../scene.zig").Scene;
+const Resources = @import("../../../resource/manager.zig").Manager;
 const ShapeSampler = @import("../../shape/shape_sampler.zig").Sampler;
 const Trafo = @import("../../composed_transformation.zig").ComposedTransformation;
 const ts = @import("../../../texture/texture_sampler.zig");
@@ -59,14 +59,14 @@ pub const Material = struct {
     flakes_alpha: f32 = 0.01,
     flakes_res: f32 = 0.0,
 
-    pub fn commit(self: *Material, scene: *const Scene) void {
+    pub fn commit(self: *Material, resources: *const Resources) void {
         var properties = &self.super.properties;
 
         properties.evaluate_visibility = self.super.mask.isImage();
         properties.emissive = math.anyGreaterZero3(self.emittance.value);
         properties.color_map = !self.color.isUniform();
         properties.emission_image_map = self.emittance.emission_map.isImage();
-        properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= scene.specular_threshold;
+        properties.caustic = self.roughness.isUniform() and self.roughness.uniform1() <= resources.specular_threshold;
 
         const attenuation_distance = self.attenuation_distance;
 
@@ -94,12 +94,12 @@ pub const Material = struct {
         self.flakes_res = math.max(4.0, @ceil(@sqrt(N / K)));
     }
 
-    pub fn prepareSampling(self: *const Material, scene: *const Scene) ShapeSampler {
+    pub fn prepareSampling(self: *const Material, resources: *const Resources) ShapeSampler {
         const rad = self.emittance.value;
         if (!self.emittance.emission_map.isUniform()) {
             return .{
                 .impl = .Uniform,
-                .average_emission = rad * self.emittance.emission_map.average_3(scene),
+                .average_emission = rad * self.emittance.emission_map.average_3(resources),
                 .num_samples = self.emittance.num_samples,
             };
         }
@@ -147,7 +147,7 @@ pub const Material = struct {
             ior_outer,
             metallic,
             specular,
-            context.scene.specular_threshold,
+            context.scene.resources.specular_threshold,
             attenuation_distance,
             self.volumetric_anisotropy,
             translucency,
@@ -176,7 +176,7 @@ pub const Material = struct {
             result.coating.absorption_coef = self.coating_absorption_coef;
             result.coating.thickness = coating_thickness;
             result.coating.f0 = fresnel.Schlick.IorToF0(coating_ior, rs.ior);
-            result.coating.alpha = rs.regularizeAlpha(@splat(r * r), context.scene.specular_threshold)[0];
+            result.coating.alpha = rs.regularizeAlpha(@splat(r * r), context.scene.resources.specular_threshold)[0];
             result.coating.weight = coating_weight;
         }
 

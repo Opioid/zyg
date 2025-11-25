@@ -11,6 +11,7 @@ pub const TriangleMesh = @import("triangle/triangle_mesh.zig").Mesh;
 pub const TriangleMotionMesh = @import("triangle/triangle_motion_mesh.zig").MotionMesh;
 const ro = @import("../ray_offset.zig");
 const Material = @import("../material/material.zig").Material;
+const Resources = @import("../../resource/manager.zig").Manager;
 const Context = @import("../context.zig").Context;
 const Scene = @import("../scene.zig").Scene;
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
@@ -553,11 +554,11 @@ pub const Shape = union(enum) {
         part: u32,
         material: u32,
         builder: *LightTreeBuilder,
-        scene: *const Scene,
+        resources: *const Resources,
         threads: *Threads,
     ) !?ShapeSampler {
         return switch (self.*) {
-            .TriangleMesh => |*m| try m.prepareSampling(alloc, part, material, builder, scene, threads),
+            .TriangleMesh => |*m| try m.prepareSampling(alloc, part, material, builder, resources, threads),
             else => null,
         };
     }

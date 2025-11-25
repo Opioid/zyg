@@ -1,7 +1,7 @@
 const enc = @import("encoding.zig");
 const SamplerMode = @import("sampler_mode.zig").Mode;
 const Description = @import("../image/typed_image.zig").Description;
-const Scene = @import("../scene/scene.zig").Scene;
+const Resources = @import("../resource/manager.zig").Manager;
 
 const base = @import("base");
 const math = base.math;
@@ -163,8 +163,8 @@ pub const Texture = struct {
         return .{ v.v[0], v.v[1], v.v[2], 0.0 };
     }
 
-    pub fn image2D_1(self: Texture, x: i32, y: i32, scene: *const Scene) f32 {
-        const image = scene.image(self.data.image.id);
+    pub fn image2D_1(self: Texture, x: i32, y: i32, resources: *const Resources) f32 {
+        const image = resources.image(self.data.image.id);
 
         return switch (self.type) {
             .Byte1_unorm => enc.cachedUnormToFloat(image.Byte1.get2D(x, y)),
@@ -174,8 +174,8 @@ pub const Texture = struct {
         };
     }
 
-    pub fn image2D_2(self: Texture, x: i32, y: i32, scene: *const Scene) Vec2f {
-        const image = scene.image(self.data.image.id);
+    pub fn image2D_2(self: Texture, x: i32, y: i32, resources: *const Resources) Vec2f {
+        const image = resources.image(self.data.image.id);
 
         return switch (self.type) {
             .Byte2_unorm => enc.cachedUnormToFloat2(image.Byte2.get2D(x, y)),
@@ -185,8 +185,8 @@ pub const Texture = struct {
         };
     }
 
-    pub fn image2D_3(self: Texture, x: i32, y: i32, scene: *const Scene) Vec4f {
-        const image = scene.image(self.data.image.id);
+    pub fn image2D_3(self: Texture, x: i32, y: i32, resources: *const Resources) Vec4f {
+        const image = resources.image(self.data.image.id);
 
         return switch (self.type) {
             .Byte1_unorm => {
@@ -218,8 +218,8 @@ pub const Texture = struct {
         };
     }
 
-    pub fn get2D_4(self: Texture, x: i32, y: i32, scene: *const Scene) Vec4f {
-        const image = scene.image(self.data.image.id);
+    pub fn get2D_4(self: Texture, x: i32, y: i32, resources: *const Resources) Vec4f {
+        const image = resources.image(self.data.image.id);
 
         return switch (self.type) {
             .Byte1_unorm => {
@@ -267,8 +267,8 @@ pub const Texture = struct {
         };
     }
 
-    pub fn image3D_1(self: Texture, x: i32, y: i32, z: i32, scene: *const Scene) f32 {
-        const image = scene.image(self.data.image.id);
+    pub fn image3D_1(self: Texture, x: i32, y: i32, z: i32, resources: *const Resources) f32 {
+        const image = resources.image(self.data.image.id);
 
         return switch (self.type) {
             .Byte1_unorm => {
@@ -282,8 +282,8 @@ pub const Texture = struct {
         };
     }
 
-    pub fn image3D_2(self: Texture, x: i32, y: i32, z: i32, scene: *const Scene) Vec2f {
-        const image = scene.image(self.data.image.id);
+    pub fn image3D_2(self: Texture, x: i32, y: i32, z: i32, resources: *const Resources) Vec2f {
+        const image = resources.image(self.data.image.id);
 
         return switch (self.type) {
             .Float2 => image.Float2.get3D(x, y, z),
@@ -291,19 +291,19 @@ pub const Texture = struct {
         };
     }
 
-    pub fn dimensions(self: Texture, scene: *const Scene) Vec4i {
-        return scene.image(self.data.image.id).dimensions();
+    pub fn dimensions(self: Texture, resources: *const Resources) Vec4i {
+        return resources.image(self.data.image.id).dimensions();
     }
 
-    pub fn average_3(self: Texture, scene: *const Scene) Vec4f {
+    pub fn average_3(self: Texture, resources: *const Resources) Vec4f {
         var average: Vec4f = @splat(0.0);
 
-        const d = self.dimensions(scene);
+        const d = self.dimensions(resources);
         var y: i32 = 0;
         while (y < d[1]) : (y += 1) {
             var x: i32 = 0;
             while (x < d[0]) : (x += 1) {
-                average += self.image2D_3(x, y, scene);
+                average += self.image2D_3(x, y, resources);
             }
         }
 

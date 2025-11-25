@@ -3,7 +3,6 @@ const Base = @import("../scene/material/material_base.zig").Base;
 const Sample = @import("../scene/material/light/light_sample.zig").Sample;
 const Context = @import("../scene/context.zig").Context;
 const Renderstate = @import("../scene/renderstate.zig").Renderstate;
-const Scene = @import("../scene/scene.zig").Scene;
 const Shape = @import("../scene/shape/shape.zig").Shape;
 const ShapeSampler = @import("../scene/shape/shape_sampler.zig").Sampler;
 const Trafo = @import("../scene/composed_transformation.zig").ComposedTransformation;
@@ -99,8 +98,7 @@ pub const Material = struct {
         self: *Material,
         alloc: Allocator,
         shape: *const Shape,
-        scene: *const Scene,
-        threads: *Threads,
+        resources: *const Resources,
     ) !ShapeSampler {
         if (!self.super.properties.emission_image_map) {
             return .{ .impl = .Uniform, .average_emission = self.average_emission };
@@ -113,21 +111,21 @@ pub const Material = struct {
         } };
 
         {
-            const d = self.emission_map.dimensions(scene);
+            const d = self.emission_map.dimensions(resources);
             const height: u32 = @intCast(d[1]);
 
             var context = EvalContext{
                 .shape = shape,
-                .image = scene.imagePtr(self.emission_map.data.image.id),
+                .image = resources.imagePtr(self.emission_map.data.image.id),
                 .dimensions = .{ d[0], d[1] },
                 .conditional = try image_sampler.impl.Image.distribution.allocate(alloc, height),
-                .averages = try alloc.alloc(Vec4f, threads.numThreads()),
+                .averages = try alloc.alloc(Vec4f, resources.threads.numThreads()),
                 .alloc = alloc,
             };
 
             defer alloc.free(context.averages);
 
-            const num = threads.runRange(&context, EvalContext.calculate, 0, height, 0);
+            const num = resources.threads.runRange(&context, EvalContext.calculate, 0, height, 0);
             for (context.averages[0..num]) |a| {
                 avg += a;
             }

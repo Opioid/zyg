@@ -8,7 +8,7 @@ const CCE = ccoef.CCE;
 const Renderstate = @import("../../renderstate.zig").Renderstate;
 const Emittance = @import("../../light/emittance.zig").Emittance;
 const Context = @import("../../context.zig").Context;
-const Scene = @import("../../scene.zig").Scene;
+const Resources = @import("../../../resource/manager.zig").Manager;
 const ShapeSampler = @import("../../shape/shape_sampler.zig").Sampler;
 const ts = @import("../../../texture/texture_sampler.zig");
 const Texture = @import("../../../texture/texture.zig").Texture;
@@ -60,7 +60,7 @@ pub const Material = struct {
         self.tree.deinit(alloc);
     }
 
-    pub fn commit(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !void {
+    pub fn commit(self: *Material, alloc: Allocator, resources: *const Resources) !void {
         self.average_emission = @splat(-1.0);
 
         self.super.properties.scattering_volume = math.anyGreaterZero3(self.cc.s) or
@@ -77,8 +77,7 @@ pub const Material = struct {
                 &self.tree,
                 self.density_map,
                 self.cc,
-                scene,
-                threads,
+                resources,
             );
         }
 
@@ -120,14 +119,14 @@ pub const Material = struct {
         self.sr_high = high;
     }
 
-    pub fn prepareSampling(self: *Material, alloc: Allocator, scene: *const Scene, threads: *Threads) !ShapeSampler {
+    pub fn prepareSampling(self: *Material, alloc: Allocator, resources: *const Resources) !ShapeSampler {
         if (self.density_map.isUniform()) {
             self.average_emission = self.cc.a * self.emittance.value;
 
             return .{ .impl = .Uniform, .average_emission = self.cc.a * self.emittance.value };
         }
 
-        const d = self.density_map.dimensions(scene);
+        const d = self.density_map.dimensions(resources);
 
         const luminance = try alloc.alloc(f32, @intCast(d[0] * d[1] * d[2]));
         defer alloc.free(luminance);
@@ -137,13 +136,13 @@ pub const Material = struct {
         {
             var context = LuminanceContext{
                 .material = self,
-                .scene = scene,
+                .resources = resources,
                 .luminance = luminance.ptr,
-                .averages = try alloc.alloc(Vec4f, threads.numThreads()),
+                .averages = try alloc.alloc(Vec4f, resources.threads.numThreads()),
             };
             defer alloc.free(context.averages);
 
-            const num = threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(d[2]), 0);
+            const num = resources.threads.runRange(&context, LuminanceContext.calculate, 0, @intCast(d[2]), 0);
             for (context.averages[0..num]) |a| {
                 avg += a;
             }
@@ -176,7 +175,7 @@ pub const Material = struct {
                 .alloc = alloc,
             };
 
-            _ = threads.runRange(&context, DistributionContext.calculate, 0, @intCast(d[2]), 0);
+            _ = resources.threads.runRange(&context, DistributionContext.calculate, 0, @intCast(d[2]), 0);
         }
 
         try volume_sampler.impl.Volume.distribution.configure(alloc);
@@ -277,7 +276,7 @@ pub const Material = struct {
 
 const LuminanceContext = struct {
     material: *const Material,
-    scene: *const Scene,
+    resources: *const Resources,
     luminance: [*]f32,
     averages: []Vec4f,
 
@@ -285,7 +284,7 @@ const LuminanceContext = struct {
         const self: *LuminanceContext = @ptrCast(context);
         const mat = self.material;
 
-        const d = self.material.density_map.dimensions(self.scene);
+        const d = self.material.density_map.dimensions(self.resources);
         const width: u32 = @intCast(d[0]);
         const height: u32 = @intCast(d[1]);
 
@@ -301,8 +300,8 @@ const LuminanceContext = struct {
                         const row = y * width;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const density = mat.density_map.image3D_2(@intCast(x), @intCast(y), @intCast(z), self.scene);
-                            const t = mat.emittance.emission_map.image3D_1(@intCast(x), @intCast(y), @intCast(z), self.scene);
+                            const density = mat.density_map.image3D_2(@intCast(x), @intCast(y), @intCast(z), self.resources);
+                            const t = mat.emittance.emission_map.image3D_1(@intCast(x), @intCast(y), @intCast(z), self.resources);
                             const c = mat.blackbody.eval(t);
                             const radiance = @as(Vec4f, @splat(density[0] * density[1])) * c;
 
@@ -321,7 +320,7 @@ const LuminanceContext = struct {
                         const row = y * width;
                         var x: u32 = 0;
                         while (x < width) : (x += 1) {
-                            const density = mat.density_map.image3D_2(@intCast(x), @intCast(y), @intCast(z), self.scene);
+                            const density = mat.density_map.image3D_2(@intCast(x), @intCast(y), @intCast(z), self.resources);
                             const radiance: Vec4f = @splat(density[0] * density[1]);
 
                             self.luminance[slice + row + x] = math.hmax3(radiance);

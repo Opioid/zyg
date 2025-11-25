@@ -85,7 +85,7 @@ pub const Provider = struct {
 
         var material = try self.loadMaterial(alloc, root, resources);
 
-        try material.commit(alloc, resources.scene, resources.threads);
+        try material.commit(alloc, resources);
         return .{ .data = material };
     }
 
@@ -101,7 +101,7 @@ pub const Provider = struct {
         const value: *const std.json.Value = @ptrCast(data);
 
         var material = try self.loadMaterial(alloc, value.*, resources);
-        try material.commit(alloc, resources.scene, resources.threads);
+        try material.commit(alloc, resources);
         return material;
     }
 
@@ -121,7 +121,7 @@ pub const Provider = struct {
             else => {},
         }
 
-        try material.commit(alloc, resources.scene, resources.threads);
+        try material.commit(alloc, resources);
     }
 
     pub fn createFallbackMaterial() Material {
@@ -419,7 +419,7 @@ fn loadEmittance(alloc: Allocator, jvalue: std.json.Value, tex: Provider.Tex, re
         emittance.emission_map = readValue(alloc, tm, .Weight, tex, resources);
     }
 
-    const profile_angle = math.radiansToDegrees(emittance.angleFromProfile(resources.scene));
+    const profile_angle = math.radiansToDegrees(emittance.angleFromProfile(resources));
 
     var color: Vec4f = @splat(1.0);
     if (jvalue.object.get("spectrum")) |s| {
@@ -481,10 +481,10 @@ const TextureDescriptor = struct {
                         }
 
                         desc.procedural = @intFromEnum(Procedural.Type.ChannelMix);
-                        desc.procedural_data = try resources.scene.procedural.append(alloc, channel_mix);
+                        desc.procedural_data = try resources.procedural.append(alloc, channel_mix);
                     } else if (std.mem.eql(u8, "Checker", entry.key_ptr.*)) {
                         desc.procedural = @intFromEnum(Procedural.Type.Checker);
-                        desc.procedural_data = try resources.scene.procedural.append(alloc, prcd.Checker.init(entry.value_ptr.*));
+                        desc.procedural_data = try resources.procedural.append(alloc, prcd.Checker.init(entry.value_ptr.*));
                     } else if (std.mem.eql(u8, "DetailNormal", entry.key_ptr.*)) {
                         var detail: prcd.DetailNormal = .{
                             .base = Texture.initUniform1(0.0),
@@ -501,7 +501,7 @@ const TextureDescriptor = struct {
                         }
 
                         desc.procedural = @intFromEnum(Procedural.Type.DetailNormal);
-                        desc.procedural_data = try resources.scene.procedural.append(alloc, detail);
+                        desc.procedural_data = try resources.procedural.append(alloc, detail);
                     } else if (std.mem.eql(u8, "Max", entry.key_ptr.*)) {
                         var max: prcd.Max = .{
                             .a = Texture.initUniform1(0.0),
@@ -518,7 +518,7 @@ const TextureDescriptor = struct {
                         }
 
                         desc.procedural = @intFromEnum(Procedural.Type.Max);
-                        desc.procedural_data = try resources.scene.procedural.append(alloc, max);
+                        desc.procedural_data = try resources.procedural.append(alloc, max);
                     } else if (std.mem.eql(u8, "Mix", entry.key_ptr.*)) {
                         var mix: prcd.Mix = .{
                             .a = Texture.initUniform1(0.0),
@@ -537,7 +537,7 @@ const TextureDescriptor = struct {
                             }
                         }
                         desc.procedural = @intFromEnum(Procedural.Type.Mix);
-                        desc.procedural_data = try resources.scene.procedural.append(alloc, mix);
+                        desc.procedural_data = try resources.procedural.append(alloc, mix);
                     } else if (std.mem.eql(u8, "Mul", entry.key_ptr.*)) {
                         var mul: prcd.Mul = .{
                             .a = Texture.initUniform1(0.0),
@@ -554,7 +554,7 @@ const TextureDescriptor = struct {
                         }
 
                         desc.procedural = @intFromEnum(Procedural.Type.Mul);
-                        desc.procedural_data = try resources.scene.procedural.append(alloc, mul);
+                        desc.procedural_data = try resources.procedural.append(alloc, mul);
                     } else if (std.mem.eql(u8, "Noise", entry.key_ptr.*)) {
                         var noise: prcd.Noise = undefined;
 
@@ -575,7 +575,7 @@ const TextureDescriptor = struct {
                         noise.period = json.readVec4f3Member(entry.value_ptr.*, "period", @splat(0.0));
 
                         desc.procedural = @intFromEnum(Procedural.Type.Noise);
-                        desc.procedural_data = try resources.scene.procedural.append(alloc, noise);
+                        desc.procedural_data = try resources.procedural.append(alloc, noise);
                     } else if (std.mem.eql(u8, "file", entry.key_ptr.*)) {
                         desc.filename = try alloc.dupe(u8, entry.value_ptr.string);
                     } else if (std.mem.eql(u8, "sampler", entry.key_ptr.*)) {

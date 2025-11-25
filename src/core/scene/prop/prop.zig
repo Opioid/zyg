@@ -3,12 +3,13 @@ const Scene = @import("../scene.zig").Scene;
 const Space = @import("../space.zig").Space;
 const Vertex = @import("../vertex.zig").Vertex;
 const Material = @import("../material/material.zig").Material;
-const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const int = @import("../shape/intersection.zig");
 const Intersection = int.Intersection;
 const Fragment = int.Fragment;
 const Probe = @import("../shape/probe.zig").Probe;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
+const Sampler = @import("../../sampler/sampler.zig").Sampler;
+const Resources = @import("../../resource/manager.zig").Manager;
 
 const math = @import("base").math;
 const AABB = math.AABB;
@@ -90,10 +91,10 @@ pub const Prop = struct {
         self.properties.visible_in_shadow = false;
     }
 
-    pub fn configureShape(self: *Prop, resource: u32, materials: []const u32, unocc: bool, scene: *const Scene) void {
+    pub fn configureShape(self: *Prop, resource: u32, materials: []const u32, unocc: bool, resources: *const Resources) void {
         self.resource = resource;
 
-        const shape_inst = scene.shape(resource);
+        const shape_inst = resources.shape(resource);
 
         var mono = false;
         var pure_emissive = true;
@@ -104,7 +105,7 @@ pub const Prop = struct {
             const mid0 = materials[0];
 
             for (materials) |mid| {
-                const m = scene.material(mid);
+                const m = resources.material(mid);
                 if (m.evaluateVisibility()) {
                     self.properties.evaluate_visibility = true;
                 }
@@ -123,7 +124,7 @@ pub const Prop = struct {
             }
         }
 
-        const volumetric = shape_inst.finite() and mono and scene.material(materials[0]).ior() < 1.0;
+        const volumetric = shape_inst.finite() and mono and resources.material(materials[0]).ior() < 1.0;
 
         self.properties.solid = !volumetric;
         self.properties.volume = volumetric;
@@ -145,9 +146,9 @@ pub const Prop = struct {
 
     pub fn localAabb(self: Prop, scene: *const Scene) AABB {
         if (self.properties.instancer) {
-            return scene.instancer(self.resource).aabb();
+            return scene.resources.instancer(self.resource).aabb();
         } else {
-            return scene.shape(self.resource).aabb();
+            return scene.resources.shape(self.resource).aabb();
         }
     }
 
@@ -155,7 +156,7 @@ pub const Prop = struct {
         if (self.properties.instancer) {
             return true;
         } else {
-            return scene.shape(self.resource).finite();
+            return scene.resources.shape(self.resource).finite();
         }
     }
 
@@ -183,9 +184,9 @@ pub const Prop = struct {
         const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.frame_start, properties.static);
 
         if (properties.instancer) {
-            return scene.instancer(self.resource).intersect(probe, trafo, sss, sampler, scene, isec);
+            return scene.resources.instancer(self.resource).intersect(probe, trafo, sss, sampler, scene, isec);
         } else {
-            const shape = scene.shape(self.resource);
+            const shape = scene.resources.shape(self.resource);
 
             if (properties.evaluate_visibility) {
                 return shape.intersectOpacity(probe, trafo, prototype, sampler, scene, isec);
@@ -221,9 +222,9 @@ pub const Prop = struct {
         const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.frame_start, properties.static);
 
         if (properties.instancer) {
-            return scene.instancer(self.resource).visibility(Volumetric, probe, trafo, sampler, context, tr);
+            return scene.resources.instancer(self.resource).visibility(Volumetric, probe, trafo, sampler, context, tr);
         } else {
-            const shape = scene.shape(self.resource);
+            const shape = scene.resources.shape(self.resource);
 
             if (Volumetric) {
                 return shape.transmittance(probe, trafo, prototype, sampler, context, tr);
@@ -259,7 +260,7 @@ pub const Prop = struct {
         frag.isec.trafo = trafo;
         frag.prop = entity;
 
-        return scene.shape(self.resource).emission(vertex, frag, sampler, context);
+        return scene.resources.shape(self.resource).emission(vertex, frag, sampler, context);
     }
 
     pub fn scatter(
@@ -283,9 +284,9 @@ pub const Prop = struct {
         const trafo = space.transformationAtMaybeStatic(entity, probe.time, scene.frame_start, properties.static);
 
         if (properties.instancer) {
-            return scene.instancer(self.resource).scatter(probe, trafo, isec, throughput, sampler, context);
+            return scene.resources.instancer(self.resource).scatter(probe, trafo, isec, throughput, sampler, context);
         } else {
-            const result = scene.shape(self.resource).scatter(probe, trafo, throughput, prototype, sampler, context);
+            const result = scene.resources.shape(self.resource).scatter(probe, trafo, throughput, prototype, sampler, context);
 
             isec.prototype = Intersection.Null;
 

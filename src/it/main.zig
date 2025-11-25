@@ -43,11 +43,11 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var scene = try scn.Scene.init(alloc);
-    defer scene.deinit(alloc);
-
-    var resources = try resource.Manager.init(alloc, io, &scene, &threads);
+    var resources = try resource.Manager.init(alloc, io, &threads);
     defer resources.deinit(alloc);
+
+    var scene = try scn.Scene.init(alloc, &resources);
+    defer scene.deinit(alloc);
 
     const loading_start = chrono.now(io);
 
@@ -64,7 +64,7 @@ pub fn main() !void {
             },
             options.exposure,
         ),
-        .scene = &scene,
+        .resources = &resources,
     };
     defer operator.deinit(alloc);
 

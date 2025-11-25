@@ -1,6 +1,6 @@
 const core = @import("core");
 const image = core.image;
-const scn = core.scene;
+const Resources = core.resource.Manager;
 
 const base = @import("base");
 const math = base.math;
@@ -64,8 +64,8 @@ pub const Blur = struct {
         alloc.free(self.weights);
     }
 
-    pub fn process(self: Blur, target: *image.Float4, source: core.tx.Texture, scene: *const scn.Scene, begin: u32, end: u32) void {
-        const dim = source.dimensions(scene);
+    pub fn process(self: Blur, target: *image.Float4, source: core.tx.Texture, resources: *const Resources, begin: u32, end: u32) void {
+        const dim = source.dimensions(resources);
         const dim2 = Vec2i{ dim[0], dim[1] };
         const width = dim[0];
 
@@ -77,7 +77,7 @@ pub const Blur = struct {
             while (x < width) : (x += 1) {
                 const ix: i32 = @intCast(x);
 
-                const color = self.filter(source, dim2, ix, iy, scene);
+                const color = self.filter(source, dim2, ix, iy, resources);
 
                 const srgb = spectrum.aces.AP1tosRGB(color);
 
@@ -86,7 +86,7 @@ pub const Blur = struct {
         }
     }
 
-    fn filter(self: Blur, source: core.tx.Texture, dim: Vec2i, px: i32, py: i32, scene: *const scn.Scene) Vec4f {
+    fn filter(self: Blur, source: core.tx.Texture, dim: Vec2i, px: i32, py: i32, resources: *const Resources) Vec4f {
         const begin = -self.radius;
         const end = self.radius;
 
@@ -105,7 +105,7 @@ pub const Blur = struct {
 
                 w += 1;
 
-                const color = source.get2D_4(sx, sy, scene);
+                const color = source.get2D_4(sx, sy, resources);
 
                 result += weigth * color;
             }

@@ -257,7 +257,7 @@ pub const Perspective = struct {
         return .{ ss * d_x, ss * d_y };
     }
 
-    pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, scene: *const Scene, resources: *Resources) !void {
+    pub fn setParameters(self: *Self, alloc: Allocator, value: std.json.Value, resources: *Resources) !void {
         var iter = value.object.iterator();
         while (iter.next()) |entry| {
             if (std.mem.eql(u8, "fov", entry.key_ptr.*)) {
@@ -279,7 +279,7 @@ pub const Perspective = struct {
                     const texture = try tx.Provider.loadFile(alloc, shape, options, tx.Texture.DefaultMode, @splat(1.0), resources);
                     resources.commitAsync();
 
-                    try self.aperture.setShape(alloc, texture, scene);
+                    try self.aperture.setShape(alloc, texture, resources);
                 } else {
                     const blades = json.readUIntMember(entry.value_ptr.*, "blades", 0);
                     if (blades > 3) {
@@ -296,7 +296,7 @@ pub const Perspective = struct {
                         const iid = try resources.images.store(alloc, 0xFFFFFFFF, .{ .Byte1 = image });
 
                         const texture = try tx.Provider.createTexture(iid, .Opacity, tx.Texture.DefaultMode, @splat(1.0), resources);
-                        try self.aperture.setShape(alloc, texture, scene);
+                        try self.aperture.setShape(alloc, texture, resources);
                     }
                 }
             } else if (std.mem.eql(u8, "stereo", entry.key_ptr.*)) {

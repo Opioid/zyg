@@ -62,11 +62,11 @@ pub fn main() !void {
     try threads.configure(alloc, num_workers);
     defer threads.deinit(alloc);
 
-    var graph = try Graph.init(alloc);
-    defer graph.deinit(alloc);
-
-    var resources = try Resources.init(alloc, io, &graph.scene, &threads);
+    var resources = try Resources.init(alloc, io, &threads);
     defer resources.deinit(alloc);
+
+    var graph = try Graph.init(alloc, &resources);
+    defer graph.deinit(alloc);
 
     resources.materials.provider.setSettings(false, false, false);
 

@@ -3,9 +3,9 @@ const Denoise = @import("denoise.zig").Denoise;
 const DownSample = @import("down_sample.zig").DownSample;
 
 const core = @import("core");
-const scn = core.scene;
 const img = core.image;
 const Tonemapper = core.rendering.Sensor.Tonemapper;
+const Resources = core.resource.Manager;
 
 const base = @import("base");
 const math = base.math;
@@ -37,7 +37,7 @@ pub const Operator = struct {
     textures: List(core.tx.Texture) = .empty,
     target: img.Float4 = img.Float4.initEmpty(),
     tonemapper: Tonemapper,
-    scene: *const scn.Scene,
+    resources: *const Resources,
     current: u32 = 0,
 
     const Self = @This();
@@ -47,7 +47,7 @@ pub const Operator = struct {
             return;
         }
 
-        var dim = self.textures.items[0].dimensions(self.scene);
+        var dim = self.textures.items[0].dimensions(self.resources);
 
         if (.DownSample == self.class) {
             dim[0] = @intFromFloat(@floor(@as(f32, @floatFromInt(dim[0])) / 2.0));
@@ -129,7 +129,7 @@ pub const Operator = struct {
             const texture_a = self.textures.items[offset];
             const texture_b = self.textures.items[offset + 1];
 
-            const dim = texture_a.dimensions(self.scene);
+            const dim = texture_a.dimensions(self.resources);
             const width = dim[0];
 
             var y = begin;
@@ -140,14 +140,14 @@ pub const Operator = struct {
                 while (x < width) : (x += 1) {
                     const ix: i32 = @intCast(x);
 
-                    const color_a = self.tonemapper.tonemap(texture_a.get2D_4(ix, iy, self.scene));
-                    const color_b = self.tonemapper.tonemap(texture_b.get2D_4(ix, iy, self.scene));
+                    const color_a = self.tonemapper.tonemap(texture_a.get2D_4(ix, iy, self.resources));
+                    const color_b = self.tonemapper.tonemap(texture_b.get2D_4(ix, iy, self.resources));
 
                     self.target.set2D(ix, iy, Pack4f.init4(color_a[0], color_b[1], color_b[2], 0.5 * (color_a[3] + color_b[3])));
                 }
             }
         } else if (.Blur == self.class) {
-            self.class.Blur.process(&self.target, self.textures.items[self.current], self.scene, begin, end);
+            self.class.Blur.process(&self.target, self.textures.items[self.current], self.resources, begin, end);
         } else if (.Denoise == self.class) {
             const offset = self.current * 2;
             const color = self.textures.items[offset];
@@ -161,12 +161,12 @@ pub const Operator = struct {
             // at access time, like for bytes...
             const normal = if (1 == source_normal.bytesPerChannel()) source_normal.cast(.Byte3_snorm) catch source_normal else source_normal;
 
-            self.class.Denoise.process(&self.target, color, normal, albedo, depth, self.scene, begin, end);
+            self.class.Denoise.process(&self.target, color, normal, albedo, depth, self.resources, begin, end);
         } else if (.Diff == self.class) {
             const texture_a = self.textures.items[0];
             const texture_b = self.textures.items[self.current + 1];
 
-            const dim = texture_a.dimensions(self.scene);
+            const dim = texture_a.dimensions(self.resources);
             const width = dim[0];
 
             var y = begin;
@@ -177,8 +177,8 @@ pub const Operator = struct {
                 while (x < width) : (x += 1) {
                     const ix: i32 = @intCast(x);
 
-                    const color_a = texture_a.get2D_4(ix, iy, self.scene);
-                    const color_b = texture_b.get2D_4(ix, iy, self.scene);
+                    const color_a = texture_a.get2D_4(ix, iy, self.resources);
+                    const color_b = texture_b.get2D_4(ix, iy, self.resources);
 
                     const dif = @abs(color_a - color_b);
 
@@ -189,12 +189,12 @@ pub const Operator = struct {
             const current = self.current;
             const texture = self.textures.items[current];
 
-            DownSample.process(&self.target, texture, self.scene, begin, end);
+            DownSample.process(&self.target, texture, self.resources, begin, end);
         } else {
             const current = self.current;
             const texture = self.textures.items[current];
 
-            const dim = texture.dimensions(self.scene);
+            const dim = texture.dimensions(self.resources);
             const width = dim[0];
 
             const factor: Vec4f = @splat(if (.Average == self.class) 1.0 / @as(f32, @floatFromInt(self.textures.items.len)) else 1.0);
@@ -207,14 +207,14 @@ pub const Operator = struct {
                 while (x < width) : (x += 1) {
                     const ix: i32 = @intCast(x);
 
-                    const source = texture.get2D_4(ix, iy, self.scene);
+                    const source = texture.get2D_4(ix, iy, self.resources);
 
                     const color = switch (self.class) {
                         .Add, .Average => blk: {
                             var color = factor * source;
 
                             for (self.textures.items[current + 1 ..]) |t| {
-                                const other = t.get2D_4(ix, iy, self.scene);
+                                const other = t.get2D_4(ix, iy, self.resources);
                                 color += factor * other;
                             }
 
@@ -224,7 +224,7 @@ pub const Operator = struct {
                             var color = source;
 
                             for (self.textures.items[current + 1 ..]) |t| {
-                                const other = t.get2D_4(ix, iy, self.scene);
+                                const other = t.get2D_4(ix, iy, self.resources);
                                 color *= other;
                             }
 
@@ -235,7 +235,7 @@ pub const Operator = struct {
                             var color = source;
 
                             for (self.textures.items[current + 1 ..]) |t| {
-                                const other = t.get2D_4(ix, iy, self.scene);
+                                const other = t.get2D_4(ix, iy, self.resources);
                                 color += other * @as(Vec4f, @splat(1.0 - color[3]));
                             }
 

@@ -5,6 +5,7 @@ const Lighttracer = @import("../rendering/integrator/particle/lighttracer.zig").
 const hlp = @import("../rendering/integrator/helper.zig");
 const Depth = hlp.Depth;
 const LightSampling = hlp.LightSampling;
+const Resources = @import("../resource/manager.zig").Manager;
 const Scene = @import("../scene/scene.zig").Scene;
 const LightTree = @import("../scene/light/light_tree.zig");
 const SamplerFactory = @import("../sampler/sampler.zig").Factory;
@@ -127,9 +128,9 @@ pub const View = struct {
         }
     }
 
-    pub fn loadIntegrators(self: *View, value: std.json.Value, scene: *Scene) void {
+    pub fn loadIntegrators(self: *View, value: std.json.Value, resources: *Resources) void {
         if (value.object.get("specular_threshold")) |specular_threshold_node| {
-            scene.specular_threshold = math.pow2(json.readFloat(f32, specular_threshold_node));
+            resources.specular_threshold = math.pow2(json.readFloat(f32, specular_threshold_node));
         }
 
         if (value.object.get("particle")) |particle_node| {

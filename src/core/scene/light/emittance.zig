@@ -2,8 +2,8 @@ const Texture = @import("../../texture/texture.zig").Texture;
 const ts = @import("../../texture/texture_sampler.zig");
 const Sampler = @import("../../sampler/sampler.zig").Sampler;
 const Renderstate = @import("../renderstate.zig").Renderstate;
+const Resources = @import("../../resource/manager.zig").Manager;
 const Context = @import("../context.zig").Context;
-const Scene = @import("../scene.zig").Scene;
 const Trafo = @import("../composed_transformation.zig").ComposedTransformation;
 
 const base = @import("base");
@@ -45,7 +45,7 @@ pub const Emittance = struct {
             const o = enc.octEncode(lwi);
             const ouv = (o + @as(Vec2f, @splat(1.0))) * @as(Vec2f, @splat(0.5));
 
-            factor *= ts.sampleImage2D_1(self.profile, ouv, rs.stochastic_r, context.scene);
+            factor *= ts.sampleImage2D_1(self.profile, ouv, rs.stochastic_r, context.scene.resources);
         }
 
         const intensity = self.value * ts.sample2D_3(self.emission_map, rs, sampler, context);
@@ -70,16 +70,16 @@ pub const Emittance = struct {
         return emission * @as(Vec4f, @splat(area));
     }
 
-    pub fn imageRadiance(self: Emittance, uv: Vec2f, sampler: *Sampler, scene: *const Scene) Vec4f {
-        return self.value * ts.sampleImage2D_3(self.emission_map, uv, sampler.sample1D(), scene);
+    pub fn imageRadiance(self: Emittance, uv: Vec2f, sampler: *Sampler, resources: *const Resources) Vec4f {
+        return self.value * ts.sampleImage2D_3(self.emission_map, uv, sampler.sample1D(), resources);
     }
 
-    pub fn angleFromProfile(self: Emittance, scene: *const Scene) f32 {
+    pub fn angleFromProfile(self: Emittance, resources: *const Resources) f32 {
         if (!self.profile.isImage()) {
             return std.math.pi;
         }
 
-        const d = self.profile.dimensions(scene);
+        const d = self.profile.dimensions(resources);
 
         const idf = @as(Vec4f, @splat(1.0)) / @as(Vec4f, @floatFromInt(d));
 
@@ -93,7 +93,7 @@ pub const Emittance = struct {
             while (x < d[0]) : (x += 1) {
                 const u = idf[0] * (@as(f32, @floatFromInt(x)) + 0.5);
 
-                const s = self.profile.image2D_1(x, y, scene);
+                const s = self.profile.image2D_1(x, y, resources);
 
                 if (s > 0.0) {
                     const dir = enc.octDecode(@as(Vec2f, @splat(2.0)) * (Vec2f{ u, v } - @as(Vec2f, @splat(0.5))));

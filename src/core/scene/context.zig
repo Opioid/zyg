@@ -121,15 +121,15 @@ pub const Context = struct {
     }
 
     pub fn sampleProcedural2D_1(self: Self, texture: Texture, rs: Renderstate, sampler: *Sampler) f32 {
-        return self.scene.procedural.sample2D_1(texture, rs, sampler, self);
+        return self.scene.resources.procedural.sample2D_1(texture, rs, sampler, self);
     }
 
     pub fn sampleProcedural2D_2(self: Self, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec2f {
-        return self.scene.procedural.sample2D_2(texture, rs, sampler, self);
+        return self.scene.resources.procedural.sample2D_2(texture, rs, sampler, self);
     }
 
     pub fn sampleProcedural2D_3(self: Self, texture: Texture, rs: Renderstate, sampler: *Sampler) Vec4f {
-        return self.scene.procedural.sample2D_3(texture, rs, sampler, self);
+        return self.scene.resources.procedural.sample2D_3(texture, rs, sampler, self);
     }
 
     pub fn absoluteTime(self: Self, frame: u32, frame_delta: f32) u64 {

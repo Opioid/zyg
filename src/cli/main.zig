@@ -55,13 +55,13 @@ pub fn main() !void {
     // try core.rainbow_integrate.integrate(alloc);
     // try core.image.testing.write_reference_normal_map(alloc, "reference_normal.png");
 
-    var graph = try Graph.init(alloc);
-    defer graph.deinit(alloc);
-
-    var resources = try Resources.init(alloc, io, &graph.scene, &threads);
+    var resources = try Resources.init(alloc, io, &threads);
     defer resources.deinit(alloc);
 
     resources.materials.provider.setSettings(options.no_tex, options.no_tex_dwim, options.debug_material);
+
+    var graph = try Graph.init(alloc, &resources);
+    defer graph.deinit(alloc);
 
     var fs = &resources.fs;
 
@@ -190,7 +190,7 @@ fn reloadFrameDependant(
 
     const loading_start = chrono.now(io);
 
-    try graph.scene.commitMaterials(alloc, resources.threads);
+    try resources.commitMaterials(alloc);
     graph.clear(alloc, false);
 
     // This is a hack to recreate the camera entities that come from the take file in the scene.
@@ -216,5 +216,5 @@ fn reloadFrameDependant(
 fn printStats(scene: *const scn.Scene) void {
     std.debug.print("#props:     {}\n", .{scene.props.items.len});
     std.debug.print("#lights:    {}\n", .{scene.lights.items.len});
-    std.debug.print("#materials: {}\n", .{scene.materials.items.len});
+    std.debug.print("#materials: {}\n", .{scene.resources.materials.resources.items.len});
 }
