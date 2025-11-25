@@ -46,7 +46,7 @@ pub const Driver = struct {
     tiles: TileQueue = undefined,
     ranges: RangeQueue = undefined,
 
-    target: img.Float4 = img.Float4.initEmpty(),
+    target: img.Float4 = .initEmpty(),
 
     photon_map: PhotonMap = .{},
 

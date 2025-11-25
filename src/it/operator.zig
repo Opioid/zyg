@@ -35,7 +35,7 @@ pub const Operator = struct {
     class: Class,
 
     textures: List(core.tx.Texture) = .empty,
-    target: img.Float4 = img.Float4.initEmpty(),
+    target: img.Float4 = .initEmpty(),
     tonemapper: Tonemapper,
     resources: *const Resources,
     current: u32 = 0,

@@ -57,7 +57,7 @@ pub const Sky = struct {
         const sun_mat_id = try scene.resources.createMaterial(alloc, .{ .Sky = sun_mat });
         const sun_prop = try scene.createPropShape(alloc, @intFromEnum(Resources.ShapeID.Distant), &.{sun_mat_id}, true, false);
 
-        const sky_image = try scene.resources.createImage(alloc, .{ .Float3 = img.Float3.initEmpty() });
+        const sky_image = try scene.resources.createImage(alloc, .{ .Float3 = .initEmpty() });
         const emission_map = Texture.initImage(.Float3, sky_image, Texture.DefaultClampMode, @splat(1.0));
         var sky_mat = SkyMaterial.initSky(emission_map);
         sky_mat.commit();

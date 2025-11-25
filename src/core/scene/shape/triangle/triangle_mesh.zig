@@ -187,7 +187,7 @@ pub const Part = struct {
 
                     const puv = self.tree.data.trianglePuv(itri);
                     const uv_area = triangleArea(puv.uv[0], puv.uv[1], puv.uv[2]);
-                    const num_samples = @max(@as(u32, @intFromFloat(@round(uv_area * self.estimate_area + 0.5))), 1);
+                    const num_samples: u32 = @intFromFloat(@ceil(uv_area * self.estimate_area));
 
                     var radiance: Vec4f = @splat(0.0);
 
