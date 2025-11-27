@@ -215,33 +215,46 @@ fn reloadFrameDependant(
 
 fn printStats(scene: *const scn.Scene) !void {
     std.debug.print("Statistics\n", .{});
-    std.debug.print("#props:     {}\n", .{scene.props.items.len});
 
     {
-        var num_bytes: usize = 0;
-        for (scene.samplers.resources.items) |*s| {
-            num_bytes += s.impl.estimateNumBytes();
-        }
+        const num_bytes = scene.numPropBytes();
 
-        num_bytes += scene.light_distribution.numBytes();
-        num_bytes += scene.light_tree.estimateNumBytes();
+        var bytes_buf: [16]u8 = undefined;
+        const bytes_str = try formatBytes(num_bytes, &bytes_buf);
 
-        var bytes_buf: [32]u8 = undefined;
+        std.debug.print("#props:     {}\t{s}\n", .{ scene.props.items.len, bytes_str });
+    }
+
+    {
+        const num_bytes = scene.numLightBytes();
+
+        var bytes_buf: [16]u8 = undefined;
         const bytes_str = try formatBytes(num_bytes, &bytes_buf);
 
         std.debug.print("#lights:    {}\t{s}\n", .{ scene.lights.items.len, bytes_str });
     }
 
-    std.debug.print("#shapes:    {}\n", .{scene.resources.shapes.resources.items.len});
+    {
+        var num_bytes: usize = 0;
+        for (scene.resources.shapes.resources.items) |*s| {
+            num_bytes += s.numBytes();
+        }
+
+        var bytes_buf: [16]u8 = undefined;
+        const bytes_str = try formatBytes(num_bytes, &bytes_buf);
+
+        std.debug.print("#shapes:    {}\t{s}\n", .{ scene.resources.shapes.resources.items.len, bytes_str });
+    }
+
     std.debug.print("#materials: {}\n", .{scene.resources.materials.resources.items.len});
 
     {
         var num_bytes: usize = 0;
         for (scene.resources.images.resources.items) |i| {
-            num_bytes += i.estimateNumBytes();
+            num_bytes += i.numBytes();
         }
 
-        var bytes_buf: [32]u8 = undefined;
+        var bytes_buf: [16]u8 = undefined;
         const bytes_str = try formatBytes(num_bytes, &bytes_buf);
 
         std.debug.print("#images:    {}\t{s}\n", .{ scene.resources.images.resources.items.len, bytes_str });

@@ -117,9 +117,9 @@ const Impl = union(enum) {
         };
     }
 
-    pub fn estimateNumBytes(self: *const Self) usize {
+    pub fn numBytes(self: *const Self) usize {
         return switch (self.*) {
-            inline .Image, .Mesh => |*i| i.estimateNumBytes(),
+            inline .Image, .Mesh => |*i| i.numBytes(),
             else => 0,
         };
     }
@@ -146,7 +146,7 @@ const ImageImpl = struct {
         return self.distribution.pdf(self.mode.address2(uv)) * self.total_weight;
     }
 
-    pub fn estimateNumBytes(self: *const Self) usize {
+    pub fn numBytes(self: *const Self) usize {
         return self.distribution.numBytes();
     }
 };
@@ -253,9 +253,9 @@ pub const MeshImpl = struct {
         return self.light_tree.pdf(p, n, total_sphere, split_threshold, id, self);
     }
 
-    pub fn estimateNumBytes(self: *const Self) usize {
+    pub fn numBytes(self: *const Self) usize {
         var num_bytes = self.distribution.numBytes();
-        num_bytes += self.light_tree.estimateNumBytes();
+        num_bytes += self.light_tree.numBytes();
         return num_bytes;
     }
 };

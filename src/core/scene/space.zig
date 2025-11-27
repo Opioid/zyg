@@ -175,4 +175,15 @@ pub const Space = struct {
             f.scale = scale;
         }
     }
+
+    pub fn numBytes(self: *const Self) usize {
+        var num_bytes: usize = 0;
+
+        num_bytes += self.world_transformations.items.len * @sizeOf(Transformation);
+        num_bytes += self.frames.items.len * @sizeOf(u32);
+        num_bytes += self.aabbs.items.len * @sizeOf(AABB);
+        num_bytes += self.keyframes.items.len * @sizeOf(math.Transformation);
+
+        return num_bytes;
+    }
 };

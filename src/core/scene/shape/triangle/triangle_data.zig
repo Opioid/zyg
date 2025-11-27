@@ -214,4 +214,14 @@ pub const Data = struct {
 
         tc.* = triangle.interpolate2(uva, uvb, uvc, uv[0], uv[1]);
     }
+
+    pub fn numBytes(self: Self) usize {
+        var num_bytes: usize = 0;
+        num_bytes += self.num_triangles * @sizeOf(Triangle);
+        num_bytes += self.num_triangles * @sizeOf(u16);
+        num_bytes += self.num_vertices * @sizeOf(f32);
+        num_bytes += self.num_vertices * @sizeOf(Vec2us);
+        num_bytes += self.num_vertices * @sizeOf(Vec2f);
+        return num_bytes;
+    }
 };

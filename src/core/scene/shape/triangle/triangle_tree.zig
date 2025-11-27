@@ -475,4 +475,10 @@ pub const Tree = struct {
 
         return energy;
     }
+
+    pub fn numBytes(self: Tree) usize {
+        var num_bytes = self.nodes.len * @sizeOf(Node);
+        num_bytes += self.data.numBytes();
+        return num_bytes;
+    }
 };

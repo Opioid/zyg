@@ -732,4 +732,44 @@ pub const Scene = struct {
     fn matching(a: u64, b: u64) bool {
         return 0 == (if (a > b) a % b else (if (0 == a) 0 else b % a));
     }
+
+    pub fn numPropBytes(self: *const Scene) usize {
+        var num_bytes: usize = 0;
+
+        num_bytes += self.solid_bvh.numBytes();
+        num_bytes += self.unoccluding_bvh.numBytes();
+        num_bytes += self.volume_bvh.numBytes();
+
+        num_bytes += self.props.items.len * @sizeOf(Prop);
+        num_bytes += self.prop_parts.items.len * @sizeOf(u32);
+        num_bytes += self.prop_space.numBytes();
+
+        num_bytes += self.material_ids.items.len * @sizeOf(u32);
+        num_bytes += self.light_ids.items.len * @sizeOf(u32);
+
+        num_bytes += self.finite_props.items.len * @sizeOf(u32);
+        num_bytes += self.infinite_props.items.len * @sizeOf(u32);
+        num_bytes += self.unoccluding_props.items.len * @sizeOf(u32);
+        num_bytes += self.volume_props.items.len * @sizeOf(u32);
+
+        return num_bytes;
+    }
+
+    pub fn numLightBytes(self: *const Scene) usize {
+        var num_bytes: usize = 0;
+
+        for (self.samplers.resources.items) |*s| {
+            num_bytes += s.impl.numBytes();
+        }
+
+        num_bytes += self.light_distribution.numBytes();
+        num_bytes += self.light_tree.numBytes();
+
+        num_bytes += self.lights.items.len * @sizeOf(Light);
+        num_bytes += self.light_aabbs.items.len * @sizeOf(AABB);
+        num_bytes += self.light_cones.items.len * @sizeOf(Vec4f);
+        num_bytes += self.light_links.items.len * @sizeOf(u32);
+
+        return num_bytes;
+    }
 };

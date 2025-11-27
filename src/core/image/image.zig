@@ -79,7 +79,7 @@ pub const Image = union(enum) {
         };
     }
 
-    pub fn estimateNumBytes(self: Image) usize {
+    pub fn numBytes(self: Image) usize {
         const dim = self.dimensions();
         const num_pixels = @as(u64, @intCast(dim[0])) *
             @as(u64, @intCast(dim[1])) *

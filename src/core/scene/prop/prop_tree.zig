@@ -498,4 +498,10 @@ pub const Tree = struct {
 
         return result;
     }
+
+    pub fn numBytes(self: Tree) usize {
+        var num_bytes = self.num_nodes * @sizeOf(Node);
+        num_bytes += self.num_indices * @sizeOf(u32);
+        return num_bytes;
+    }
 };

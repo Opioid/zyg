@@ -758,4 +758,8 @@ pub const Mesh = struct {
 
         return .{ .dpdu = dpdu_w, .dpdv = dpdv_w };
     }
+
+    pub fn numByte(self: *const Mesh) usize {
+        return self.tree.numBytes();
+    }
 };

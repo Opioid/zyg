@@ -573,4 +573,11 @@ pub const Shape = union(enum) {
             },
         };
     }
+
+    pub fn numBytes(self: *const Shape) usize {
+        return switch (self.*) {
+            .TriangleMesh => |*m| m.numByte(),
+            else => 0,
+        };
+    }
 };

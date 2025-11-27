@@ -316,7 +316,7 @@ pub const Tree = struct {
         }
     }
 
-    pub fn estimateNumBytes(self: *const Tree) usize {
+    pub fn numBytes(self: *const Tree) usize {
         var num_bytes: usize = @sizeOf(Tree);
 
         num_bytes += self.num_nodes * @sizeOf(Node);
@@ -566,7 +566,7 @@ pub const PrimitiveTree = struct {
         }
     }
 
-    pub fn estimateNumBytes(self: *const Self) usize {
+    pub fn numBytes(self: *const Self) usize {
         var num_bytes: usize = @sizeOf(Self);
 
         num_bytes += self.num_nodes * @sizeOf(Node);
