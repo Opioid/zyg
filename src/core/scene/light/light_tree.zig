@@ -316,6 +316,21 @@ pub const Tree = struct {
         }
     }
 
+    pub fn estimateNumBytes(self: *const Tree) usize {
+        var num_bytes: usize = @sizeOf(Tree);
+
+        num_bytes += self.num_nodes * @sizeOf(Node);
+        num_bytes += self.num_nodes * @sizeOf(u32);
+
+        num_bytes += self.num_lights * @sizeOf(u32);
+        num_bytes += self.num_lights * @sizeOf(u32);
+
+        num_bytes += self.num_infinite_lights * @sizeOf(f32);
+        num_bytes += self.infinite_light_distribution.numBytes();
+
+        return num_bytes;
+    }
+
     pub fn potentialMaxLights(self: *const Tree, scene: *const Scene) u32 {
         // const num_finite: u32 = @intFromFloat(std.math.pow(f32, 2.0, @floatFromInt(self.max_split_depth)));
         // return num_finite + self.num_infinite_lights;
@@ -549,6 +564,18 @@ pub const PrimitiveTree = struct {
             self.node_middles = (try alloc.realloc(self.node_middles[0..nn], num_nodes)).ptr;
             self.num_nodes = num_nodes;
         }
+    }
+
+    pub fn estimateNumBytes(self: *const Self) usize {
+        var num_bytes: usize = @sizeOf(Self);
+
+        num_bytes += self.num_nodes * @sizeOf(Node);
+        num_bytes += self.num_nodes * @sizeOf(u32);
+
+        num_bytes += self.num_lights * @sizeOf(u32);
+        num_bytes += self.num_lights * @sizeOf(u32);
+
+        return num_bytes;
     }
 
     pub fn randomLight(

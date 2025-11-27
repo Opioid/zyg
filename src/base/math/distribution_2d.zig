@@ -26,6 +26,16 @@ pub const Distribution2D = struct {
         self.marginal.deinit(alloc);
     }
 
+    pub fn numBytes(self: Self) usize {
+        var num_bytes = self.marginal.numBytes();
+
+        for (self.conditional) |*c| {
+            num_bytes += c.numBytes();
+        }
+
+        return num_bytes;
+    }
+
     pub fn allocate(self: *Self, alloc: Allocator, num: u32) ![]Distribution1D {
         if (self.conditional.len != num) {
             for (self.conditional) |*c| {

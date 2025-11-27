@@ -78,4 +78,28 @@ pub const Image = union(enum) {
             inline else => |i| i.dimensions,
         };
     }
+
+    pub fn estimateNumBytes(self: Image) usize {
+        const dim = self.dimensions();
+        const num_pixels = @as(u64, @intCast(dim[0])) *
+            @as(u64, @intCast(dim[1])) *
+            @as(u64, @intCast(dim[2]));
+
+        const bytes_per_pixel: u64 = switch (self) {
+            .Byte1 => 1,
+            .Byte2 => 2,
+            .Byte3 => 3,
+            .Byte4 => 4,
+            .Half1 => 2,
+            .Half3 => 6,
+            .Half4 => 8,
+            .Float1 => 4,
+            .Float1Sparse => 4, // This is not true!
+            .Float2 => 8,
+            .Float3 => 12,
+            .Float4 => 16,
+        };
+
+        return num_pixels * bytes_per_pixel;
+    }
 };

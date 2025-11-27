@@ -116,6 +116,13 @@ const Impl = union(enum) {
             else => shape.cone(),
         };
     }
+
+    pub fn estimateNumBytes(self: *const Self) usize {
+        return switch (self.*) {
+            inline .Image, .Mesh => |*i| i.estimateNumBytes(),
+            else => 0,
+        };
+    }
 };
 
 const ImageImpl = struct {
@@ -137,6 +144,10 @@ const ImageImpl = struct {
 
     pub fn pdf(self: *const Self, uv: Vec2f) f32 {
         return self.distribution.pdf(self.mode.address2(uv)) * self.total_weight;
+    }
+
+    pub fn estimateNumBytes(self: *const Self) usize {
+        return self.distribution.numBytes();
     }
 };
 
@@ -240,6 +251,12 @@ pub const MeshImpl = struct {
         // return self.variants.items[variant].distribution.pdfI(id);
 
         return self.light_tree.pdf(p, n, total_sphere, split_threshold, id, self);
+    }
+
+    pub fn estimateNumBytes(self: *const Self) usize {
+        var num_bytes = self.distribution.numBytes();
+        num_bytes += self.light_tree.estimateNumBytes();
+        return num_bytes;
     }
 };
 

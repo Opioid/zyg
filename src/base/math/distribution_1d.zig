@@ -39,6 +39,13 @@ pub const Distribution1D = struct {
         }
     }
 
+    pub fn numBytes(self: Self) usize {
+        var num_bytes: usize = @sizeOf(Self);
+        num_bytes += self.size * @sizeOf(f32);
+        num_bytes += self.lut_size * @sizeOf(u32);
+        return num_bytes;
+    }
+
     pub fn sample(self: Self, r: f32) u32 {
         const bucket = self.map(r);
         const begin = self.lut[bucket];

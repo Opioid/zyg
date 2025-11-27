@@ -95,10 +95,6 @@ pub fn main() !void {
     )) {
         log.info("Loading time {d:.2} s", .{chrono.secondsSince(io, loading_start)});
 
-        if (options.stats) {
-            printStats(&graph.scene);
-        }
-
         log.info("Rendering...", .{});
 
         const rendering_start = chrono.now(io);
@@ -128,6 +124,10 @@ pub fn main() !void {
         }
 
         log.info("Total render time {d:.2} s", .{chrono.secondsSince(io, rendering_start)});
+
+        if (options.stats) {
+            try printStats(&graph.scene);
+        }
     }
 }
 
@@ -213,8 +213,59 @@ fn reloadFrameDependant(
     log.info("Loading time {d:.2} s", .{chrono.secondsSince(io, loading_start)});
 }
 
-fn printStats(scene: *const scn.Scene) void {
+fn printStats(scene: *const scn.Scene) !void {
+    std.debug.print("Statistics\n", .{});
     std.debug.print("#props:     {}\n", .{scene.props.items.len});
-    std.debug.print("#lights:    {}\n", .{scene.lights.items.len});
+
+    {
+        var num_bytes: usize = 0;
+        for (scene.samplers.resources.items) |*s| {
+            num_bytes += s.impl.estimateNumBytes();
+        }
+
+        num_bytes += scene.light_distribution.numBytes();
+        num_bytes += scene.light_tree.estimateNumBytes();
+
+        var bytes_buf: [32]u8 = undefined;
+        const bytes_str = try formatBytes(num_bytes, &bytes_buf);
+
+        std.debug.print("#lights:    {}\t{s}\n", .{ scene.lights.items.len, bytes_str });
+    }
+
+    std.debug.print("#shapes:    {}\n", .{scene.resources.shapes.resources.items.len});
     std.debug.print("#materials: {}\n", .{scene.resources.materials.resources.items.len});
+
+    {
+        var num_bytes: usize = 0;
+        for (scene.resources.images.resources.items) |i| {
+            num_bytes += i.estimateNumBytes();
+        }
+
+        var bytes_buf: [32]u8 = undefined;
+        const bytes_str = try formatBytes(num_bytes, &bytes_buf);
+
+        std.debug.print("#images:    {}\t{s}\n", .{ scene.resources.images.resources.items.len, bytes_str });
+    }
+}
+
+fn formatBytes(num_bytes: usize, buffer: []u8) ![]u8 {
+    if (num_bytes < 1024) {
+        return try std.fmt.bufPrint(buffer, "{d} Bytes", .{num_bytes});
+    }
+
+    const fnum_bytes: f64 = @floatFromInt(num_bytes);
+
+    if (num_bytes < 1024 * 1024) {
+        return try std.fmt.bufPrint(buffer, "{d:4.0} KiB", .{fnum_bytes / 1024});
+    }
+
+    if (num_bytes < 1024 * 1024 * 1024) {
+        return try std.fmt.bufPrint(buffer, "{d:4.1} MiB", .{fnum_bytes / (1024 * 1024)});
+    }
+
+    if (num_bytes < 1024 * 1024 * 1024 * 1024) {
+        return try std.fmt.bufPrint(buffer, "{d:4.2} GiB", .{fnum_bytes / (1024 * 1024 * 1024)});
+    }
+
+    return try std.fmt.bufPrint(buffer, "{d:5.3} TiB", .{fnum_bytes / (1024 * 1024 * 1024 * 1024)});
 }
