@@ -43,6 +43,15 @@ pub const Reader = struct {
         pub fn deinit(self: *Chunk, alloc: Allocator) void {
             alloc.free(self.data);
         }
+
+        fn read(self: *Chunk, alloc: Allocator, stream: ReadStream) !void {
+            try self.allocate(alloc);
+
+            _ = try stream.read(self.data[0..self.length]);
+
+            // crc32
+            try stream.discard(4);
+        }
     };
 
     const Filter = enum(u8) { None, Sub, Up, Average, Paeth };
@@ -398,19 +407,7 @@ pub const Reader = struct {
         }
     };
 
-    chunk: Chunk = .{},
-
-    infos: [2]Info = .{ Info.init(), Info.init() },
-
-    current_info: u32 = 0,
-
-    pub fn deinit(self: *Reader, alloc: Allocator) void {
-        self.infos[0].deinit(alloc);
-        self.infos[1].deinit(alloc);
-        self.chunk.deinit(alloc);
-    }
-
-    pub fn read(self: *Reader, alloc: Allocator, stream: ReadStream, swizzle: Swizzle, invert: bool, threads: *Threads) !Image {
+    pub fn read(alloc: Allocator, stream: ReadStream, swizzle: Swizzle, invert: bool, threads: *Threads) !Image {
         var signature: [Signature.len]u8 = undefined;
         _ = try stream.read(&signature);
 
@@ -418,29 +415,45 @@ pub const Reader = struct {
             return Error.BadPNGSignature;
         }
 
-        const info = &self.infos[self.current_info];
+        var info = Info.init();
 
-        while (try self.handleChunk(alloc, stream, info)) {}
+        {
+            var chunk: Chunk = .{};
+            defer chunk.deinit(alloc);
+
+            while (try handleChunk(alloc, stream, &chunk, &info)) {}
+        }
 
         const image = try info.allocateImage(alloc, swizzle, invert);
 
         if (threads.runningAsync()) {
             try info.process();
+            info.deinit(alloc);
         } else {
-            self.current_info = if (0 == self.current_info) 1 else 0;
-            threads.runAsync(info, createImageAsync);
+            var context = try alloc.create(AsyncContext);
+            context.alloc = alloc;
+            context.info = info;
+            threads.runAsync(context, createImageAsync);
         }
 
         return image;
     }
 
-    fn createImageAsync(context: ThreadContext) void {
-        const info: *Info = @ptrCast(@alignCast(context));
+    const AsyncContext = struct {
+        alloc: Allocator,
+        info: Info,
+    };
 
-        info.process() catch {};
+    fn createImageAsync(context: ThreadContext) void {
+        const acontext: *AsyncContext = @ptrCast(@alignCast(context));
+
+        acontext.info.process() catch {};
+        acontext.info.deinit(acontext.alloc);
+
+        acontext.alloc.destroy(acontext);
     }
 
-    fn handleChunk(self: *Reader, alloc: Allocator, stream: ReadStream, info: *Info) !bool {
+    fn handleChunk(alloc: Allocator, stream: ReadStream, chunk: *Chunk, info: *Info) !bool {
         var length: u32 = 0;
         _ = try stream.read(std.mem.asBytes(&length));
 
@@ -451,8 +464,6 @@ pub const Reader = struct {
             return false;
         }
 
-        const chunk = &self.chunk;
-
         chunk.length = length;
 
         var chunk_type: u32 = 0;
@@ -460,8 +471,8 @@ pub const Reader = struct {
 
         // IHDR: 0x52444849
         if (0x52444849 == chunk_type) {
-            try readChunk(alloc, stream, chunk);
-            try self.parseHeader(alloc, info);
+            try chunk.read(alloc, stream);
+            try parseHeader(alloc, chunk, info);
 
             return true;
         }
@@ -474,7 +485,7 @@ pub const Reader = struct {
 
             const data_chunk = &info.data_chunks.items[info.num_chunks];
             data_chunk.length = length;
-            try readChunk(alloc, stream, data_chunk);
+            try data_chunk.read(alloc, stream);
 
             info.num_chunks += 1;
 
@@ -491,18 +502,7 @@ pub const Reader = struct {
         return true;
     }
 
-    fn readChunk(alloc: Allocator, stream: ReadStream, chunk: *Chunk) !void {
-        try chunk.allocate(alloc);
-
-        _ = try stream.read(chunk.data[0..chunk.length]);
-
-        // crc32
-        try stream.discard(4);
-    }
-
-    fn parseHeader(self: *Reader, alloc: Allocator, info: *Info) !void {
-        const chunk = self.chunk;
-
+    fn parseHeader(alloc: Allocator, chunk: *const Chunk, info: *Info) !void {
         info.width = @intCast(std.mem.readInt(u32, chunk.data[0..4], .big));
         info.height = @intCast(std.mem.readInt(u32, chunk.data[4..8], .big));
 

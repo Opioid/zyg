@@ -19,10 +19,9 @@ pub const Provider = struct {
         UnknownImageType,
     };
 
-    png_reader: PngReader = .{},
-
     pub fn deinit(self: *Provider, alloc: Allocator) void {
-        self.png_reader.deinit(alloc);
+        _ = self;
+        _ = alloc;
     }
 
     pub fn loadFile(
@@ -32,6 +31,8 @@ pub const Provider = struct {
         options: Variants,
         resources: *Resources,
     ) !Result(Image) {
+        _ = self;
+
         var stream = try resources.fs.readStream(alloc, name);
         defer stream.deinit();
 
@@ -50,7 +51,7 @@ pub const Provider = struct {
 
         if (.PNG == file_type) {
             const invert = options.queryOr("invert", false);
-            return .{ .data = try self.png_reader.read(alloc, stream, swizzle, invert, resources.threads) };
+            return .{ .data = try PngReader.read(alloc, stream, swizzle, invert, resources.threads) };
         }
 
         if (.RGBE == file_type) {
